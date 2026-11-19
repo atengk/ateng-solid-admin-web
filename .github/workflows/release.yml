@@ -32,10 +32,8 @@ jobs:
       - name: 检出源码
         uses: actions/checkout@v4
 
-      - name: 安装 pnpm 11
+      - name: 安装 pnpm (按 packageManager 自动匹配)
         uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
       - name: 设置 Node.js 22 环境
         uses: actions/setup-node@v4
@@ -129,10 +127,8 @@ jobs:
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: 安装 pnpm 11
+      - name: 安装 pnpm (按 packageManager 自动匹配)
         uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
       - name: 设置 Node.js 22 环境
         uses: actions/setup-node@v4
