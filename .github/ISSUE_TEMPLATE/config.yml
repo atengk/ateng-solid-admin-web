@@ -1,0 +1,13 @@
+# ==============================================================================
+# GitHub Issues 治理配置 (ateng-solid-admin-web)
+# ==============================================================================
+
+blank_issues_enabled: false
+
+contact_links:
+  - name: 💬 技术答疑与交互交流 (GitHub Discussions)
+    url: https://github.com/atengk/ateng-solid-admin-web/discussions
+    about: 请在此讨论页面交互、ateng-ui 组件集成、TailwindCSS 规范与路由权限问题。
+  - name: 📖 管理后台前端文档 (Documentation)
+    url: https://github.com/atengk/ateng-solid-admin-web#readme
+    about: 查阅技术栈基线、环境配置与四合一检验指令。

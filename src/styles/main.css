@@ -1,0 +1,28 @@
+/*
+ * 全局混合样式入口：严格遵循 Element Plus -> ateng-ui theme-pro -> TailwindCSS v4（禁 Preflight）顺序。
+ *
+ * 严禁引入 tailwindcss/preflight.css 或 @import "tailwindcss"; 总入口，避免重置 Element Plus 基础盒模型。
+ *
+ * @author Ateng
+ * @since 2026-11-19
+ */
+
+@import 'element-plus/dist/index.css';
+@import 'element-plus/theme-chalk/dark/css-vars.css';
+@import '@atengk/element-plus/style.css';
+@import '@atengk/element-plus/theme-pro.css';
+
+@import 'tailwindcss/theme.css';
+@import 'tailwindcss/utilities.css';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-page: var(--el-bg-color-page);
+  --color-card: var(--el-bg-color-overlay);
+  --color-main: var(--el-text-color-primary);
+  --color-regular: var(--el-text-color-regular);
+  --color-secondary: var(--el-text-color-secondary);
+  --color-subtle: var(--el-border-color);
+  --color-brand: var(--el-color-primary);
+}

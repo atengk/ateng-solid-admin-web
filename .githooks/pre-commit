@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Git 预提交代码质量增量检查钩子 (Pre-commit Hook)
+#
+# 在存在 package.json 且已安装依赖时，优先运行 lint-staged（增量 Prettier/ESLint），
+# 或降级运行 typecheck + lint，确保入库前端代码符合规范。
+#
+# @author Ateng
+# @since 2026-11-18
+# ==============================================================================
+
+set -eo pipefail
+
+if [ ! -f package.json ] || [ ! -d node_modules ]; then
+  echo "ℹ️ [pre-commit] 尚未初始化前端依赖，跳过静态预检。"
+  exit 0
+fi
+
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "⚠️ [pre-commit] 未检测到 pnpm，跳过本地预提交检查。"
+  exit 0
+fi
+
+if node -e "const p=require('./package.json'); process.exit((p.devDependencies&&p.devDependencies['lint-staged'])||p['lint-staged']?0:1)" 2>/dev/null; then
+  pnpm exec lint-staged
+else
+  if node -e "const s=(require('./package.json').scripts||{}); process.exit(s.typecheck?0:1)" 2>/dev/null; then
+    pnpm run typecheck
+  fi
+  if node -e "const s=(require('./package.json').scripts||{}); process.exit(s.lint?0:1)" 2>/dev/null; then
+    pnpm run lint
+  fi
+fi
