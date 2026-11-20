@@ -51,7 +51,7 @@ ateng-solid-admin-web/
 2. **TypeScript Strict Mode**：
    - 开启 `"strict": true`、`"noImplicitAny": true`、`"strictNullChecks": true`、`"noUncheckedIndexedAccess": true`、`"forceConsistentCasingInFileNames": true`。
 3. **Prettier**：
-   - 由根目录 [`.prettierrc`](../../.prettierrc) 统一托管（`singleQuote: true`、`semi: true`、`printWidth: 100`、`endOfLine: "lf"`）。
+   - 由前端子仓根目录 [`.prettierrc`](../../.prettierrc) 统一托管（`singleQuote: true`、`semi: true`、`printWidth: 100`、`endOfLine: "lf"`）。
 
 ---
 
@@ -63,10 +63,13 @@ ateng-solid-admin-web/
 # 应用标题
 VITE_APP_TITLE=ateng-solid 管理后台
 
-# API 基础前缀（开发期由 Vite Proxy 转发至后端）
-VITE_API_BASE_URL=/api
+# 本地开发端口
+VITE_PORT=5173
 
-# 开发代理目标（本地联调可在 .env.local 覆盖）
+# 接口请求基础地址（默认留空直通 /admin/**；生产独立网关域可配置完整基地址）
+VITE_API_BASE_URL=
+
+# 开发代理目标（本地联调可在 .env.local 覆盖为单体服务或网关地址）
 VITE_PROXY_TARGET=http://127.0.0.1:8080
 
 # 是否启用 @atengk/monitor 前端异常与性能采集（默认关闭或本地控制台模式）
@@ -74,7 +77,7 @@ VITE_MONITOR_ENABLED=false
 VITE_MONITOR_DSN=
 ```
 
-- **Proxy 重写规则**：当后端端点为 `/admin/**`、前端请求配置 `/admin/**` 时，若 `VITE_API_BASE_URL` 设为空或 `/`（代理 `/admin` ➔ `VITE_PROXY_TARGET`），或设为 `/api` 并在 Vite Proxy 剥离 `/api` 前缀，全项目必须保持单一口径一致（推荐直接统一通过 `VITE_API_BASE_URL` 前缀代理 `/admin` 或配置 `/api` Rewrite）。
+- **直通 `/admin` 代理规则**：前端 `src/api/*` 统一使用 `/admin/<域>/<资源>` 路径，`VITE_API_BASE_URL` 默认留空；`vite.config.ts` 仅代理 `'/admin'` ➔ `VITE_PROXY_TARGET`（零路径重写），与后端单体及未来 `ateng-cloud-gateway` 路径 100% 对称。
 
 ---
 
@@ -91,3 +94,12 @@ VITE_MONITOR_DSN=
 3. **测试隔离规范（Vitest）**：
    - 测试环境使用 `happy-dom` 或 `jsdom`，网络层全部通过 `vi.mock` 拦截；
    - 每个用例 `beforeEach`/`afterEach` 必须清理 `localStorage`、`sessionStorage`、Pinia 状态与挂载 DOM（`wrapper.unmount()`）。
+
+---
+
+## 5. 装配期可插拔扩展模块约定 (`SolidFeatureModule`)
+
+1. **特性自发现目录（首期不建空目录）**：
+   - 后续扩展特性（如社交登录、实时站内信或 `biz-*` 业务域）统一内聚于 `src/modules/<feature>/`（独立维护 `api/`、`views/`、`stores/` 与 `index.ts`），由核心入口通过 `import.meta.glob('@/modules/*/index.ts', { eager: true })` 自动扫描注册并按启用开关加载。
+   - **可逆剥离**：移除目录或关闭开关后，Vite Tree-shaking 自动剔除该扩展全部代码与分包，无需修改核心路由表或 `main.ts`。
+2. **轻量 UI 扩展挂点**：仅在确有跨模块协同需要时在核心页面（如登录页第三方按钮区、个人中心扩展页签）按需预留轻量 Extension Slot，不引入重型微前端框架或通用插件引擎。

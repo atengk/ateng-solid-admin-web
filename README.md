@@ -1,6 +1,6 @@
 # ateng-solid-admin-web
 
-**ateng-solid-admin-web** 是 **ateng-solid** 全端多端数字化系统的管理后台 Web 前端工程，基于 [`ateng-ui`](https://github.com/atengk/ateng-ui) (`1.0.0`+) 基础设施套件与 **TailwindCSS（禁用 Preflight）+ Element Plus `theme-pro`** 混合样式架构构建。
+**ateng-solid-admin-web** 是 **ateng-solid** 全端开源上层框架的管理后台 Web 前端工程，基于独立通用的 [`ateng-ui`](https://github.com/atengk/ateng-ui) 基础设施套件与 **TailwindCSS（禁用 Preflight）+ Element Plus `theme-pro`** 混合样式架构构建，兼作 `ateng-ui` 的实战验证载体与面向企业级业务二开的纯净前端框架壳。
 
 ---
 

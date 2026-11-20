@@ -4,14 +4,13 @@ import vue from '@vitejs/plugin-vue';
 import tailwindcss from '@tailwindcss/vite';
 
 /**
- * Vite 6 构建与本地开发代理配置（集成 TailwindCSS v4 无 Preflight 与后端 Proxy 转发）。
+ * Vite 6 构建与本地开发代理配置（集成 TailwindCSS v4 无 Preflight、直通 /admin 代理与底座分包）。
  *
  * @author Ateng
  * @since 2026-11-19
  */
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const apiBase = env.VITE_API_BASE_URL || '/api';
   const proxyTarget = env.VITE_PROXY_TARGET || 'http://127.0.0.1:8080';
 
   return {
@@ -25,11 +24,35 @@ export default defineConfig(({ mode }) => {
       host: true,
       port: Number(env.VITE_PORT || 5173),
       proxy: {
-        [apiBase]: {
+        '/admin': {
           target: proxyTarget,
           changeOrigin: true,
-          rewrite: (path: string) =>
-            apiBase === '/api' ? path.replace(/^\/api/, '') : path,
+        },
+      },
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id: string) {
+            if (!id.includes('node_modules')) {
+              return undefined;
+            }
+            if (id.includes('/node_modules/element-plus/') || id.includes('/node_modules/@element-plus/')) {
+              return 'vendor-element-plus';
+            }
+            if (id.includes('/node_modules/@atengk/')) {
+              return 'vendor-ateng-ui';
+            }
+            if (
+              id.includes('/node_modules/vue/') ||
+              id.includes('/node_modules/@vue/') ||
+              id.includes('/node_modules/vue-router/') ||
+              id.includes('/node_modules/pinia/')
+            ) {
+              return 'vendor-vue';
+            }
+            return 'vendor-misc';
+          },
         },
       },
     },

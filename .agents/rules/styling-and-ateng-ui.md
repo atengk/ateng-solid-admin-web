@@ -1,3 +1,8 @@
+---
+trigger: always_on
+description: "ateng-solid-admin-web TailwindCSS v4（禁用 Preflight）与 Element Plus / ateng-ui 混合样式及组件接入守则"
+---
+
 # TailwindCSS + Element Plus / `ateng-ui` 混合样式与组件接入守则 (styling-and-ateng-ui.md)
 
 > **作用域**：`ateng-solid-admin-web` 全量界面、布局壳、公共组件与主题切换开发。
@@ -20,9 +25,9 @@
 
 ## 2. `ateng-ui` 核心组件接入约定
 
-1. **菜单图标解析（应对底层 U1 差异）**：
-   - `AtengProLayout` 内置 `ProMenuItemNode` 对 `string` 图标仅渲染 CSS 类名 `<i :class="itemIcon" />`；
-   - 前端将后端菜单树转换为 `ProMenuItem[]` 时，必须通过 `resolveMenuIcon(menu.icon)` 将后端返回的 `@element-plus/icons-vue` 图标名字符串映射为实际 Vue `Component` 对象传入 `ProMenuItem.icon`。
+1. **菜单图标解析（等待底座 `ateng-ui#365` 通用扩展点）**：
+   - `AtengProLayout` 内置 `ProMenuItemNode` 当前对 `string` 图标仅渲染 `<i :class="itemIcon" />`；
+   - 遵循底层硬门禁零补丁铁律，待 `atengk/ateng-ui#365` 在底座提供通用 `iconResolver` 回调或插槽透传增强并正式发版后，前端仅通过标准配置式回调对接 `@element-plus/icons-vue` 图标解析，禁止在上层编写篡改后端菜单数据结构的临时绕过补丁。
 2. **`AtengProLayout` + `AtengTabsNav` + `KeepAlive` 联动**：
    - 使用 `@atengk/vue` 的 `useTabsNav` 同步路由守卫与页签列表；
    - 主体 `<router-view v-slot="{ Component, route }">` 外层包裹 `<KeepAlive :include="cachedRouteNames">`，由路由 `meta.keepAlive` 与页签关闭/刷新事件驱动缓存更新。

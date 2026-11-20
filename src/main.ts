@@ -25,7 +25,8 @@ app.use(ElementPlus);
 app.use(
   createAtengVue({
     authManager: adminAuthManager,
-    // TODO(Ateng): superAdminRoles 已在 ateng-ui#364 合入 dev，待 @atengk/vue 1.0.1+ 正式发布至 npm 后取消注释
+    // TODO(Ateng): Spec 2 装配 src/utils/http.ts 时须同步绑定 httpClient 与 tenantManager，避免 usePagination/useRequest 回落至全局默认 http 单例
+    // TODO(Ateng): 待 @atengk/vue 发布含 #362/#363/#364 修复的 1.0.1+/1.1.0+ 正式版至 npm 后取消注释
     // superAdminRoles: ['super_admin'],
   }),
 );

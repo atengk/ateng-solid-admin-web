@@ -1,15 +1,27 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Git 预提交代码质量增量检查钩子 (Pre-commit Hook)
+# Git 预提交代码质量与本地联调依赖防呆钩子 (Pre-commit Hook)
 #
-# 在存在 package.json 且已安装依赖时，优先运行 lint-staged（增量 Prettier/ESLint），
-# 或降级运行 typecheck + lint，确保入库前端代码符合规范。
+# 1. 严禁提交包含 file:.yalc / file:../ / link: / 本地 .tgz 的 package.json 或 pnpm-lock.yaml；
+# 2. 在存在 package.json 且已安装依赖时，优先运行 lint-staged 或 typecheck + lint。
 #
 # @author Ateng
 # @since 2026-11-18
 # ==============================================================================
 
 set -eo pipefail
+
+STAGED_MANIFESTS=$(git diff --cached --name-only --diff-filter=ACM | grep -E '(^|/)(package\.json|pnpm-lock\.yaml)$' || true)
+if [ -n "$STAGED_MANIFESTS" ]; then
+  while IFS= read -r manifest; do
+    [ -n "$manifest" ] || continue
+    if git show ":$manifest" | grep -Eq 'file:\.yalc/|file:\.\./|link:|yalc:|file:.*\.tgz'; then
+      printf "\n[ERROR] 检测到暂存文件 %s 包含未清理的本地联调依赖（yalc / link / file:../ / .tgz）！\n" "$manifest" >&2
+      printf "请先等待底座正式发版后执行还原：yalc remove --all && pnpm up @atengk/*\n\n" >&2
+      exit 1
+    fi
+  done <<< "$STAGED_MANIFESTS"
+fi
 
 if [ ! -f package.json ] || [ ! -d node_modules ]; then
   echo "ℹ️ [pre-commit] 尚未初始化前端依赖，跳过静态预检。"

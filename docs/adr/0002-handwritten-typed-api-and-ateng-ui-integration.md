@@ -26,8 +26,8 @@
 3. **显式配置管理端鉴权与多租户头**：
    - `AuthManager` 配置 `tokenKey: 'satoken-admin'`、`headerName: 'satoken-admin'`；
    - `TenantManager` 自动注入 `X-Tenant-Id`（默认 `"0"`），仅租户 `"0"` 且角色含 `super_admin` 时向顶栏渲染租户切换入口。
-4. **菜单图标映射器与 `<KeepAlive>` 壳封装**：
-   - 建立 `resolveMenuIcon` 将后端菜单图标名字符串转换为 `@element-plus/icons-vue` 组件对象再传给 `AtengProLayout`；
+4. **菜单图标扩展点与 `<KeepAlive>` 壳封装**：
+   - 遵循底层硬门禁零补丁原则，菜单字符串图标解析依赖 `atengk/ateng-ui#365` 在底座提供通用 `iconResolver` 扩展点后按配置式回调接入，不在上层魔改后端菜单结构绕过；
    - 在 `layouts/` 中结合 `useTabsNav` 对 `<router-view>` 包裹 `<KeepAlive :include="cachedViews">`。
 5. **双轨字典与开关式前端监控**：
    - 通过 `DictManager` 统一对接 `/admin/system/enums`（静态枚举）与 `/admin/system/dict/data/type/*`（动态字典）；

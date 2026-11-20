@@ -12,7 +12,8 @@
   - `@atengk/vue`（L1）：`useRequest`、`usePagination`、`useLatest`、`useAuth`、`useTenant`、`useIdempotent`、`useTabsNav`、`useExcel`、`useUpload`；
   - `@atengk/element-plus`（L3）：`AtengProLayout`、`AtengTabsNav`、`AtengTable`、`AtengQueryForm`、`AtengDialog`、`AtengDrawer`、`AtengDict*`、`AtengCaptcha`、`AtengUpload`、`AtengExcelFeedback`/`AtengExcelExport`、`v-permission`、`v-role`、`v-idempotent`；
   - `@atengk/monitor`（L0）：按环境变量开关接入前端异常与性能可观测基座（默认仅本地闭环或开启配置后上报）。
-- **底层缺口即停工硬门禁**：开发任何通用或复合 UI 基础设施能力时，若 `ateng-ui`（`@atengk/core`/`vue`/`element-plus`/`monitor`）功能缺失或存在缺陷，**必须立即暂停该特性编码并向 `atengk/ateng-ui` 提交 Issue**，详见 [`.agents/rules/foundation-first-gate.md`](./.agents/rules/foundation-first-gate.md)。
+- **底层缺口即停工与零补丁硬门禁**：开发任何通用或复合 UI 基础设施能力时，若 `ateng-ui`（`@atengk/core`/`vue`/`element-plus`/`monitor`）功能缺失、设计不顺手或存在缺陷，**必须立即暂停该特性编码并向 `atengk/ateng-ui` 提交通用改造 Issue（严禁在业务仓编写临时绕过/映射补丁，严禁将本项目强绑定写死进 `ateng-ui`）**，待底座发版后再恢复开发，详见 [`.agents/rules/foundation-first-gate.md`](./.agents/rules/foundation-first-gate.md)。
+- **三层扩展界限与装配级插拔（底座 ➔ 框架壳 ➔ 可插拔扩展）**：通用无头状态机、网络与 UI 组件沉入 `ateng-ui`；登录认证、布局壳、多租户显隐开关、系统权限页面保留在 `ateng-solid-admin-web` 稳定内核；二期特性与行业业务（`biz-*`）在需要时以 `src/modules/<feature>/` 自发现特性模块接入（删目录/关开关即可剥离），首期不建空目录，不引入微前端沙箱。
 - **依赖克制**：首期**不预装** `ateng-ui` 的 L2 重型扩展包（图表、流程图、富文本等），按业务需求再引入；**严禁引入** `lodash`、`moment`、`jquery`、Vuex、Options API、外部 Mock 服务；首期纯中文应用（暂不引入 `vue-i18n`，业务文案保持集中/语义化）。
 - **双态后端无感切换**：前端唯一对接 `.agents/rules/contracts.md` 定义的 `/admin/**` 契约，无论后端运行于单体 `ateng-solid-server` 还是 `ateng-cloud-gateway` 微服务网关模式，前端代码与接口契约保持 100% 透明兼容。
 
@@ -30,7 +31,7 @@
 - **动态路由与三段式权限**：
   - 后端下发嵌套路由菜单树（`M`/`C`/`F`），前端通过 Vite `import.meta.glob('@/views/**/*.vue')` 动态映射注册；
   - `AtengProLayout` + `AtengTabsNav` 配合 `useTabsNav` 对 `<router-view>` 自行包裹 `<KeepAlive :include="...">`；
-  - 菜单 `icon` 字符串通过映射器转为 `@element-plus/icons-vue` 组件对象；
+  - 菜单 `icon` 字符串等待 `atengk/ateng-ui#365` 在底座提供通用图标解析扩展点并发版后直接配置接入（禁止上层手写字段魔改绕过）；
   - 按钮权限统一采用 `v-permission` / `v-role` 与 `<域>:<资源>:<动作>` 三段式编码。
 
 ---
@@ -67,6 +68,7 @@
   - 修改代码提交前必须执行并通过四合一检查：`pnpm typecheck && pnpm lint && pnpm test && pnpm build`；
   - Vitest 单测不依赖真实后端，必须依托 `vi.mock` 自洽拦截 HTTP；挂载组件测试须在 `afterEach` 调用 `wrapper.unmount()` 并重置 Storage / Pinia 状态。
 - **双分支与安全暂存**：`main` 只读发布，`dev` 活跃开发；本地预提交钩子 `.githooks/pre-commit` 与 `.githooks/commit-msg` 自动守门；未获用户明确提交/推送指令前改动停留在工作区；暂存必须显式指定文件路径（严禁 `git add .` / `-A`）。
+- **跨仓本地联调（`pnpm pack + yalc`）与防呆还原**：本地联调未发版的 `ateng-ui` 时，须先在 `ateng-ui` 通过 `pnpm pack` 消解内部 `workspace:*` 协议并解包执行 `yalc publish --push`（严禁裸跑 `yalc push` 或 `pnpm link`）；上层使用 `yalc add` 接入并通过 `pnpm dev:force` 刷新 Vite 预构建缓存；提交前必须执行 `yalc remove --all && pnpm up @atengk/*` 还原为 npm 正式版，`.githooks/pre-commit` 会自动拦截含 `file:.yalc`/`file:../`/`link:` 的 `package.json` 或 `pnpm-lock.yaml` 提交。
 - **注释规范**：新建文件/组件/Hooks/API 接口需具备中文 JSDoc（`@author Ateng`、`@since YYYY-MM-DD`），详细说明 Props/Emits 边界与空值约定。
 
 ---
