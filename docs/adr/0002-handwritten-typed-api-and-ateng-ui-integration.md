@@ -29,6 +29,5 @@
 4. **菜单图标扩展点与 `<KeepAlive>` 壳封装**：
    - 遵循底层硬门禁零补丁原则，菜单字符串图标解析依赖 `atengk/ateng-ui#365` 在底座提供通用 `iconResolver` 扩展点后按配置式回调接入，不在上层魔改后端菜单结构绕过；
    - 在 `layouts/` 中结合 `useTabsNav` 对 `<router-view>` 包裹 `<KeepAlive :include="cachedViews">`。
-5. **双轨字典与开关式前端监控**：
-   - 通过 `DictManager` 统一对接 `/admin/system/enums`（静态枚举）与 `/admin/system/dict/data/type/*`（动态字典）；
-   - 按环境变量开关初始化 `@atengk/monitor`，无外部监控服务时仅本地闭环不报错。
+5. **双轨字典**：
+   - 通过 `DictManager` 统一对接 `/admin/system/enums`（上层自主管控的静态枚举）与 `/admin/system/dict/data/type/*`（动态字典）；首期不预装 `@atengk/monitor`，待二期按需引入。

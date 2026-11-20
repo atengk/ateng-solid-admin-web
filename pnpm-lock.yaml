@@ -14,9 +14,6 @@ importers:
       '@atengk/element-plus':
         specifier: ^1.0.0
         version: 1.0.0(debug@4.4.3(supports-color@7.2.0))(element-plus@2.14.8(vue@3.5.45(typescript@5.9.3)))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))
-      '@atengk/monitor':
-        specifier: ^1.0.0
-        version: 1.0.0
       '@atengk/vue':
         specifier: ^1.0.0
         version: 1.0.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))
@@ -104,9 +101,6 @@ packages:
     peerDependencies:
       element-plus: '>=2.8.0'
       vue: '>=3.5.0'
-
-  '@atengk/monitor@1.0.0':
-    resolution: {integrity: sha512-Dh895xNVTjIBU05zvE91/aDbUhUX+X8xzoKlhTA5msmk+nLhPYskO+4bDiIpQAt1yZAJHmCJE2OTQMlHbKtFKQ==}
 
   '@atengk/vue@1.0.0':
     resolution: {integrity: sha512-7gWrXFS0jwsc8owGGh2KaoIVSXQ31BWtTzefT2NDNmcklS0lVuFI611t4AoW7tXXZdL0lT7lvIyP/7m+UYMXqw==}
@@ -1933,8 +1927,6 @@ snapshots:
     transitivePeerDependencies:
       - debug
       - supports-color
-
-  '@atengk/monitor@1.0.0': {}
 
   '@atengk/vue@1.0.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))':
     dependencies:

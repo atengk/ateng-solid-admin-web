@@ -8,7 +8,7 @@
 
 - **端形态**：PC Web 企业级管理后台（纯中文首期单体 Vite SPA）。
 - **核心技术栈**：Node.js `22+` / pnpm `11+` / Vue `3.5+` / Vite `6+` / TypeScript Strict / Vue Router / Pinia / Element Plus / TailwindCSS（无 Preflight）。
-- **底座套件**：`@atengk/core`（L0）、`@atengk/vue`（L1）、`@atengk/element-plus`（L3）、`@atengk/monitor`（按环境变量开关）；`ateng-ui` 的 L2 专业扩展包按后续业务需要再行引入。
+- **底座套件**：`@atengk/core`（L0）、`@atengk/vue`（L1）、`@atengk/element-plus`（L3）；`@atengk/monitor` 与 `ateng-ui` 的 L2 专业扩展包按后续二期业务需要再行引入。
 - **首期功能范围**：登录认证与图形验证码、个人中心、租户与租户套餐管理、用户/角色/菜单/部门/岗位 RBAC 权限管理、静态枚举与动态数据字典、系统参数、登录与操作审计日志、在线会话治理。
 
 ---
@@ -18,7 +18,10 @@
 - 独立开发行为准则：[`AGENTS.md`](./AGENTS.md)
 - 跨端通信契约（同步副本）：[`.agents/rules/contracts.md`](./.agents/rules/contracts.md)
 - 底层缺口即停工硬门禁（同步副本）：[`.agents/rules/foundation-first-gate.md`](./.agents/rules/foundation-first-gate.md)
+- 全仓代码与架构编程规范（同步副本）：[`.agents/rules/coding-and-architecture.md`](./.agents/rules/coding-and-architecture.md)
+- 文档 1:1 保真规范（同步副本）：[`docs/agents/documentation-specification.md`](./docs/agents/documentation-specification.md)
 - 混合样式与 `ateng-ui` 接入守则：[`.agents/rules/styling-and-ateng-ui.md`](./.agents/rules/styling-and-ateng-ui.md)
+- 前端 AI 全景索引：[`llms.txt`](./llms.txt)
 - 前端领域词汇表：[`CONTEXT.md`](./CONTEXT.md)
 - 前端架构决策记录：[`docs/adr/README.md`](./docs/adr/README.md)
 - 工程结构与路由权限规范：[`docs/specs/frontend-architecture-and-conventions.md`](./docs/specs/frontend-architecture-and-conventions.md)

@@ -1,20 +1,19 @@
 # ateng-solid-admin-web 管理后台前端规范 (AGENTS.md)
 
-本文件为 `ateng-solid-admin-web` 独立仓库的完整自洽研发规范，同时配合公共同步规约 [`.agents/rules/contracts.md`](./.agents/rules/contracts.md)、[`.agents/rules/foundation-first-gate.md`](./.agents/rules/foundation-first-gate.md) 与混合样式及底座指南 [`.agents/rules/styling-and-ateng-ui.md`](./.agents/rules/styling-and-ateng-ui.md) 生效。单开本子仓即可独立完成研发、测试与交付。
+本文件为 `ateng-solid-admin-web` 独立仓库的完整自洽研发规范，同时配合公共同步规约 [`.agents/rules/contracts.md`](./.agents/rules/contracts.md)、[`.agents/rules/foundation-first-gate.md`](./.agents/rules/foundation-first-gate.md)、[`.agents/rules/coding-and-architecture.md`](./.agents/rules/coding-and-architecture.md) 与混合样式及底座指南 [`.agents/rules/styling-and-ateng-ui.md`](./.agents/rules/styling-and-ateng-ui.md) 生效。单开本子仓即可独立完成研发、测试与交付。
 
 ---
 
 ## 1. 技术栈基线与依赖克制
 
 - **工程基线**：Node.js `>=22`、pnpm `11+`、Vue `3.5+`、TypeScript `5.6+`（Strict Mode，开启 `noImplicitAny` / `strictNullChecks` / `noUncheckedIndexedAccess`）、Vite `6+`、Vue Router、Pinia（Setup Store）、Element Plus。
-- **底座套件复用（`ateng-ui:1.0.0+`）**：
+- **底座套件复用（`ateng-ui:1.0.1+` 待发版锁版）**：
   - `@atengk/core`（L0）：HTTP 客户端、统一解包、雪花 Long ID 原始 JSON 正则防截断、`AuthManager`、`TenantManager`、文件下载 Blob 双态异常识别、`formatMask*` 脱敏、精度金融工具；
   - `@atengk/vue`（L1）：`useRequest`、`usePagination`、`useLatest`、`useAuth`、`useTenant`、`useIdempotent`、`useTabsNav`、`useExcel`、`useUpload`；
-  - `@atengk/element-plus`（L3）：`AtengProLayout`、`AtengTabsNav`、`AtengTable`、`AtengQueryForm`、`AtengDialog`、`AtengDrawer`、`AtengDict*`、`AtengCaptcha`、`AtengUpload`、`AtengExcelFeedback`/`AtengExcelExport`、`v-permission`、`v-role`、`v-idempotent`；
-  - `@atengk/monitor`（L0）：按环境变量开关接入前端异常与性能可观测基座（默认仅本地闭环或开启配置后上报）。
-- **底层缺口即停工与零补丁硬门禁**：开发任何通用或复合 UI 基础设施能力时，若 `ateng-ui`（`@atengk/core`/`vue`/`element-plus`/`monitor`）功能缺失、设计不顺手或存在缺陷，**必须立即暂停该特性编码并向 `atengk/ateng-ui` 提交通用改造 Issue（严禁在业务仓编写临时绕过/映射补丁，严禁将本项目强绑定写死进 `ateng-ui`）**，待底座发版后再恢复开发，详见 [`.agents/rules/foundation-first-gate.md`](./.agents/rules/foundation-first-gate.md)。
+  - `@atengk/element-plus`（L3）：`AtengProLayout`、`AtengTabsNav`、`AtengTable`、`AtengQueryForm`、`AtengDialog`、`AtengDrawer`、`AtengDict*`、`AtengCaptcha`、`AtengUpload`、`AtengExcelFeedback`/`AtengExcelExport`、`v-permission`、`v-role`、`v-idempotent`。
+- **底层缺口即停工与零补丁硬门禁**：开发任何通用或复合 UI 基础设施能力时，若 `ateng-ui`（`@atengk/core`/`vue`/`element-plus`）功能缺失、设计不顺手或存在缺陷，**必须立即暂停该特性编码并向 `atengk/ateng-ui` 提交通用改造 Issue（严禁在业务仓编写临时绕过/映射补丁，严禁将本项目强绑定写死进 `ateng-ui`）**，待底座发版后再恢复开发，详见 [`.agents/rules/foundation-first-gate.md`](./.agents/rules/foundation-first-gate.md)。
 - **三层扩展界限与装配级插拔（底座 ➔ 框架壳 ➔ 可插拔扩展）**：通用无头状态机、网络与 UI 组件沉入 `ateng-ui`；登录认证、布局壳、多租户显隐开关、系统权限页面保留在 `ateng-solid-admin-web` 稳定内核；二期特性与行业业务（`biz-*`）在需要时以 `src/modules/<feature>/` 自发现特性模块接入（删目录/关开关即可剥离），首期不建空目录，不引入微前端沙箱。
-- **依赖克制**：首期**不预装** `ateng-ui` 的 L2 重型扩展包（图表、流程图、富文本等），按业务需求再引入；**严禁引入** `lodash`、`moment`、`jquery`、Vuex、Options API、外部 Mock 服务；首期纯中文应用（暂不引入 `vue-i18n`，业务文案保持集中/语义化）。
+- **依赖克制**：首期**不预装** `@atengk/monitor` 及 `ateng-ui` 的 L2 重型扩展包（图表、流程图、富文本等），待二期按需求再引入；**严禁引入** `lodash`、`moment`、`jquery`、Vuex、Options API、外部 Mock 服务；首期纯中文应用（暂不引入 `vue-i18n`，业务文案保持集中/语义化）。
 - **双态后端无感切换**：前端唯一对接 `.agents/rules/contracts.md` 定义的 `/admin/**` 契约，无论后端运行于单体 `ateng-solid-server` 还是 `ateng-cloud-gateway` 微服务网关模式，前端代码与接口契约保持 100% 透明兼容。
 
 ---
@@ -63,7 +62,7 @@
 
 ## 4. 本地配置、验证门禁与 Git 纪律
 
-- **双模联调配置**：后端代理地址、应用标题与 `@atengk/monitor` 开关等配置写入被 `.gitignore` 忽略的 `.env.local`（仓库仅提交占位模板 `.env.example`）；开发联调走 Vite Proxy。
+- **双模联调配置**：后端代理地址与应用标题等配置写入被 `.gitignore` 忽略的 `.env.local`（仓库仅提交占位模板 `.env.example`）；开发联调走 Vite Proxy。
 - **四合一验证门禁 & 全自洽 Vitest 单测**：
   - 修改代码提交前必须执行并通过四合一检查：`pnpm typecheck && pnpm lint && pnpm test && pnpm build`；
   - Vitest 单测不依赖真实后端，必须依托 `vi.mock` 自洽拦截 HTTP；挂载组件测试须在 `afterEach` 调用 `wrapper.unmount()` 并重置 Storage / Pinia 状态。
@@ -88,7 +87,10 @@
 
 - 底层缺口即停工硬门禁（同步副本）：[`.agents/rules/foundation-first-gate.md`](./.agents/rules/foundation-first-gate.md)
 - 跨端通信与数据契约（同步副本）：[`.agents/rules/contracts.md`](./.agents/rules/contracts.md)
+- 全仓代码与架构编程规范（同步副本）：[`.agents/rules/coding-and-architecture.md`](./.agents/rules/coding-and-architecture.md)
+- 文档 1:1 保真与模块规范（同步副本）：[`docs/agents/documentation-specification.md`](./docs/agents/documentation-specification.md)
 - 混合样式与 `ateng-ui` 接入细则：[`.agents/rules/styling-and-ateng-ui.md`](./.agents/rules/styling-and-ateng-ui.md)
+- 前端 AI 全景索引：[`llms.txt`](./llms.txt)
 - 前端领域词汇表：[`CONTEXT.md`](./CONTEXT.md)
 - 前端架构决策记录：[`docs/adr/README.md`](./docs/adr/README.md)
 - 前端架构、配置基线与路由规范：[`docs/specs/frontend-architecture-and-conventions.md`](./docs/specs/frontend-architecture-and-conventions.md)

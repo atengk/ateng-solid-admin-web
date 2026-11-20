@@ -1,0 +1,30 @@
+# ateng-solid-admin-web
+
+> `ateng-solid` 全端框架的 PC 企业级管理后台前端工程（Vue 3.5 + Vite + TypeScript Strict + `ateng-ui` + TailwindCSS v4 无 Preflight），采用手写强类型 `src/api/*` 直接对齐后端 `/admin/**` 契约，透明兼容单体与微服务网关双态后端。
+
+## AI 编程助手必读约定 (Instructions for AI Agents)
+
+- **版本基线真源**：Node.js、pnpm、Vue、Element Plus 及 `@atengk/*` 依赖版本号以 [package.json](./package.json) 为准，严禁在此硬编码或擅自引入 `lodash`/`moment`/OpenAPI 生成器/外部 Mock 库。
+- **核心架构红线**：
+  - 所有雪花主外键 ID 与 `tenantId` 在 TypeScript 中统一声明为 `string`，严禁使用 `number`；
+  - 仅使用 `<script setup lang="ts">`、泛型 `defineProps<{...}>()` / `defineEmits<{...}>()`，严禁 Options API、裸 `any` 与直接突变 `props`；
+  - TailwindCSS 禁用 Preflight 且仅用于布局与间距，颜色/圆角/阴影绑定 `--el-*` / `--at-*` 变量；`createAtengVue` 显式配置 `superAdminRoles: ['super_admin']`；
+  - 状态与表单保持“内存真明文”，展示脱敏仅在渲染层调用 `formatMask*`。
+- **交付与 1:1 文档沉淀**：编码前核对 [底层缺口即停工规范](./.agents/rules/foundation-first-gate.md)；完成功能并通过 `pnpm typecheck && pnpm lint && pnpm test && pnpm build` 四合一门禁后，按 [文档 1:1 保真与模块规范](./docs/agents/documentation-specification.md) 逆向更新 [README.md](./README.md)、Specs、[CONTEXT.md](./CONTEXT.md) 与本索引。
+
+## 核心规范与架构文档
+
+- [前端项目门面 README.md](./README.md): 技术栈基线、首期范围与本地自检入口
+- [前端工程规范 AGENTS.md](./AGENTS.md): Vue 3.5 / TS 编码铁律、本地联调与交付自检清单
+- [前端领域词汇表 CONTEXT.md](./CONTEXT.md): 认证、多租户、权限路由与字典展示术语表
+- [前端架构决策看板](./docs/adr/README.md): TailwindCSS 无 Preflight + `theme-pro`、手写强类型 API 与 `ateng-ui` 集成决策
+- [混合样式与 `ateng-ui` 守则](./.agents/rules/styling-and-ateng-ui.md): TailwindCSS 与 Element Plus 职责分工及样式隔离边界
+- [全仓代码与架构规范](./.agents/rules/coding-and-architecture.md): 公共提取、视图/Composable 拆分边界、表驱动与生命期资源释放
+- [跨端通信与数据契约](./.agents/rules/contracts.md): 响应解包、分页 `current`/`size`/`records`/`total`、Blob 双态拦截与 Fesod 导入协议
+- [底层缺口即停工规范](./.agents/rules/foundation-first-gate.md): 停工门禁与 `pnpm pack + yalc` 跨仓联调还原 SOP
+- [文档 1:1 保真与模块规范](./docs/agents/documentation-specification.md): 应用五维文档结构与 10 项自检清单
+
+## 前端架构与视图规格 (Specs)
+
+- [前端工程结构与配置规范](./docs/specs/frontend-architecture-and-conventions.md): 目录拓扑、ESLint 9 / TS Strict 基线、`.env.example` 代理与可扩展模块约定
+- [页面视图、动态路由与 Store 规格](./docs/specs/views-and-routes-spec.md): 静态/动态路由表、Pinia Setup Stores 与 `src/api/*` 域映射

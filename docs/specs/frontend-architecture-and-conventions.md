@@ -11,6 +11,7 @@ ateng-solid-admin-web/
 ├── .agents/rules/
 │   ├── contracts.md                 # 从根仓同步的跨端协议副本（只读）
 │   ├── foundation-first-gate.md     # 从根仓同步的底层缺口即停工硬门禁副本（只读）
+│   ├── coding-and-architecture.md   # 从根仓同步的全仓代码与架构规范副本（只读）
 │   └── styling-and-ateng-ui.md      # TailwindCSS + theme-pro 与 ateng-ui 接入守则
 ├── docs/
 │   ├── adr/                         # 前端架构决策记录
@@ -26,7 +27,7 @@ ateng-solid-admin-web/
 │   ├── stores/                      # Pinia Setup Store（auth/user/permission/app）
 │   ├── styles/                      # theme-pro 导入顺序与 TailwindCSS（无 Preflight）入口
 │   ├── types/                       # 全局公共 TS 类型（路由、菜单、通用选项等）
-│   ├── utils/                       # httpClient/authManager/tenantManager/monitor 实例装配
+│   ├── utils/                       # httpClient/authManager/tenantManager 实例装配
 │   ├── views/                       # 业务页面视图（login/dashboard/system/*）
 │   ├── App.vue
 │   └── main.ts
@@ -71,17 +72,13 @@ VITE_API_BASE_URL=
 
 # 开发代理目标（本地联调可在 .env.local 覆盖为单体服务或网关地址）
 VITE_PROXY_TARGET=http://127.0.0.1:8080
-
-# 是否启用 @atengk/monitor 前端异常与性能采集（默认关闭或本地控制台模式）
-VITE_MONITOR_ENABLED=false
-VITE_MONITOR_DSN=
 ```
 
 - **直通 `/admin` 代理规则**：前端 `src/api/*` 统一使用 `/admin/<域>/<资源>` 路径，`VITE_API_BASE_URL` 默认留空；`vite.config.ts` 仅代理 `'/admin'` ➔ `VITE_PROXY_TARGET`（零路径重写），与后端单体及未来 `ateng-cloud-gateway` 路径 100% 对称。
 
 ---
 
-## 4. 动态路由、权限与 `@atengk/monitor` 约定
+## 4. 动态路由与权限约定
 
 1. **静态路由与动态菜单分离**：
    - 静态基础路由：`/login`、`/403`、`/404`、根布局 `/`（含 `/profile` 个人中心、`/dashboard` 工作台）；
