@@ -9,14 +9,14 @@ importers:
   .:
     dependencies:
       '@atengk/core':
-        specifier: ^1.0.0
-        version: 1.0.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
+        specifier: ^1.1.0
+        version: 1.1.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
       '@atengk/element-plus':
-        specifier: ^1.0.0
-        version: 1.0.0(debug@4.4.3(supports-color@7.2.0))(element-plus@2.14.8(vue@3.5.45(typescript@5.9.3)))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))
+        specifier: ^1.1.0
+        version: 1.1.0(debug@4.4.3(supports-color@7.2.0))(element-plus@2.14.8(vue@3.5.45(typescript@5.9.3)))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))
       '@atengk/vue':
-        specifier: ^1.0.0
-        version: 1.0.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))
+        specifier: ^1.1.0
+        version: 1.1.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))
       '@element-plus/icons-vue':
         specifier: ^2.3.1
         version: 2.3.2(vue@3.5.45(typescript@5.9.3))
@@ -93,17 +93,17 @@ importers:
 
 packages:
 
-  '@atengk/core@1.0.0':
-    resolution: {integrity: sha512-JJtIYv8tqe2asw+h9EJgoVgrzARN7kkAWlRxltOGQ+NQqHATyYZLAOoOvttibBH2nSSksVWCHnf3bYIe4bQcWw==}
+  '@atengk/core@1.1.0':
+    resolution: {integrity: sha512-bPL9YdqSugYPi+jBvRn2VMmlQihpEcmGVSB6tMSz/3+dG68N4trdHYtSAcWKrUGw/Yi6eGVb2a/sFk5/SP6zcg==}
 
-  '@atengk/element-plus@1.0.0':
-    resolution: {integrity: sha512-BdTX0hxxURMv+sl24cXsLCbJy8nz7NjofmIoxL3iKG6DN/zndXovcy5y0MPKarlgZ091m3RB1VwvOtBZUrPPIQ==}
+  '@atengk/element-plus@1.1.0':
+    resolution: {integrity: sha512-MtjtavCXomqt0AHGQEYTDCHEnYEwRctfCayrZfBEIqwswa+MiB+5cXDjt+lMVn1E5dpStfp7lxgt46hDUl5uZg==}
     peerDependencies:
       element-plus: '>=2.8.0'
       vue: '>=3.5.0'
 
-  '@atengk/vue@1.0.0':
-    resolution: {integrity: sha512-7gWrXFS0jwsc8owGGh2KaoIVSXQ31BWtTzefT2NDNmcklS0lVuFI611t4AoW7tXXZdL0lT7lvIyP/7m+UYMXqw==}
+  '@atengk/vue@1.1.0':
+    resolution: {integrity: sha512-Ow0D5g7FeeIgyLR+iheHs+s5z325dym6EfFjiB9xUZk2tNo92FDFiSC3y1YZ6JUmBXLNcEr1V+He9KdAUvqmGw==}
     peerDependencies:
       vue: '>=3.5.0'
 
@@ -1911,26 +1911,26 @@ packages:
 
 snapshots:
 
-  '@atengk/core@1.0.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)':
+  '@atengk/core@1.1.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)':
     dependencies:
       axios: 1.21.1(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
     transitivePeerDependencies:
       - debug
       - supports-color
 
-  '@atengk/element-plus@1.0.0(debug@4.4.3(supports-color@7.2.0))(element-plus@2.14.8(vue@3.5.45(typescript@5.9.3)))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))':
+  '@atengk/element-plus@1.1.0(debug@4.4.3(supports-color@7.2.0))(element-plus@2.14.8(vue@3.5.45(typescript@5.9.3)))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))':
     dependencies:
-      '@atengk/core': 1.0.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
-      '@atengk/vue': 1.0.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))
+      '@atengk/core': 1.1.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
+      '@atengk/vue': 1.1.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))
       element-plus: 2.14.8(vue@3.5.45(typescript@5.9.3))
       vue: 3.5.45(typescript@5.9.3)
     transitivePeerDependencies:
       - debug
       - supports-color
 
-  '@atengk/vue@1.0.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))':
+  '@atengk/vue@1.1.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))':
     dependencies:
-      '@atengk/core': 1.0.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
+      '@atengk/core': 1.1.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
       vue: 3.5.45(typescript@5.9.3)
     transitivePeerDependencies:
       - debug

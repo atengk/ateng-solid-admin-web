@@ -43,8 +43,8 @@ _Avoid_: 全局无条件缓存全部路由
 ### 字典与数据展示
 
 **静态枚举字典 (Static Enum)**:
-后端不可运营变更的代码强类型状态选项（来源于 `/admin/system/enums`），与可后台增删改的动态业务字典分工互补。
-_Avoid_: 将代码强类型枚举重复录入动态字典表
+后端不可运营变更的代码强类型状态选项（来源于 `/admin/system/enums`），与可后台增删改的动态业务字典分工互补；由前端枚举接口适配层统一将后端 `OptionItem`（`{ code, label, disabled, extra }`）映射为 `@atengk/element-plus` `DictItem`（`{ label, value, ... }`），保持 `DictManager` 与 `AtengDictTag` 单一数据口径。
+_Avoid_: 将代码强类型枚举重复录入动态字典表，或要求底层通用组件兼容 `code` 别名
 
 **动态业务字典 (Dynamic Dict)**:
 由运营人员在后台维护的键值选项集合（`sys_dict_type` / `sys_dict_data`），通过 `DictManager` 统一缓存渲染。

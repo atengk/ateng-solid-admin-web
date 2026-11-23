@@ -7,7 +7,7 @@
 ## 1. 技术栈基线与依赖克制
 
 - **工程基线**：Node.js `>=22`、pnpm `11+`、Vue `3.5+`、TypeScript `5.6+`（Strict Mode，开启 `noImplicitAny` / `strictNullChecks` / `noUncheckedIndexedAccess`）、Vite `6+`、Vue Router、Pinia（Setup Store）、Element Plus。
-- **底座套件复用（`ateng-ui:1.0.1+` 待发版锁版）**：
+- **底座套件复用（已锁定 `@atengk/{core,vue,element-plus}@1.1.0`）**：
   - `@atengk/core`（L0）：HTTP 客户端、统一解包、雪花 Long ID 原始 JSON 正则防截断、`AuthManager`、`TenantManager`、文件下载 Blob 双态异常识别、`formatMask*` 脱敏、精度金融工具；
   - `@atengk/vue`（L1）：`useRequest`、`usePagination`、`useLatest`、`useAuth`、`useTenant`、`useIdempotent`、`useTabsNav`、`useExcel`、`useUpload`；
   - `@atengk/element-plus`（L3）：`AtengProLayout`、`AtengTabsNav`、`AtengTable`、`AtengQueryForm`、`AtengDialog`、`AtengDrawer`、`AtengDict*`、`AtengCaptcha`、`AtengUpload`、`AtengExcelFeedback`/`AtengExcelExport`、`v-permission`、`v-role`、`v-idempotent`。
@@ -30,7 +30,7 @@
 - **动态路由与三段式权限**：
   - 后端下发嵌套路由菜单树（`M`/`C`/`F`），前端通过 Vite `import.meta.glob('@/views/**/*.vue')` 动态映射注册；
   - `AtengProLayout` + `AtengTabsNav` 配合 `useTabsNav` 对 `<router-view>` 自行包裹 `<KeepAlive :include="...">`；
-  - 菜单 `icon` 字符串等待 `atengk/ateng-ui#365` 在底座提供通用图标解析扩展点并发版后直接配置接入（禁止上层手写字段魔改绕过）；
+  - 菜单 `icon` 字符串已依托 `atengk/ateng-ui#365`（`1.1.0`）提供通用图标解析回调 `iconResolver`，直接在 `AtengProLayout` 配置接入（禁止上层手写字段魔改绕过）；
   - 按钮权限统一采用 `v-permission` / `v-role` 与 `<域>:<资源>:<动作>` 三段式编码。
 
 ---

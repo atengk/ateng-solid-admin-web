@@ -23,9 +23,9 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "@atengk/core": "^1.0.0",
-    "@atengk/element-plus": "^1.0.0",
-    "@atengk/vue": "^1.0.0",
+    "@atengk/core": "^1.1.0",
+    "@atengk/element-plus": "^1.1.0",
+    "@atengk/vue": "^1.1.0",
     "@element-plus/icons-vue": "^2.3.1",
     "element-plus": "^2.14.7",
     "pinia": "^3.0.0",
