@@ -17,7 +17,7 @@
 - [前端项目门面 README.md](./README.md): 技术栈基线、首期范围与本地自检入口
 - [前端工程规范 AGENTS.md](./AGENTS.md): Vue 3.5 / TS 编码铁律、本地联调与交付自检清单
 - [前端领域词汇表 CONTEXT.md](./CONTEXT.md): 认证、多租户、权限路由与字典展示术语表
-- [前端架构决策看板](./docs/adr/README.md): TailwindCSS 无 Preflight + `theme-pro`、手写强类型 API 与 `ateng-ui` 集成决策
+- [前端架构决策看板](./docs/adr/README.md): TailwindCSS 无 Preflight + `Precision Slate & Cobalt` 自有令牌、手写强类型 API 与 `ateng-ui` 集成决策
 - [混合样式与 `ateng-ui` 守则](./.agents/rules/styling-and-ateng-ui.md): TailwindCSS 与 Element Plus 职责分工及样式隔离边界
 - [全仓代码与架构规范](./.agents/rules/coding-and-architecture.md): 公共提取、视图/Composable 拆分边界、表驱动与生命期资源释放
 - [跨端通信与数据契约](./.agents/rules/contracts.md): 响应解包、分页 `current`/`size`/`records`/`total`、Blob 双态拦截与 Fesod 导入协议

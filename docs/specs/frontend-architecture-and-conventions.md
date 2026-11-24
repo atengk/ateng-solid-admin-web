@@ -22,10 +22,10 @@ ateng-solid-admin-web/
 │   ├── assets/                      # 编译期处理的图标/图片资源
 │   ├── components/                  # 业务公共组件（图标映射器、租户切换器、主题切换等）
 │   ├── composables/                 # 业务组合式函数（use*）
-│   ├── layouts/                     # AtengProLayout + AtengTabsNav + KeepAlive 布局壳
+│   ├── layouts/                     # 方案 A AdminLayout (AtengProLayout/自装配壳 + AtengTabsNav + KeepAlive)
 │   ├── router/                      # 静态路由、动态路由加载器（import.meta.glob）与导航守卫
-│   ├── stores/                      # Pinia Setup Store（auth/user/permission/app）
-│   ├── styles/                      # theme-pro 导入顺序与 TailwindCSS（无 Preflight）入口
+│   ├── stores/                      # Pinia Setup Store（auth/tenant/permission/app）
+│   ├── styles/                      # Precision Slate & Cobalt 令牌表与 TailwindCSS（无 Preflight）入口
 │   ├── types/                       # 全局公共 TS 类型（路由、菜单、通用选项等）
 │   ├── utils/                       # httpClient/authManager/tenantManager 实例装配
 │   ├── views/                       # 业务页面视图（login/dashboard/system/*）
