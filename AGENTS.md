@@ -1,113 +1,54 @@
 # ateng-solid-admin-web 管理后台前端规范 (AGENTS.md)
 
-本文件为 `ateng-solid-admin-web` 独立仓库的完整自洽研发规范，同时配合公共同步规约 [`.agents/rules/contracts.md`](./.agents/rules/contracts.md)、[`.agents/rules/foundation-first-gate.md`](./.agents/rules/foundation-first-gate.md)、[`.agents/rules/coding-and-architecture.md`](./.agents/rules/coding-and-architecture.md) 与混合样式及底座指南 [`.agents/rules/styling-and-ateng-ui.md`](./.agents/rules/styling-and-ateng-ui.md) 生效。单开本子仓即可独立完成研发、测试与交付。
+`ateng-solid-admin-web` 是基于 Node 22+ / pnpm 11+ / Vue 3.5+ / TypeScript Strict / Vite / Pinia（Setup Store）/ Element Plus / `@atengk/{core,vue,element-plus}` + TailwindCSS v4（禁用 Preflight）的 PC 企业级管理后台。依赖版本真源见 [`package.json`](./package.json)。
 
 ---
 
-## 1. 技术栈基线与依赖克制
+## 1. 依赖边界与底层缺口硬门禁
 
-- **工程基线**：Node.js `>=22`、pnpm `11+`、Vue `3.5+`、TypeScript `5.6+`（Strict Mode，开启 `noImplicitAny` / `strictNullChecks` / `noUncheckedIndexedAccess`）、Vite `6+`、Vue Router、Pinia（Setup Store）、Element Plus。
-- **底座套件复用（已锁定 `@atengk/{core,vue,element-plus}@1.1.0`）**：
-  - `@atengk/core`（L0）：HTTP 客户端、统一解包、雪花 Long ID 原始 JSON 正则防截断、`AuthManager`、`TenantManager`、文件下载 Blob 双态异常识别、`formatMask*` 脱敏、精度金融工具；
-  - `@atengk/vue`（L1）：`useRequest`、`usePagination`、`useLatest`、`useAuth`、`useTenant`、`useIdempotent`、`useTabsNav`、`useExcel`、`useUpload`；
-  - `@atengk/element-plus`（L3）：`AtengProLayout`、`AtengTabsNav`、`AtengTable`、`AtengQueryForm`、`AtengDialog`、`AtengDrawer`、`AtengDict*`、`AtengCaptcha`、`AtengUpload`、`AtengExcelFeedback`/`AtengExcelExport`、`v-permission`、`v-role`、`v-idempotent`。
-- **底层缺口即停工与零补丁硬门禁**：开发任何通用或复合 UI 基础设施能力时，若 `ateng-ui`（`@atengk/core`/`vue`/`element-plus`）功能缺失、设计不顺手或存在缺陷，**必须立即暂停该特性编码并向 `atengk/ateng-ui` 提交通用改造 Issue（严禁在业务仓编写临时绕过/映射补丁，严禁将本项目强绑定写死进 `ateng-ui`）**，待底座发版后再恢复开发，详见 [`.agents/rules/foundation-first-gate.md`](./.agents/rules/foundation-first-gate.md)。
-- **三层扩展界限与装配级插拔（底座 ➔ 框架壳 ➔ 可插拔扩展）**：通用无头状态机、网络与 UI 组件沉入 `ateng-ui`；登录认证、布局壳、多租户显隐开关、系统权限页面保留在 `ateng-solid-admin-web` 稳定内核；二期特性与行业业务（`biz-*`）在需要时以 `src/modules/<feature>/` 自发现特性模块接入（删目录/关开关即可剥离），首期不建空目录，不引入微前端沙箱。
-- **依赖克制**：首期**不预装** `@atengk/monitor` 及 `ateng-ui` 的 L2 重型扩展包（图表、流程图、富文本等），待二期按需求再引入；**严禁引入** `lodash`、`moment`、`jquery`、Vuex、Options API、外部 Mock 服务；首期纯中文应用（暂不引入 `vue-i18n`，业务文案保持集中/语义化）。
-- **双态后端无感切换**：前端唯一对接 `.agents/rules/contracts.md` 定义的 `/admin/**` 契约，无论后端运行于单体 `ateng-solid-server` 还是 `ateng-cloud-gateway` 微服务网关模式，前端代码与接口契约保持 100% 透明兼容。
+- **依赖克制**：优先复用 `@atengk/core`（HTTP 解包、长整型正则防截断、`AuthManager`/`TenantManager`、Blob 双态嗅探、`formatMask*`）、`@atengk/vue`（`useRequest`/`usePagination`/`useAuth`/`useTenant`/`useTabsNav`/`useExcel`/`useUpload`）与 `@atengk/element-plus`（`AtengProLayout`/`AtengTabsNav`/`AtengTable`/`AtengQueryForm`/`AtengDialog`/`AtengDrawer`/`AtengDict*`/`AtengCaptcha`/`AtengUpload`/`AtengExcel*`/`v-permission`/`v-idempotent`）。
+- **禁止引入**：`lodash`、`moment`、`jquery`、Vuex、Options API、OpenAPI 代码生成工具、外部 Mock 服务；首期不预装 `@atengk/monitor`、L2 重型图表/编辑器与 `vue-i18n`，不提前建立空 `src/modules/` 目录。
+- **底层缺口即停工（Zero Workaround）**：遇 `@atengk/*` 能力缺失、设计不顺手或存在缺陷，立即暂停受阻编码并向 `atengk/ateng-ui` 提通用 Issue（严禁业务仓补丁绕过，严禁底座硬编码本项目约定）；正式提交前必须锁回 npm 正式版（`.githooks/pre-commit` 拦截 `file:.yalc`/`file:../`/`link:`）。
 
 ---
 
-## 2. 协议对齐、认证权限与路由规范
+## 2. 协议、权限、Vue 3.5 与样式硬约束
 
-- **手写强类型 `src/api/*`**：不使用 OpenAPI 代码生成工具；接口层收敛于 `src/api/*`，直接调用 `@atengk/core` `http` 客户端并对照后端 DTO/VO 手写强类型接口。
-- **统一响应与分页**：对齐 `Result<T>`、`PageQuery`（`current` / `size` / `sorts`）与 `PageResult<T>`（`records` / `total`）；列表查询或兜底**统一返回空数组 `[]`**，严禁返回 `null`/`undefined`。
-- **雪花 ID 与多租户对齐**：所有业务主外键 ID（含 `tenantId`）在 TS 模型中**统一声明为 `string`**，严禁使用 `number`。
-- **管理端多账号与超管收敛**：
-  - `AuthManager` 显式配置：`tokenKey: 'satoken-admin'`、`headerName: 'satoken-admin'`（对应后端 `loginType = "admin"`）；
-  - `TenantManager` 维护当前租户（默认 `"0"`）并自动注入 `X-Tenant-Id`；仅租户 `"0"` 的超级管理员在前端顶栏可切换工作租户视角；
-  - **关键初始化防越权**：注册插件时必须显式覆写 **`createAtengVue({ superAdminRoles: ['super_admin'] })`**，覆盖底层默认含 `'admin'` 的数组，防止普通租户管理员角色绕过按钮权限。
-- **动态路由与三段式权限**：
-  - 后端下发嵌套路由菜单树（`M`/`C`/`F`），前端通过 Vite `import.meta.glob('@/views/**/*.vue')` 动态映射注册；
-  - `AtengProLayout` + `AtengTabsNav` 配合 `useTabsNav` 对 `<router-view>` 自行包裹 `<KeepAlive :include="...">`；
-  - 菜单 `icon` 字符串已依托 `atengk/ateng-ui#365`（`1.1.0`）提供通用图标解析回调 `iconResolver`，直接在 `AtengProLayout` 配置接入（禁止上层手写字段魔改绕过）；
-  - 按钮权限统一采用 `v-permission` / `v-role` 与 `<域>:<资源>:<动作>` 三段式编码。
-
----
-
-## 3. Vue 3.5 + TailwindCSS 混合样式与代码规范
-
-### 3.1 SFC 与 TypeScript 铁律
-- **强制 `<script setup lang="ts">`**，标签顺序固定为 `<script setup lang="ts">` ➔ `<template>` ➔ `<style scoped>`；单文件 `.vue` 建议 ≤ 400 行，`.ts` ≤ 500 行；**100% 禁止 Options API 与 Vue 2 废弃语法**。
-- **Props / Emits / 响应式安全**：
-  - 使用纯粹 TS 泛型字面量声明 `defineProps<{ ... }>()` 与 `defineEmits<{ ... }>()`；
-  - 严禁直接突变 `props`（通过 `emit` 或 `defineModel` 回传）；严禁在需要维持响应性的位置对 `props` / `reactive()` 直接 ES6 解构（使用 `toRefs` / `toRef` / `toValue()`）；
-  - **100% 严禁生产裸 `any`**（使用 `unknown` + 类型守卫）与未防御的非空断言 `!`；
-  - **严禁绕过 Vue 直接 `document.getElementById`/`querySelector` 获取组件内节点**（使用 `ref` / `useTemplateRef`）。
-
-### 3.2 TailwindCSS（禁 Preflight）+ `theme-pro` CSS 变量混合体系
-- **职责严格二分**：
-  - **TailwindCSS（关闭 `preflight: false`）**：**仅用于页面级/区块级 Flex/Grid 布局、间距、对齐与响应式排版**；
-  - **Element Plus + `@atengk/element-plus/theme-pro.css`**：全面接管全局 Reset、基础字体/滚动条、组件皮肤与状态交互。
-- **主题与暗黑双模铁律**：
-  - 暗黑模式使用 `darkMode: 'class'`，同步响应 `html.dark`；
-  - 颜色、圆角、阴影 100% 绑定 `--el-*` / `--at-*` CSS 变量，**严禁硬编码 Hex 色值**；**严禁使用 Tailwind 类覆盖组件库内部私有样式**；局部自定义 CSS 必须使用 `<style scoped>`，禁止全局 `!important`。
-
-### 3.3 生命周期、内存真明文与日志
-- **内存真明文与脱敏**：表单状态与状态管理保持真明文，脱敏展示仅在渲染管道调用 `formatMask*`。
-- **确定性资源释放**：所有 `addEventListener`、`setInterval`/`setTimeout`、`ResizeObserver`/`IntersectionObserver`、WebSocket/SSE 与 `URL.createObjectURL` 必须在 `onUnmounted` 或 `onScopeDispose` 中 100% 释放。
-- **零裸 `console.log`**：生产代码严禁遗留 `console.log`；异常经 `BusinessException` 或全局错误边界受控处理，严禁空 `catch` 吞咽异常。
+- **手写强类型 `src/api/*`**：直接对齐后端 `/admin/**` 契约（透明兼容单体与微服务网关）；全部雪花主外键 ID 与 `tenantId` 统一声明为 `string`（严禁 `number`）；列表与分页兜底统一返回 `[]`。
+- **认证、多租户与超管防越权**：
+  - `AuthManager` 配置 `tokenKey: 'satoken-admin'`、`headerName: 'satoken-admin'`；`TenantManager` 默认 `"0"` 并注入 `X-Tenant-Id`（依据登录前置接口 `tenantEnabled` 显隐租户 UI，仅租户 `"0"` 的 `super_admin` 可切换工作租户）；
+  - **必配防越权**：插件注册时显式传 `createAtengVue({ superAdminRoles: ['super_admin'] })`，覆盖底层默认 `'admin'`；按钮权限统一 `v-permission` / `v-role` 与 `<域>:<资源>:<动作>` 三段式编码；
+  - 动态路由经 `import.meta.glob('@/views/**/*.vue')` 映射；菜单图标直接接入 `AtengProLayout` `:icon-resolver` 回调。
+- **Vue 3.5 SFC 与响应式铁律**：
+  - 统一 `<script setup lang="ts">` ➔ `<template>` ➔ `<style scoped>`，使用纯 TS 泛型 `defineProps<{...}>()` / `defineEmits<{...}>()`；严禁 Options API、生产裸 `any`、未防御 `!`、直接突变 `props`、破坏响应性的解构与组件内 `document.querySelector`；
+  - 表单与 Store 保持“内存真明文”，展示掩码仅在渲染层调用 `formatMask*`；所有监听、定时器、`Observer` 与 `URL.createObjectURL` 必须在 `onUnmounted` / `onScopeDispose` 释放。
+- **TailwindCSS v4（禁 Preflight）+ `Precision Slate & Cobalt` 自有令牌**：
+  - 仅在 `src/styles/main.css` 显式导入 `tailwindcss/theme.css` 与 `tailwindcss/utilities.css`（严禁引入 Preflight 或 `@import "tailwindcss"`）；Tailwind 仅用于布局与间距，严禁魔改 `.el-*`/`.at-*` 内部 DOM；
+  - 脱离 `@atengk/element-plus/theme-pro.css` 默认皮肤，通过 `src/styles/tokens.css` 定义 `--solid-*` 并映射至 `--el-*` 与 Tailwind `@theme`（暗黑模式跟随 `html.dark`），全站严禁硬编码 Hex 色值。
 
 ---
 
-## 4. 本地配置、验证门禁与 Git 纪律
+## 3. 验证门禁、本地配置与交付底线
 
-- **双模联调配置**：后端代理地址与应用标题等配置写入被 `.gitignore` 忽略的 `.env.local`（仓库仅提交占位模板 `.env.example`）；开发联调走 Vite Proxy。
-- **四合一验证门禁 & 全自洽 Vitest 单测**：
-  - 修改代码提交前必须执行并通过四合一检查：`pnpm typecheck && pnpm lint && pnpm test && pnpm build`；
-  - Vitest 单测不依赖真实后端，必须依托 `vi.mock` 自洽拦截 HTTP；挂载组件测试须在 `afterEach` 调用 `wrapper.unmount()` 并重置 Storage / Pinia 状态。
-- **双分支与安全暂存**：`main` 只读发布，`dev` 活跃开发；本地预提交钩子 `.githooks/pre-commit` 与 `.githooks/commit-msg` 自动守门；未获用户明确提交/推送指令前改动停留在工作区；暂存必须显式指定文件路径（严禁 `git add .` / `-A`）。
-- **跨仓本地联调（`pnpm pack + yalc`）与防呆还原**：本地联调未发版的 `ateng-ui` 时，须先在 `ateng-ui` 通过 `pnpm pack` 消解内部 `workspace:*` 协议并解包执行 `yalc publish --push`（严禁裸跑 `yalc push` 或 `pnpm link`）；上层使用 `yalc add` 接入并通过 `pnpm dev:force` 刷新 Vite 预构建缓存；提交前必须执行 `yalc remove --all && pnpm up @atengk/*` 还原为 npm 正式版，`.githooks/pre-commit` 会自动拦截含 `file:.yalc`/`file:../`/`link:` 的 `package.json` 或 `pnpm-lock.yaml` 提交。
-- **注释规范**：新建文件/组件/Hooks/API 接口需具备中文 JSDoc（`@author Ateng`、`@since YYYY-MM-DD`），详细说明 Props/Emits 边界与空值约定。
+- **四合一验证门禁**：交付前本地执行 `pnpm typecheck && pnpm lint && pnpm test && pnpm build` 全绿；Vitest 单测依赖 `vi.mock` 离线自洽，组件测试在 `afterEach` 调用 `wrapper.unmount()` 并重置 Pinia / Storage。
+- **本地配置与 Git**：后端代理与私有配置仅存 `.gitignore` 忽略的 `.env.local`（仓库仅留 `.env.example`）；`dev` 分支开发，未获明确指令不提交/推送，暂存显式指定路径（禁 `git add .`/`-A`），Conventional Commits。
 
 ---
 
-## 5. AI 交付前自检清单 (Pre-flight Checklist)
+## 4. 按需必读文档（按场景触发）
 
-- [ ] **强类型与契约对齐**：所有业务 ID 是否全部为 `string`？无生产裸 `any` 与未防御 `!`？
-- [ ] **样式与暗黑模式**：Tailwind 是否禁用了 Preflight？页面无硬编码 Hex 色值且未覆盖组件库内部类？`<style scoped>` 正确隔离？
-- [ ] **组件范式与响应式**：是否 100% 使用 `<script setup lang="ts">`？无突变 Props 与失效解构？
-- [ ] **权限安全防线**：`createAtengVue` 是否显式收敛 `superAdminRoles: ['super_admin']`？按钮控制是否统一 `v-permission`？
-- [ ] **生命周期清理**：是否 100% 在 `onUnmounted` / `onScopeDispose` 中清理所有监听、定时器与 Observer？
-- [ ] **本地门禁全绿**：是否已在本地执行 `pnpm typecheck && pnpm lint && pnpm test && pnpm build` 并全部通过？无真实凭据或 `console.log` 残留？
-
----
-
-## 6. 专职规约与文档导航
-
-- 底层缺口即停工硬门禁（同步副本）：[`.agents/rules/foundation-first-gate.md`](./.agents/rules/foundation-first-gate.md)
-- 跨端通信与数据契约（同步副本）：[`.agents/rules/contracts.md`](./.agents/rules/contracts.md)
-- 全仓代码与架构编程规范（同步副本）：[`.agents/rules/coding-and-architecture.md`](./.agents/rules/coding-and-architecture.md)
-- 文档 1:1 保真与模块规范（同步副本）：[`docs/agents/documentation-specification.md`](./docs/agents/documentation-specification.md)
-- 混合样式与 `ateng-ui` 接入细则：[`.agents/rules/styling-and-ateng-ui.md`](./.agents/rules/styling-and-ateng-ui.md)
-- 前端 AI 全景索引：[`llms.txt`](./llms.txt)
-- 前端领域词汇表：[`CONTEXT.md`](./CONTEXT.md)
-- 前端架构决策记录：[`docs/adr/README.md`](./docs/adr/README.md)
-- 前端架构、配置基线与路由规范：[`docs/specs/frontend-architecture-and-conventions.md`](./docs/specs/frontend-architecture-and-conventions.md)
-- 页面视图、动态路由与 Store 契约规格：[`docs/specs/views-and-routes-spec.md`](./docs/specs/views-and-routes-spec.md)
-
----
+| 触发场景（何时必先读） | 文档路径 |
+| :--- | :--- |
+| 编写页面布局、样式令牌，或接入 `AtengProLayout`/`TabsNav`/`Table`/`QueryForm`/`Dict*`/`Captcha`/`Upload`/`Excel*` | [`docs/agents/styling-and-ateng-ui.md`](./docs/agents/styling-and-ateng-ui.md) |
+| 新增或调整 `src/api/*` 接口、请求头、错误码、多租户、权限码或 Excel 导入导出 | [`docs/agents/contracts.md`](./docs/agents/contracts.md) |
+| 拆分复杂视图/Composable、选型表驱动、写注释或做 Code Review | [`docs/agents/coding-standards.md`](./docs/agents/coding-standards.md) |
+| 遇 `ateng-ui` 底座缺口，或需用 `pnpm pack + yalc` 本地联调还原 | [`docs/agents/foundation-first-gate.md`](./docs/agents/foundation-first-gate.md) |
+| 功能通过四合一门禁后逆向沉淀 `README.md` / Specs / `CONTEXT.md` / `llms.txt` | [`docs/agents/documentation-specification.md`](./docs/agents/documentation-specification.md) |
+| 查阅目录结构、ESLint/TS 基线、路由表、Store 与扩展模块规格 | [`docs/specs/frontend-architecture-and-conventions.md`](./docs/specs/frontend-architecture-and-conventions.md) · [`docs/specs/views-and-routes-spec.md`](./docs/specs/views-and-routes-spec.md) |
+| 全局索引、前端术语表与架构决策 | [`llms.txt`](./llms.txt) · [`CONTEXT.md`](./CONTEXT.md) · [`docs/adr/README.md`](./docs/adr/README.md) |
 
 ## Agent skills
 
-### Issue tracker
-
-本仓库使用 GitHub Issues（通过 `gh` CLI）跟踪前端需求、规格与缺陷。详见 [`docs/agents/issue-tracker.md`](./docs/agents/issue-tracker.md)。
-
-### Triage labels
-
-采用标准 5 角色分诊标签词表（`needs-triage` / `needs-info` / `ready-for-agent` / `ready-for-human` / `wontfix`）。详见 [`docs/agents/triage-labels.md`](./docs/agents/triage-labels.md)。
-
-### Domain docs
-
-本仓库采用单上下文（single-context）结构（根目录 `CONTEXT.md` + `docs/adr/`）。详见 [`docs/agents/domain.md`](./docs/agents/domain.md)。
+- **Issue tracker**: GitHub Issues (`gh` CLI) — [`docs/agents/issue-tracker.md`](./docs/agents/issue-tracker.md)
+- **Triage labels**: 5 角色标签词表 — [`docs/agents/triage-labels.md`](./docs/agents/triage-labels.md)
+- **Domain docs**: 单上下文（根 `CONTEXT.md` + `docs/adr/`）— [`docs/agents/domain.md`](./docs/agents/domain.md)

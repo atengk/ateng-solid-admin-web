@@ -2,7 +2,7 @@
 
 本仓库（`atengk/ateng-solid-admin-web`）使用 **GitHub Issues** 管理管理后台前端需求、页面/路由规格、组件与单测任务及缺陷，统一通过 `gh` CLI 操作（标签映射详见 [`triage-labels.md`](./triage-labels.md)）。
 
-> **底层缺口联动**：开发过程中若发现 `ateng-ui`（`@atengk/core`/`vue`/`element-plus`/`monitor`）存在通用基础设施缺失或缺陷，严禁在本仓编写绕过补丁，须立即按 [`.agents/rules/foundation-first-gate.md`](../../.agents/rules/foundation-first-gate.md) 暂停受阻特性并向 `atengk/ateng-ui` 提交通用化 Issue。
+> **底层缺口联动**：开发过程中若发现 `ateng-ui`（`@atengk/core`/`vue`/`element-plus`/`monitor`）存在通用基础设施缺失或缺陷，严禁在本仓编写绕过补丁，须立即按 [`foundation-first-gate.md`](./foundation-first-gate.md) 暂停受阻特性并向 `atengk/ateng-ui` 提交通用化 Issue。
 
 ---
 

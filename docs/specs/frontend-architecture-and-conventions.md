@@ -8,13 +8,9 @@
 
 ```text
 ateng-solid-admin-web/
-├── .agents/rules/
-│   ├── contracts.md                 # 从根仓同步的跨端协议副本（只读）
-│   ├── foundation-first-gate.md     # 从根仓同步的底层缺口即停工硬门禁副本（只读）
-│   ├── coding-and-architecture.md   # 从根仓同步的全仓代码与架构规范副本（只读）
-│   └── styling-and-ateng-ui.md      # TailwindCSS + theme-pro 与 ateng-ui 接入守则
 ├── docs/
 │   ├── adr/                         # 前端架构决策记录
+│   ├── agents/                      # 按需规约与协作配置（同步的 contracts/foundation-first-gate/coding-standards/documentation-specification 与 styling-and-ateng-ui）
 │   └── specs/                       # 前端架构与约定规范
 ├── public/                          # 静态公共资源
 ├── src/

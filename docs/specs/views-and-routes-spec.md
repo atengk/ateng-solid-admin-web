@@ -1,7 +1,7 @@
 # 前端页面视图、动态路由与 Store 契约规格 (views-and-routes-spec.md)
 
 > **适用范围**：`ateng-solid-admin-web` 首期 MVP 页面清单、路由元信息、Pinia Store 职责与 API 模块映射。
-> **底盘与视觉真源**：受 [`.agents/rules/foundation-first-gate.md`](../../.agents/rules/foundation-first-gate.md) 约束（增量门禁见根仓 `foundation-enhancements-checklist.md` `U5~U8`）；视觉令牌与方案 A 布局遵循根仓 `docs/specs/prd/design-system.md`（`Precision Slate & Cobalt`）与 `00-overview-and-ux-standards.md`。
+> **底盘与视觉真源**：受 [`docs/agents/foundation-first-gate.md`](../agents/foundation-first-gate.md) 约束（增量门禁见根仓 `foundation-enhancements-checklist.md` `U5~U8`）；视觉令牌与方案 A 布局遵循根仓 `docs/specs/prd/design-system.md`（`Precision Slate & Cobalt`）与 `00-overview-and-ux-standards.md`。
 
 ---
 

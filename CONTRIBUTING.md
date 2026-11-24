@@ -15,7 +15,7 @@
    git pull origin dev
    git checkout -b feat/your-feature-name
    ```
-2. 开发前请仔细阅读 [`AGENTS.md`](./AGENTS.md)、[`.agents/rules/contracts.md`](./.agents/rules/contracts.md) 与 [`.agents/rules/styling-and-ateng-ui.md`](./.agents/rules/styling-and-ateng-ui.md)；
+2. 开发前请仔细阅读 [`AGENTS.md`](./AGENTS.md)、[`docs/agents/contracts.md`](./docs/agents/contracts.md) 与 [`docs/agents/styling-and-ateng-ui.md`](./docs/agents/styling-and-ateng-ui.md)；
 3. 提交前必须通过四合一验证门禁（Node 22+、pnpm 11+）：
    ```bash
    pnpm typecheck

@@ -1,6 +1,6 @@
 # ateng-solid-admin-web
 
-**ateng-solid-admin-web** 是 **ateng-solid** 全端开源上层框架的管理后台 Web 前端工程，基于独立通用的 [`ateng-ui`](https://github.com/atengk/ateng-ui) 基础设施套件与 **TailwindCSS（禁用 Preflight）+ Element Plus `theme-pro`** 混合样式架构构建，兼作 `ateng-ui` 的实战验证载体与面向企业级业务二开的纯净前端框架壳。
+**ateng-solid-admin-web** 是 **ateng-solid** 全端开源上层框架的管理后台 Web 前端工程，基于独立通用的 [`ateng-ui`](https://github.com/atengk/ateng-ui) 基础设施套件与 **TailwindCSS v4（禁用 Preflight）+ `Precision Slate & Cobalt` 自有令牌**混合样式架构构建，兼作 `ateng-ui` 的实战验证载体与面向企业级业务二开的纯净前端框架壳。
 
 ---
 
@@ -16,11 +16,11 @@
 ## 2. 规范与文档入口
 
 - 独立开发行为准则：[`AGENTS.md`](./AGENTS.md)
-- 跨端通信契约（同步副本）：[`.agents/rules/contracts.md`](./.agents/rules/contracts.md)
-- 底层缺口即停工硬门禁（同步副本）：[`.agents/rules/foundation-first-gate.md`](./.agents/rules/foundation-first-gate.md)
-- 全仓代码与架构编程规范（同步副本）：[`.agents/rules/coding-and-architecture.md`](./.agents/rules/coding-and-architecture.md)
+- 跨端通信契约（同步副本）：[`docs/agents/contracts.md`](./docs/agents/contracts.md)
+- 底层缺口即停工与联调 SOP（同步副本）：[`docs/agents/foundation-first-gate.md`](./docs/agents/foundation-first-gate.md)
+- 编码、架构拆解与注释规范（同步副本）：[`docs/agents/coding-standards.md`](./docs/agents/coding-standards.md)
 - 文档 1:1 保真规范（同步副本）：[`docs/agents/documentation-specification.md`](./docs/agents/documentation-specification.md)
-- 混合样式与 `ateng-ui` 接入守则：[`.agents/rules/styling-and-ateng-ui.md`](./.agents/rules/styling-and-ateng-ui.md)
+- 混合样式与 `ateng-ui` 接入守则：[`docs/agents/styling-and-ateng-ui.md`](./docs/agents/styling-and-ateng-ui.md)
 - 前端 AI 全景索引：[`llms.txt`](./llms.txt)
 - 前端领域词汇表：[`CONTEXT.md`](./CONTEXT.md)
 - 前端架构决策记录：[`docs/adr/README.md`](./docs/adr/README.md)
