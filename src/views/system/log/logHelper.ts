@@ -1,5 +1,12 @@
-import { computed, type WritableComputedRef } from 'vue';
 import { ElMessage } from 'element-plus';
+import {
+  buildDateTimeShortcuts,
+  createDateTimeRangeBinding,
+  DEFAULT_RANGE_PICKER_TIME,
+  resetQueryDateRange,
+  type DateRangePickerValue,
+  type DateRangeQueryShape,
+} from '@/utils/dateRange';
 
 /**
  * 审计日志共享纯逻辑工具（JSON 美化缩进、时间区间快捷选择、双向区间绑定与安全剪贴板复制）。
@@ -8,49 +15,13 @@ import { ElMessage } from 'element-plus';
  * @since 2026-11-25
  */
 
-export interface DateRangeQueryShape {
-  beginTime?: string;
-  endTime?: string;
-}
+export type { DateRangeQueryShape };
+export type AuditDateRangeValue = DateRangePickerValue;
 
-export type AuditDateRangeValue = string | number | Date;
-
-export const DEFAULT_AUDIT_PICKER_TIME: [Date, Date] = [
-  new Date(2000, 0, 1, 0, 0, 0),
-  new Date(2000, 0, 1, 23, 59, 59),
-];
-
-/**
- * 构造适用于 `AtengDateRange` 与 `usePagination().query`（`beginTime`/`endTime`）的双向区间绑定。
- * 清空时同步接收 `null` 或 `undefined`，统一把起止时间复位为 `undefined`，防止默认值 `null` 残留进查询参数。
- *
- * @param query 分页查询状态对象
- * @returns 可写计算属性，用于 `v-model` 绑定时间区间选择器
- */
-export function createTimeRangeBinding<T extends DateRangeQueryShape>(
-  query: T,
-): WritableComputedRef<[AuditDateRangeValue, AuditDateRangeValue] | null> {
-  return computed<[AuditDateRangeValue, AuditDateRangeValue] | null>({
-    get: (): [AuditDateRangeValue, AuditDateRangeValue] | null =>
-      query.beginTime && query.endTime ? [query.beginTime, query.endTime] : null,
-    set: (value: [AuditDateRangeValue, AuditDateRangeValue] | null | undefined) => {
-      const start = value?.[0];
-      const end = value?.[1];
-      query.beginTime = typeof start === 'string' && start.trim() ? start : undefined;
-      query.endTime = typeof end === 'string' && end.trim() ? end : undefined;
-    },
-  });
-}
-
-/**
- * 重置查询对象上的起止时间区间字段。
- *
- * @param query 包含 `beginTime` 与 `endTime` 的查询对象
- */
-export function resetAuditDateRange(query: DateRangeQueryShape): void {
-  query.beginTime = undefined;
-  query.endTime = undefined;
-}
+export const DEFAULT_AUDIT_PICKER_TIME = DEFAULT_RANGE_PICKER_TIME;
+export const createTimeRangeBinding = createDateTimeRangeBinding;
+export const resetAuditDateRange = resetQueryDateRange;
+export const buildAuditTimeShortcuts = buildDateTimeShortcuts;
 
 export interface AuditPayloadFormatResult {
   /**
@@ -86,31 +57,6 @@ export function formatAuditPayload(raw?: string | null): AuditPayloadFormatResul
     }
   }
   return { formatted: raw ?? '', isJson: false };
-}
-
-/**
- * 构造审计日志时间区间检索快捷选项（今天、最近 7 天、最近 30 天）。
- *
- * @returns 适配 Element Plus ElDatePicker datetimerange 的快捷选项列表
- */
-export function buildAuditTimeShortcuts(): Array<{
-  text: string;
-  value: () => [Date, Date];
-}> {
-  const createRange = (daysBack: number): [Date, Date] => {
-    const end = new Date();
-    end.setHours(23, 59, 59, 999);
-    const start = new Date();
-    start.setDate(start.getDate() - daysBack);
-    start.setHours(0, 0, 0, 0);
-    return [start, end];
-  };
-
-  return [
-    { text: '今天', value: () => createRange(0) },
-    { text: '最近 7 天', value: () => createRange(6) },
-    { text: '最近 30 天', value: () => createRange(29) },
-  ];
 }
 
 /**

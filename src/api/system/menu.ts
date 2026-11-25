@@ -248,7 +248,7 @@ export interface MenuSaveRequest {
   platformOnly?: boolean;
 }
 
-function normalizeMenuTree(nodes?: MenuTreeVO[] | null): MenuTreeVO[] {
+export function normalizeMenuTree(nodes?: MenuTreeVO[] | null): MenuTreeVO[] {
   if (!Array.isArray(nodes)) {
     return [];
   }
