@@ -25,6 +25,17 @@
   --solid-primary: #1d4ed8;
   --solid-primary-hover: #1e40af;
   --solid-primary-soft: #eff6ff;
+  --solid-primary-border: #bfdbfe;
+
+  /* 登录品牌栏深岩面板（遵循设计系统固定深 Slate 对比区） */
+  --solid-brand-panel-bg: #0f172a;
+  --solid-brand-panel-text: #f8fafc;
+  --solid-brand-panel-text-secondary: #cbd5e1;
+  --solid-brand-panel-text-muted: #94a3b8;
+  --solid-brand-panel-card: rgba(255, 255, 255, 0.05);
+  --solid-brand-panel-border: rgba(255, 255, 255, 0.1);
+  --solid-brand-panel-dot: #3b82f6;
+  --solid-brand-panel-on-primary: #ffffff;
 
   /* 结构细边框 */
   --solid-border: rgba(15, 23, 42, 0.1);
@@ -33,11 +44,13 @@
   /* 语义状态色与柔色提醒底 */
   --solid-success: #047857;
   --solid-success-soft: rgba(4, 120, 87, 0.08);
+  --solid-success-border: rgba(4, 120, 87, 0.28);
   --solid-warning: #b45309;
   --solid-warning-soft: rgba(180, 83, 9, 0.08);
   --solid-warning-border: rgba(180, 83, 9, 0.28);
   --solid-danger: #dc2626;
   --solid-danger-soft: rgba(220, 38, 38, 0.08);
+  --solid-danger-border: rgba(220, 38, 38, 0.28);
   --solid-info: #475569;
   --solid-info-soft: rgba(71, 85, 105, 0.08);
 
@@ -76,17 +89,29 @@ html.dark {
   --solid-primary: #3b82f6;
   --solid-primary-hover: #2563eb;
   --solid-primary-soft: rgba(59, 130, 246, 0.14);
+  --solid-primary-border: rgba(59, 130, 246, 0.35);
+
+  --solid-brand-panel-bg: #090d16;
+  --solid-brand-panel-text: #f8fafc;
+  --solid-brand-panel-text-secondary: #cbd5e1;
+  --solid-brand-panel-text-muted: #94a3b8;
+  --solid-brand-panel-card: rgba(255, 255, 255, 0.05);
+  --solid-brand-panel-border: rgba(255, 255, 255, 0.1);
+  --solid-brand-panel-dot: #3b82f6;
+  --solid-brand-panel-on-primary: #ffffff;
 
   --solid-border: rgba(226, 232, 240, 0.12);
   --solid-border-light: rgba(226, 232, 240, 0.07);
 
   --solid-success: #10b981;
   --solid-success-soft: rgba(16, 185, 129, 0.14);
+  --solid-success-border: rgba(16, 185, 129, 0.3);
   --solid-warning: #f59e0b;
   --solid-warning-soft: rgba(245, 158, 11, 0.14);
   --solid-warning-border: rgba(245, 158, 11, 0.32);
   --solid-danger: #f87171;
   --solid-danger-soft: rgba(248, 113, 113, 0.14);
+  --solid-danger-border: rgba(248, 113, 113, 0.32);
   --solid-info: #94a3b8;
   --solid-info-soft: rgba(148, 163, 184, 0.14);
 

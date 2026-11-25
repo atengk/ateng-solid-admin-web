@@ -20,5 +20,11 @@ export default defineConfig({
     globals: true,
     setupFiles: ['tests/setup.ts'],
     include: ['tests/**/*.{test,spec}.{ts,js}', 'src/**/*.{test,spec}.{ts,js}'],
+    server: {
+      deps: {
+        // 内联 Element Plus 与 async-validator，避免 Vitest 外部化读取 CJS 入口导致表单校验失效
+        inline: [/element-plus/, /async-validator/],
+      },
+    },
   },
 });

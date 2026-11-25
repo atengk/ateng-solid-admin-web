@@ -89,7 +89,14 @@ function buildLoginRedirectLocation(fullPath: string): RouteLocationRaw {
   };
 }
 
-function resolveAuthenticatedRedirectTarget(
+/**
+ * 解析登录或会话恢复后的最终站内重定向目标：须满足同源单斜杠白名单且具备访问权限，否则安全回落 `/dashboard`。
+ *
+ * @param rawRedirect 路由 Query 中的原始 redirect 值
+ * @param permissionStore 当前权限菜单状态仓库
+ * @returns 可安全跳转的站内路径
+ */
+export function resolveAuthenticatedRedirectTarget(
   rawRedirect: unknown,
   permissionStore: ReturnType<typeof usePermissionStore>,
 ): string {

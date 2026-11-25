@@ -17,7 +17,26 @@ import { usePermissionStore } from '@/stores/permission';
 import { useTenantStore } from '@/stores/tenant';
 
 const TENANT_ENABLED_STORAGE_KEY = 'solid-tenant-enabled';
+export const PASSWORD_REMINDER_DISMISS_PREFIX = 'solid-pwd-reminder-dismissed:';
 const SUPER_ADMIN_ROLES = ['super_admin'];
+
+function clearPasswordReminderDismissals(): void {
+  if (typeof sessionStorage === 'undefined') {
+    return;
+  }
+  try {
+    const keysToRemove: string[] = [];
+    for (let idx = 0; idx < sessionStorage.length; idx += 1) {
+      const key = sessionStorage.key(idx);
+      if (key && key.startsWith(PASSWORD_REMINDER_DISMISS_PREFIX)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => sessionStorage.removeItem(key));
+  } catch {
+    // 会话存储受限时静默忽略
+  }
+}
 
 function readStoredTenantEnabled(): boolean {
   if (typeof localStorage === 'undefined') {
@@ -85,6 +104,7 @@ export const useAuthStore = defineStore('auth', () => {
     inferTenantEnabledFromId(effectiveTenantId);
 
     useTenantStore().recordLoginTenant(effectiveTenantId, result.tenantName);
+    clearPasswordReminderDismissals();
     auth.login({ token: result.tokenValue });
     isInitialized.value = false;
     return result;
@@ -118,6 +138,7 @@ export const useAuthStore = defineStore('auth', () => {
   function clearLocalSession(router?: Router): void {
     auth.logout();
     isInitialized.value = false;
+    clearPasswordReminderDismissals();
     useTenantStore().resetLocalTenant();
     DictManager.clearCache();
     useAppStore().resetNonAffixTabs();
@@ -177,6 +198,23 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
+   * 局部更新当前内存登录用户的展示摘要字段（如昵称、头像 URL 或改密提醒标记），保持顶栏与工作台单源同步。
+   *
+   * @param patch 待更新的局部摘要字段
+   */
+  function updateUserSummary(patch: Partial<AdminProfileVO>): void {
+    if (!auth.user.value) {
+      return;
+    }
+    auth.setUser({
+      ...auth.user.value,
+      roles: [...auth.user.value.roles],
+      permissions: [...auth.user.value.permissions],
+      ...patch,
+    });
+  }
+
+  /**
    * 直接向底层 authManager 同步刷新令牌（供测试或外部初始化补齐 Token 状态）。
    */
   function syncTokenFromManager(): void {
@@ -206,6 +244,7 @@ export const useAuthStore = defineStore('auth', () => {
     clearLocalSession,
     hasPermission,
     hasRole,
+    updateUserSummary,
     syncTokenFromManager,
   };
 });

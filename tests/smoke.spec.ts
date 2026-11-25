@@ -1,9 +1,10 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia } from 'pinia';
 import { createMemoryHistory } from 'vue-router';
 import ElementPlus from 'element-plus';
 import AtengElementPlus from '@atengk/element-plus';
+import * as authApi from '@/api/auth';
 import { createAppRouter } from '@/router';
 import App from '@/App.vue';
 
@@ -19,11 +20,19 @@ describe('App root smoke', () => {
   afterEach(() => {
     wrapper?.unmount();
     wrapper = null;
+    vi.restoreAllMocks();
     localStorage.clear();
     sessionStorage.clear();
   });
 
   it('mounts ElConfigProvider with router-view cleanly', async () => {
+    vi.spyOn(authApi, 'getCaptcha').mockResolvedValue({
+      enabled: false,
+      tenantEnabled: false,
+      captchaKey: '',
+      imageBase64: '',
+      expireSeconds: 120,
+    });
     const pinia = createPinia();
     const router = createAppRouter(createMemoryHistory());
     await router.push('/login');
