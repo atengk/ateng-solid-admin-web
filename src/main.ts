@@ -3,32 +3,45 @@ import { createPinia } from 'pinia';
 import ElementPlus from 'element-plus';
 import zhCn from 'element-plus/es/locale/lang/zh-cn.mjs';
 import { createAtengVue } from '@atengk/vue';
-import AtengElementPlus, { initTheme } from '@atengk/element-plus';
-import { adminAuthManager, adminHttpClient, adminTenantManager } from './utils/http';
+import AtengElementPlus from '@atengk/element-plus';
+import {
+  adminAuthManager,
+  adminHttpClient,
+  adminTenantManager,
+  registerHttpErrorHandlers,
+} from './utils/http';
 import { setupDictManager } from './utils/dict';
+import { initAppTheme } from './stores/app';
+import { useAuthStore } from './stores/auth';
+import { useTenantStore } from './stores/tenant';
+import { router } from './router';
+import { setupRouterGuards } from './router/guards';
 import './styles/main.css';
 import App from './App.vue';
 
 /**
- * 管理后台前端应用启动入口：按严格时序装配主题引擎、双轨字典分发器、Pinia、Element Plus 中文语言包及 ateng-ui 三单例。
+ * 管理后台前端应用启动入口：严格执行 8 步初始化时序装配主题、字典、Pinia、ateng-ui 三单例、全局异常回调与动态路由。
  *
  * @author Ateng
  * @since 2026-11-19
  */
 
-// 1. 初始化主题引擎（不传 themeColor，保留 Light/Dark 双主色 CSS 变量切换）与双轨字典
-initTheme({
-  storageKey: 'solid-theme-mode',
-  defaultMode: 'light',
-  listenSystemPreference: true,
-});
+// 1. 初始化主题引擎（不传 themeColor，保留 Light/Dark 双主色 CSS 变量切换）
+initAppTheme();
+
+// 2. 注册双轨（静态枚举 + 动态字典）分发器至 DictManager
 setupDictManager();
 
-// 2. 创建根实例并严格按序挂载核心插件（router 接入时须位于 createAtengVue 之后）
 const app = createApp(App);
+const pinia = createPinia();
 
-app.use(createPinia());
+// 3. 挂载 Pinia 状态管理插件
+app.use(pinia);
+
+// 4. 挂载 Element Plus 及中文语言包
 app.use(ElementPlus, { locale: zhCn });
+
+// 5. 挂载 @atengk/vue（必须在 app.use(router) 与任何 Store 调用之前，覆盖 superAdminRoles）
 app.use(
   createAtengVue({
     httpClient: adminHttpClient,
@@ -38,6 +51,24 @@ app.use(
     defaultSize: 10,
   }),
 );
+
+// 6. 挂载 @atengk/element-plus 通用业务组件与指令插件
 app.use(AtengElementPlus);
 
+// 7. 接线全局 HTTP 异常会话/租户回调，装配导航守卫并挂载 Vue Router
+registerHttpErrorHandlers({
+  onSessionExpired: async () => {
+    const authStore = useAuthStore(pinia);
+    const currentRoute = router.currentRoute.value;
+    const redirect = currentRoute.meta.public ? undefined : currentRoute.fullPath;
+    await authStore.logout({ remote: false, router, redirect });
+  },
+  onTenantInvalid: async () => {
+    await useTenantStore(pinia).handleHttpInvalidTenantSwitch(router);
+  },
+});
+setupRouterGuards(router, pinia);
+app.use(router);
+
+// 8. 挂载应用根实例
 app.mount('#app');

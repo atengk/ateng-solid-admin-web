@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, vi } from 'vitest';
+import { useAuth } from '@atengk/vue';
 import { DictManager } from '@atengk/element-plus';
 import { adminAuthManager, adminTenantManager, resetHttpInterceptorState } from '@/utils/http';
 
@@ -12,7 +13,7 @@ function cleanupTestIsolationState(): void {
   localStorage.clear();
   sessionStorage.clear();
   DictManager.clearCache();
-  adminAuthManager.clearToken();
+  useAuth({ authManager: adminAuthManager, superAdminRoles: ['super_admin'] }).logout();
   adminTenantManager.clearTenantId();
   resetHttpInterceptorState();
   vi.restoreAllMocks();
