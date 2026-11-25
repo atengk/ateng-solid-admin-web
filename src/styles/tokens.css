@@ -1,0 +1,143 @@
+/*
+ * Precision Slate & Cobalt 设计系统自有视觉令牌表（Light / Dark 双态）
+ *
+ * 作为全局唯一十六进制色值真源：静态映射至 --solid-*、Element Plus --el-* 与 @atengk/element-plus --at-* 变量，
+ * 完全脱离 theme-pro.css，严禁在其他业务样式或组件内硬编码 Hex 色值。
+ *
+ * @author Ateng
+ * @since 2026-11-25
+ */
+
+:root {
+  /* 表面与画布层级 */
+  --solid-bg-canvas: #f6f7f9;
+  --solid-bg-surface: #ffffff;
+  --solid-bg-elevated: #ffffff;
+  --solid-bg-subtle: #eef1f5;
+
+  /* 文字与对比度层级（正文与次要文本保证 >= 4.5:1） */
+  --solid-text-primary: #0f172a;
+  --solid-text-regular: #334155;
+  --solid-text-secondary: #475569;
+  --solid-text-muted: #64748b;
+
+  /* 品牌主色（Light：深钴蓝 #1D4ED8） */
+  --solid-primary: #1d4ed8;
+  --solid-primary-hover: #1e40af;
+  --solid-primary-soft: #eff6ff;
+
+  /* 结构细边框 */
+  --solid-border: rgba(15, 23, 42, 0.1);
+  --solid-border-light: rgba(15, 23, 42, 0.06);
+
+  /* 语义状态色与柔色提醒底 */
+  --solid-success: #047857;
+  --solid-success-soft: rgba(4, 120, 87, 0.08);
+  --solid-warning: #b45309;
+  --solid-warning-soft: rgba(180, 83, 9, 0.08);
+  --solid-warning-border: rgba(180, 83, 9, 0.28);
+  --solid-danger: #dc2626;
+  --solid-danger-soft: rgba(220, 38, 38, 0.08);
+  --solid-info: #475569;
+  --solid-info-soft: rgba(71, 85, 105, 0.08);
+
+  /* 排版、圆角与阴影标尺 */
+  --solid-font-sans:
+    'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', 'IBM Plex Sans', -apple-system,
+    BlinkMacSystemFont, sans-serif;
+  --solid-font-mono: 'JetBrains Mono', 'Cascadia Mono', ui-monospace, SFMono-Regular, monospace;
+  --solid-radius-sm: 4px;
+  --solid-radius-md: 6px;
+  --solid-radius-lg: 8px;
+  --solid-radius-pill: 9999px;
+  --solid-shadow-floating:
+    0 12px 28px -6px rgba(15, 23, 42, 0.14), 0 4px 10px -2px rgba(15, 23, 42, 0.06);
+  --solid-shadow-focus: 0 0 0 2px var(--solid-bg-surface), 0 0 0 4px var(--solid-primary);
+
+  /* Light 态 Element Plus 1~9 级主色阶 */
+  --el-color-primary-light-3: #6183e4;
+  --el-color-primary-light-5: #8ea7ec;
+  --el-color-primary-light-7: #bbcbf3;
+  --el-color-primary-light-8: #d2dcf7;
+}
+
+html.dark {
+  --solid-bg-canvas: #0b0f17;
+  --solid-bg-surface: #111827;
+  --solid-bg-elevated: #182234;
+  --solid-bg-subtle: #1e293b;
+
+  --solid-text-primary: #f8fafc;
+  --solid-text-regular: #cbd5e1;
+  --solid-text-secondary: #94a3b8;
+  --solid-text-muted: #64748b;
+
+  /* Dark 主色：亮钴蓝 #3B82F6 */
+  --solid-primary: #3b82f6;
+  --solid-primary-hover: #2563eb;
+  --solid-primary-soft: rgba(59, 130, 246, 0.14);
+
+  --solid-border: rgba(226, 232, 240, 0.12);
+  --solid-border-light: rgba(226, 232, 240, 0.07);
+
+  --solid-success: #10b981;
+  --solid-success-soft: rgba(16, 185, 129, 0.14);
+  --solid-warning: #f59e0b;
+  --solid-warning-soft: rgba(245, 158, 11, 0.14);
+  --solid-warning-border: rgba(245, 158, 11, 0.32);
+  --solid-danger: #f87171;
+  --solid-danger-soft: rgba(248, 113, 113, 0.14);
+  --solid-info: #94a3b8;
+  --solid-info-soft: rgba(148, 163, 184, 0.14);
+
+  --solid-shadow-floating:
+    0 14px 32px -6px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(226, 232, 240, 0.16);
+
+  /* Dark 态 Element Plus 1~9 级主色阶 */
+  --el-color-primary-light-3: #2e64bc;
+  --el-color-primary-light-5: #244b8b;
+  --el-color-primary-light-7: #1a3259;
+  --el-color-primary-light-8: #152540;
+}
+
+/*
+ * 同权重（含 html.dark）统一覆写 element-plus/theme-chalk/dark/css-vars.css 中的语义变量，
+ * 确保暗黑模式下画布、表面、边框、文字与主色阶均受控于 Precision Slate & Cobalt 令牌。
+ */
+:root,
+html.dark {
+  --el-color-primary: var(--solid-primary);
+  --el-color-primary-light-9: var(--solid-primary-soft);
+  --el-color-primary-dark-2: var(--solid-primary-hover);
+
+  --el-color-success: var(--solid-success);
+  --el-color-warning: var(--solid-warning);
+  --el-color-danger: var(--solid-danger);
+  --el-color-error: var(--solid-danger);
+  --el-color-info: var(--solid-info);
+
+  --el-bg-color-page: var(--solid-bg-canvas);
+  --el-bg-color: var(--solid-bg-surface);
+  --el-bg-color-overlay: var(--solid-bg-elevated);
+  --el-fill-color-light: var(--solid-bg-subtle);
+  --el-fill-color-blank: var(--solid-bg-surface);
+
+  --el-text-color-primary: var(--solid-text-primary);
+  --el-text-color-regular: var(--solid-text-regular);
+  --el-text-color-secondary: var(--solid-text-secondary);
+  --el-text-color-placeholder: var(--solid-text-muted);
+
+  --el-border-color: var(--solid-border);
+  --el-border-color-light: var(--solid-border-light);
+  --el-border-color-lighter: var(--solid-border-light);
+
+  --el-font-family: var(--solid-font-sans);
+  --el-border-radius-base: var(--solid-radius-md);
+  --el-border-radius-small: var(--solid-radius-sm);
+
+  --at-shadow-focus-ring: var(--solid-shadow-focus);
+  --at-shadow-floating: var(--solid-shadow-floating);
+  --at-font-mono: var(--solid-font-mono);
+  --at-radius-card: var(--solid-radius-lg);
+  --at-radius-dialog: var(--solid-radius-lg);
+}

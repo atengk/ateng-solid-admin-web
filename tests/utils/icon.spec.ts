@@ -1,0 +1,44 @@
+import { describe, expect, it } from 'vitest';
+import { Refresh, Setting, UserFilled } from '@element-plus/icons-vue';
+import { resolveMenuIcon, TAB_MENU_ICONS } from '@/utils/icon';
+
+/**
+ * 菜单与页签图标映射工具单元测试。
+ *
+ * @author Ateng
+ * @since 2026-11-25
+ */
+describe('icon utility', () => {
+  it('resolves valid Element Plus icon names and kebab-case variants safely', () => {
+    expect(resolveMenuIcon('Setting')).toBe(Setting);
+    expect(resolveMenuIcon('  UserFilled  ')).toBe(UserFilled);
+    expect(resolveMenuIcon('user-filled')).toBe(UserFilled);
+    expect(resolveMenuIcon('el-icon-refresh')).toBe(Refresh);
+  });
+
+  it('returns undefined safely for blank, unknown, or prototype-chain keys', () => {
+    expect(resolveMenuIcon(undefined)).toBeUndefined();
+    expect(resolveMenuIcon('')).toBeUndefined();
+    expect(resolveMenuIcon('   ')).toBeUndefined();
+    expect(resolveMenuIcon('NonExistentIconXyz')).toBeUndefined();
+    expect(resolveMenuIcon('toString')).toBeUndefined();
+    expect(resolveMenuIcon('constructor')).toBeUndefined();
+  });
+
+  it('exposes linear icon components for all AtengTabsNav context menu commands', () => {
+    const commands = [
+      'refresh',
+      'close',
+      'closeOthers',
+      'closeLeft',
+      'closeRight',
+      'closeAll',
+    ] as const;
+    for (const cmd of commands) {
+      const icon = TAB_MENU_ICONS[cmd];
+      expect(icon).toBeDefined();
+      expect(typeof icon).not.toBe('string');
+      expect(icon).not.toBe(false);
+    }
+  });
+});

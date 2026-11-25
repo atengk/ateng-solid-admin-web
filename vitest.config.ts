@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 import vue from '@vitejs/plugin-vue';
 
 /**
- * Vitest 离线单元测试配置（依托 happy-dom，零外部网络请求依赖）。
+ * Vitest 离线单元测试配置（依托 happy-dom 与 tests/setup.ts 确定性隔离基线）。
  *
  * @author Ateng
  * @since 2026-11-19
@@ -18,6 +18,7 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     globals: true,
+    setupFiles: ['tests/setup.ts'],
     include: ['tests/**/*.{test,spec}.{ts,js}', 'src/**/*.{test,spec}.{ts,js}'],
   },
 });

@@ -4,6 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ateng-solid 管理后台</title>
+    <script>
+      (function () {
+        try {
+          var mode = localStorage.getItem('solid-theme-mode');
+          var isDark =
+            mode === 'dark' ||
+            (mode === 'auto' &&
+              typeof window.matchMedia === 'function' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (_err) {
+          // 忽略无痕模式等存储访问受限场景
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>
