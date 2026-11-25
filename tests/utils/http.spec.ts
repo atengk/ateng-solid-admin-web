@@ -7,6 +7,7 @@ import {
   adminAuthManager,
   adminHttpClient,
   adminTenantManager,
+  isGlobalHandledHttpError,
   registerHttpErrorHandlers,
 } from '@/utils/http';
 
@@ -343,5 +344,22 @@ describe('http client & global error dispatcher', () => {
     expect((err500 as BusinessException).msg).toBe('导出生成失败');
     expect((err500 as BusinessException).traceId).toBe('t-blob-500');
     expect(errSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes 102002/102005 domain errors silently so form dialogs and actions handle them inline', async () => {
+    const { warnSpy, errSpy } = spyElMessage();
+
+    await expect(
+      adminHttpClient.delete('/admin/system/dept/1', {
+        adapter: mockJsonResultAdapter(200, { code: 102005, msg: '存在下级部门，禁止删除' }),
+      }),
+    ).rejects.toBeInstanceOf(BusinessException);
+
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(errSpy).not.toHaveBeenCalled();
+    expect(isGlobalHandledHttpError(new BusinessException(102002, '重复'))).toBe(false);
+    expect(isGlobalHandledHttpError(new BusinessException(102005, '占用'))).toBe(false);
+    expect(isGlobalHandledHttpError(new BusinessException(503, '网关异常'))).toBe(true);
+    expect(isGlobalHandledHttpError(new BusinessException(403, '无权限'))).toBe(true);
   });
 });

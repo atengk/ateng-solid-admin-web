@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { Refresh, Setting, UserFilled } from '@element-plus/icons-vue';
-import { resolveMenuIcon, TAB_MENU_ICONS } from '@/utils/icon';
+import {
+  ALL_ELEMENT_ICONS,
+  EXTRA_ELEMENT_ICONS,
+  resolveMenuIcon,
+  TAB_MENU_ICONS,
+} from '@/utils/icon';
 
 /**
  * 菜单与页签图标映射工具单元测试。
@@ -40,5 +45,14 @@ describe('icon utility', () => {
       expect(typeof icon).not.toBe('string');
       expect(icon).not.toBe(false);
     }
+  });
+
+  it('exports full and deduplicated Element Plus icon collections without overlapping builtin names', () => {
+    expect(ALL_ELEMENT_ICONS.length).toBeGreaterThan(200);
+    expect(EXTRA_ELEMENT_ICONS.length).toBeGreaterThan(150);
+    expect(EXTRA_ELEMENT_ICONS.length).toBeLessThan(ALL_ELEMENT_ICONS.length);
+    expect(ALL_ELEMENT_ICONS.some(item => item.name === 'Setting')).toBe(true);
+    expect(EXTRA_ELEMENT_ICONS.some(item => item.name === 'Setting')).toBe(false);
+    expect(EXTRA_ELEMENT_ICONS.some(item => item.name === 'OfficeBuilding')).toBe(true);
   });
 });

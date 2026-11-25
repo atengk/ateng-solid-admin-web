@@ -1,7 +1,68 @@
 import type { Component } from 'vue';
-import type { TabMenuIcons } from '@atengk/element-plus';
+import type { IconItem, TabMenuIcons } from '@atengk/element-plus';
 import * as ElementPlusIcons from '@element-plus/icons-vue';
 import { Back, CircleClose, Close, DocumentDelete, Refresh, Right } from '@element-plus/icons-vue';
+
+/**
+ * `@atengk/element-plus` AtengIconSelect 内建 DEFAULT_ICONS 名称集合（自动附带中文标签与拼音检索）。
+ */
+const BUILTIN_ICON_SELECT_NAMES = new Set<string>([
+  'Search',
+  'Edit',
+  'Delete',
+  'Plus',
+  'Minus',
+  'Check',
+  'Close',
+  'Refresh',
+  'Setting',
+  'Filter',
+  'Download',
+  'Upload',
+  'Lock',
+  'Unlock',
+  'Key',
+  'View',
+  'Hide',
+  'CopyDocument',
+  'Share',
+  'Link',
+  'Operation',
+  'Tools',
+  'HomeFilled',
+  'Menu',
+  'User',
+  'UserFilled',
+  'Avatar',
+  'Folder',
+  'FolderOpened',
+  'Document',
+  'Tickets',
+  'Management',
+  'Files',
+  'Grid',
+  'List',
+  'Monitor',
+  'DataLine',
+  'DataBoard',
+  'DataAnalysis',
+  'TrendCharts',
+  'Cpu',
+  'Bell',
+  'Message',
+  'ChatDotRound',
+  'Warning',
+  'InfoFilled',
+  'SuccessFilled',
+  'CircleCheck',
+  'CircleClose',
+  'QuestionFilled',
+  'Star',
+  'Calendar',
+  'Clock',
+  'Timer',
+  'Picture',
+]);
 
 /**
  * 菜单与页签图标映射表（严禁通过对象原型链索引，避免原型键名误命中）。
@@ -24,6 +85,24 @@ for (const [key, component] of Object.entries(ElementPlusIcons)) {
   EXACT_ICON_MAP.set(key, component);
   NORMALIZED_ICON_MAP.set(normalizeIconKey(key), component);
 }
+
+/**
+ * 全量 `@element-plus/icons-vue` 图标元数据集合。
+ */
+export const ALL_ELEMENT_ICONS: IconItem[] = Array.from(
+  EXACT_ICON_MAP.entries(),
+  ([name, component]) => ({
+    name,
+    component,
+  }),
+);
+
+/**
+ * 剔除 `AtengIconSelect` 已内建图标后的扩展 `@element-plus/icons-vue` 集合（避免检索时渲染重复 key）。
+ */
+export const EXTRA_ELEMENT_ICONS: IconItem[] = ALL_ELEMENT_ICONS.filter(
+  item => !BUILTIN_ICON_SELECT_NAMES.has(item.name),
+);
 
 /**
  * AtengTabsNav 上下文菜单与快捷操作线性图标映射（替换底层默认表情符号）。

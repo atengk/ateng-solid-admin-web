@@ -328,6 +328,49 @@ function handleInvalidTenantSwitch(exception: BusinessException): void {
   });
 }
 
+const GLOBAL_HANDLED_ERROR_CODES = new Set<number>([
+  HTTP_STATUS_UNAUTHORIZED,
+  HTTP_STATUS_FORBIDDEN,
+  HTTP_STATUS_TOO_MANY_REQUESTS,
+  BIZ_INVALID_TENANT_SWITCH,
+  BIZ_TENANT_UNAVAILABLE,
+  BIZ_IDEMPOTENT_DUPLICATE,
+]);
+
+function isServerErrorCode(code: number): boolean {
+  return (code >= HTTP_STATUS_INTERNAL_ERROR && code < 600) || code <= 0;
+}
+
+/**
+ * 判断异常是否已由全局 HTTP 拦截器统一弹窗或跳页处理，避免组件局部重复提示。
+ *
+ * @param error 捕获到的异常对象
+ * @returns 已由全局拦截器处理返回 `true`
+ */
+export function isGlobalHandledHttpError(error: unknown): boolean {
+  if (!(error instanceof BusinessException)) {
+    return false;
+  }
+  return GLOBAL_HANDLED_ERROR_CODES.has(error.code) || isServerErrorCode(error.code);
+}
+
+/**
+ * 从捕获的业务或网络异常中提取可安全展示给用户的诊断提示文案。
+ *
+ * @param error 捕获到的异常对象
+ * @param fallback 未携带具体业务文案时的兜底提示
+ * @returns 面向用户的可读提示字符串
+ */
+export function resolveErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof BusinessException && error.msg?.trim()) {
+    return error.msg.trim();
+  }
+  if (error instanceof Error && error.message?.trim()) {
+    return error.message.trim();
+  }
+  return fallback;
+}
+
 const ERROR_DISPATCH_TABLE: Record<number, (exception: BusinessException) => void> = {
   [HTTP_STATUS_UNAUTHORIZED]: () => triggerSessionExpired('401', SESSION_EXPIRED_MESSAGE),
   [BIZ_TENANT_UNAVAILABLE]: exception => {
@@ -357,7 +400,7 @@ adminHttpClient.instance.interceptors.response.use(
     const handler = ERROR_DISPATCH_TABLE[exception.code];
     if (handler) {
       handler(exception);
-    } else if (exception.code >= HTTP_STATUS_INTERNAL_ERROR || exception.code === 0) {
+    } else if (isServerErrorCode(exception.code)) {
       notifyServerError(exception);
     }
 
