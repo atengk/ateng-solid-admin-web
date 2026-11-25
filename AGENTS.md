@@ -18,7 +18,7 @@
 - **认证、多租户与超管防越权**：
   - `AuthManager` 配置 `tokenKey: 'satoken-admin'`、`headerName: 'satoken-admin'`；`TenantManager` 默认 `"0"` 并注入 `X-Tenant-Id`（依据登录前置接口 `tenantEnabled` 显隐租户 UI，仅租户 `"0"` 的 `super_admin` 可切换工作租户）；
   - **必配防越权**：插件注册时显式传 `createAtengVue({ superAdminRoles: ['super_admin'] })`，覆盖底层默认 `'admin'`；按钮权限统一 `v-permission` / `v-role` 与 `<域>:<资源>:<动作>` 三段式编码；
-  - 动态路由经 `import.meta.glob('@/views/**/*.vue')` 映射；菜单图标直接接入 `AtengProLayout` `:icon-resolver` 回调。
+  - 动态路由经 `import.meta.glob('../views/**/*.vue')` 映射；布局壳采用方案 A 轻量自建 `AdminLayout.vue`（`provide(ATENG_PRO_LAYOUT_KEY)` 组合复用 `AtengTabsNav`/`useTabsNav`），菜单与页签图标统一经 `src/utils/icon.ts` `resolveMenuIcon` 映射。
 - **Vue 3.5 SFC 与响应式铁律**：
   - 统一 `<script setup lang="ts">` ➔ `<template>` ➔ `<style scoped>`，使用纯 TS 泛型 `defineProps<{...}>()` / `defineEmits<{...}>()`；严禁 Options API、生产裸 `any`、未防御 `!`、直接突变 `props`、破坏响应性的解构与组件内 `document.querySelector`；
   - 表单与 Store 保持“内存真明文”，展示掩码仅在渲染层调用 `formatMask*`；所有监听、定时器、`Observer` 与 `URL.createObjectURL` 必须在 `onUnmounted` / `onScopeDispose` 释放。
@@ -39,7 +39,7 @@
 
 | 触发场景（何时必先读） | 文档路径 |
 | :--- | :--- |
-| 编写页面布局、样式令牌，或接入 `AtengProLayout`/`TabsNav`/`Table`/`QueryForm`/`Dict*`/`Captcha`/`Upload`/`Excel*` | [`docs/agents/styling-and-ateng-ui.md`](./docs/agents/styling-and-ateng-ui.md) |
+| 编写页面布局、样式令牌，或接入 `AdminLayout`/`AtengTabsNav`/`Table`/`QueryForm`/`Dict*`/`Captcha`/`Upload`/`Excel*` | [`docs/agents/styling-and-ateng-ui.md`](./docs/agents/styling-and-ateng-ui.md) |
 | 新增或调整 `src/api/*` 接口、请求头、错误码、多租户、权限码或 Excel 导入导出 | [`docs/agents/contracts.md`](./docs/agents/contracts.md) |
 | 拆分复杂视图/Composable、选型表驱动、写注释或做 Code Review | [`docs/agents/coding-standards.md`](./docs/agents/coding-standards.md) |
 | 遇 `ateng-ui` 底座缺口，或需用 `pnpm pack + yalc` 本地联调还原 | [`docs/agents/foundation-first-gate.md`](./docs/agents/foundation-first-gate.md) |

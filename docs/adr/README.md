@@ -6,8 +6,9 @@
 
 | 编号 | 决策标题 | 状态 | 核心收益与权衡 | 关联范围 | 详细文档 |
 | :---: | :--- | :---: | :--- | :--- | :---: |
-| **0001** | **TailwindCSS（禁用 Preflight）+ Element Plus / 上层自有令牌混合样式架构** | 🟢 Accepted | 兼顾 Tailwind 原子布局提效与 `Precision Slate & Cobalt` 自有令牌、`html.dark` 暗黑及 `--el-*` 变量零冲突协同 | `src/styles/`、全局样式与视图 | [查看](./0001-tailwindcss-without-preflight-and-theme-pro.md) |
-| **0002** | **手写强类型 `src/api/*` 契约与 `ateng-ui` 核心集成决策** | 🟢 Accepted | 摆脱 OpenAPI 代码生成依赖；显式收敛 `superAdminRoles: ['super_admin']`，封装图标映射、`KeepAlive` 与双轨字典接入 | `core-infra`、`auth-session`、`router-layout` | [查看](./0002-handwritten-typed-api-and-ateng-ui-integration.md) |
+| **0001** | **TailwindCSS（禁用 Preflight）+ Element Plus / 上层自有令牌混合样式架构** | 🟢 Accepted | 剥离 `theme-pro.css`，由 `tokens.css` 静态定义 Light/Dark 双主色阶并与 `initTheme`、Tailwind `@theme` 与防 FOUC 协同 | `src/styles/`、`index.html` 与全局视图 | [查看](./0001-tailwindcss-without-preflight-and-theme-pro.md) |
+| **0002** | **手写强类型 `src/api/*` 契约与 `ateng-ui` 核心集成决策** | 🟢 Accepted | 12 域手写强类型 API、三单例装配、数学互斥双轨 `DictManager`（单查+批查）及后 `#373`–`#376` 组件受控接入红线 | `src/api/`、`src/utils/`、组件集成 | [查看](./0002-handwritten-typed-api-and-ateng-ui-integration.md) |
+| **0003** | **方案 A 轻量 `AdminLayout` 布局壳、单源鉴权状态桥接与上下文双保险** | 🟢 Accepted | 轻量自建方案 A 布局壳 + `provide(ATENG_PRO_LAYOUT_KEY)` 复用 `AtengTabsNav`/`useTabsNav`；`useAuthStore` 共享 `useAuth` `WeakMap` 零漂移 | `src/layouts/`、`src/stores/`、`src/main.ts` | [查看](./0003-lightweight-scheme-a-admin-layout-and-state-assembly.md) |
 
 ---
 

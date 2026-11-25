@@ -22,6 +22,10 @@ _Avoid_: 前端硬编码开启多租户界面导致单租户场景冗余交互
 当前前端请求通过 `X-Tenant-Id` 传递的业务租户标识（字符串形式的 64 位雪花 ID，默认 `"0"`）；普通用户固定锁定归属租户，仅平台超管可受控切换。
 _Avoid_: 租户数字 ID（`number`）、硬编码租户编码作为主键
 
+**跨租户观察态 (Cross-Tenant Observation Mode)**:
+当多租户开关启用、平台租户 `"0"` 的 `super_admin` 切换至非 `"0"` 工作租户视角时所处的受控状态；前端在多页签栏下方展示 36px 琥珀金全宽通栏警示条（提供一键切回 `"0"` 出口），并同步隐藏平台专属菜单与重置非固定页签；若目标租户失效返回 `100002`，自动回退 `"0"` 而不登出平台会话。
+_Avoid_: 跨租户登录、模拟登录、代理账号
+
 **租户套餐 (Tenant Package)**:
 平台向租户授予的菜单与功能边界集合，限制租户下角色可分配的最大权限范围。
 _Avoid_: 权限组、角色模板
@@ -43,7 +47,7 @@ _Avoid_: 全局无条件缓存全部路由
 ### 字典与数据展示
 
 **静态枚举字典 (Static Enum)**:
-后端不可运营变更的代码强类型状态选项（来源于 `/admin/system/enums`），与可后台增删改的动态业务字典分工互补；由前端枚举接口适配层统一将后端 `OptionItem`（`{ code, label, disabled, extra }`）映射为 `@atengk/element-plus` `DictItem`（`{ label, value, ... }`），保持 `DictManager` 与 `AtengDictTag` 单一数据口径。
+后端不可运营变更的代码强类型状态选项（来源于 `/admin/system/enums`，别名采用 `lowerCamelCase` 如 `commonStatus`/`dataScopeType`），与可后台增删改的 `snake_case` 动态业务字典在命名空间上数学互斥；由 `src/utils/dict.ts` 适配层统一将后端 `OptionItem`（`{ code, label, disabled, extra }`）映射为 `@atengk/element-plus` `DictItem`（`{ label, value, tagType, disabled }`），保持 `DictManager` 与 `AtengDictTag` 单一数据口径。
 _Avoid_: 将代码强类型枚举重复录入动态字典表，或要求底层通用组件兼容 `code` 别名
 
 **动态业务字典 (Dynamic Dict)**:
