@@ -371,6 +371,21 @@ export function resolveErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+/**
+ * 将单个或数组形式的主键集合归一化为逗号分隔 URL 路径段。
+ *
+ * @param ids 单个主键、逗号串或主键数组
+ * @returns 经过 `encodeURIComponent` 编码的逗号分隔路径串；有效 ID 为空时返回空串
+ */
+export function formatBatchPathIds(ids: string | string[]): string {
+  const rawList = Array.isArray(ids) ? ids : ids.split(',');
+  return rawList
+    .map(item => item.trim())
+    .filter(Boolean)
+    .map(item => encodeURIComponent(item))
+    .join(',');
+}
+
 const ERROR_DISPATCH_TABLE: Record<number, (exception: BusinessException) => void> = {
   [HTTP_STATUS_UNAUTHORIZED]: () => triggerSessionExpired('401', SESSION_EXPIRED_MESSAGE),
   [BIZ_TENANT_UNAVAILABLE]: exception => {
