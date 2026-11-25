@@ -1,3 +1,4 @@
+import type { InjectionKey } from 'vue';
 import 'vue-router';
 
 /**
@@ -6,6 +7,22 @@ import 'vue-router';
  * @author Ateng
  * @since 2026-11-25
  */
+
+/**
+ * 方案 A 布局页签关闭协调上下文（供子孙异常页关闭当前失效页签使用）。
+ */
+export interface SolidLayoutTabsContext {
+  /**
+   * 关闭指定路径页签（省略时关闭当前激活页签）并在关闭当前页签后自动激活回退路由。
+   */
+  closeCurrentTab: (key?: string) => Promise<void> | void;
+}
+
+/**
+ * 方案 A 布局页签协同注入标识。
+ */
+export const SOLID_LAYOUT_TABS_KEY: InjectionKey<SolidLayoutTabsContext> =
+  Symbol('SOLID_LAYOUT_TABS_KEY');
 
 /**
  * 侧边栏叶子菜单项结构（由 RouteMenuVO 中可见的 C 节点规范化映射）。
