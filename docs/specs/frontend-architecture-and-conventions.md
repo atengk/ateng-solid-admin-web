@@ -16,14 +16,14 @@ ateng-solid-admin-web/
 ├── src/
 │   ├── api/                         # 12 个按域划分的手写强类型接口与 TS 类型（auth/index.ts + system/*）
 │   ├── assets/                      # 编译期处理的图标/图片资源
-│   ├── components/                  # 业务公共组件（租户切换器、主题切换、快捷命令搜索等）
+│   ├── components/                  # 业务公共组件（租户切换器、主题切换、快捷命令搜索、表单报错横幅、强口令清单、树选择工具栏）
 │   ├── composables/                 # 业务组合式函数（use*）
 │   ├── layouts/                     # 方案 A 轻量布局壳（AdminLayout/AdminSidebar/AdminHeader/TenantObserveBanner + AtengTabsNav + KeepAlive）
 │   ├── router/                      # 静态路由、动态路由加载器（import.meta.glob）与导航守卫（guards.ts）
 │   ├── stores/                      # 4 个 Pinia Setup Store（auth/tenant/permission/app）
 │   ├── styles/                      # Precision Slate & Cobalt 令牌表（tokens.css）与 TailwindCSS（无 Preflight）入口（main.css）
 │   ├── types/                       # 全局公共 TS 类型（路由、菜单、通用选项等）
-│   ├── utils/                       # 三单例与拦截器（http.ts）、双轨字典（dict.ts）、图标解析（icon.ts）
+│   ├── utils/                       # 三单例与拦截器（http.ts）、双轨字典（dict.ts）、图标解析（icon.ts）、强口令（password.ts）、时间区间（dateRange.ts）、通用树（tree.ts）
 │   ├── views/                       # 业务页面视图（login/dashboard/profile/error/system/*）
 │   ├── App.vue
 │   └── main.ts
@@ -135,7 +135,7 @@ VITE_PROXY_TARGET=http://127.0.0.1:8080
 3. **Vitest + `happy-dom` 三层离线测试体系（复用既有 `@vue/test-utils`，零外部 Mock 库依赖）**：
    - **Layer 1 (`tests/utils/*.spec.ts`)**：覆盖 `adminHttpClient` 全错误码分流（`401` 防重入、`101005` 会话终止、`100002` 回退 `'0'` 不登出、`101004` `err.cause.data`、`429`/`40003`、`500`+`traceId`、Blob JSON 异常）、双轨 `DictManager`（单查/批查分流、`'default'` 归一、`clearCache`）与 `resolveMenuIcon`；
    - **Layer 2 (`tests/stores/*.spec.ts`、`tests/router/*.spec.ts`)**：以 `createPinia()` + `createMemoryHistory()` 测试 4 个 Setup Store（`super_admin` 放行 vs 普通 `admin` 角色隔离、跨租户 7 步强重置、`100002` 安全回退、动态路由注册与精确 `removeRoute`）及路由守卫白名单/重定向/404 兜底；
-   - **Layer 3 (`tests/components/*.spec.ts`)**：覆盖 `AdminLayout`（`ATENG_PRO_LAYOUT_KEY` 注入、跨租户横幅显隐、`AtengTabsNav` `@batch-close` 单源同步）、登录页 `101004` 倒计时（`ACCOUNT` 编辑清零 vs `IP` 保持）与用户导入弹窗 `120s` 超时及批注反馈；
+   - **Layer 3 (`tests/components/*.spec.ts`)**：覆盖 `AdminLayout`（`ATENG_PRO_LAYOUT_KEY` 注入、跨租户横幅显隐、`AtengTabsNav` `@batch-close` 单源同步）、登录页 `101004` 倒计时（`ACCOUNT` 编辑清零 vs `IP` 保持）、组织菜单树与字典参数审计视图（`OrgMenuViews` / `DictConfigViews` / `AuditLogViews`）、角色叶子树与 `CUSTOM` 校验（`RoleTreeHelpers`）、用户导入弹窗 `120s` 超时与批注反馈（`UserImportDialog`）及多租户/套餐裁剪预览（`TenantPackageViews`）；
    - **确定性隔离基线 (`tests/setup.ts`)**：在 `vitest.config.ts` 注册 `setupFiles: ['tests/setup.ts']`，每个用例 `beforeEach`/`afterEach` 强制清空 `localStorage`、`sessionStorage`、`DictManager.clearCache()`、`adminAuthManager.clearToken()`、`adminTenantManager.clearTenantId()` 并执行 `vi.restoreAllMocks()`；网络层统一通过 Axios 自定义 `adapter` 或 `vi.spyOn(adminHttpClient, ...)` 离线拦截，严禁引入 MSW 等重型外部依赖。
 
 ---

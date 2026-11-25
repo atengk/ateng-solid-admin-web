@@ -18,6 +18,8 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     globals: true,
+    // 多 Worker 并发挂载 Element Plus 全量视图时冷启动偶发接近 5s，放宽单测超时避免并发争用抖动
+    testTimeout: 15_000,
     setupFiles: ['tests/setup.ts'],
     include: ['tests/**/*.{test,spec}.{ts,js}', 'src/**/*.{test,spec}.{ts,js}'],
     server: {
