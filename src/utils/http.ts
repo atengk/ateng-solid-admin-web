@@ -9,31 +9,46 @@ import {
   createTenantManager,
   isAbortError,
 } from '@atengk/core';
+import {
+  BIZ_IDEMPOTENT_DUPLICATE,
+  BIZ_INVALID_TENANT_SWITCH,
+  BIZ_LOGIN_LOCKED,
+  BIZ_TENANT_UNAVAILABLE,
+  HTTP_STATUS_FORBIDDEN,
+  HTTP_STATUS_INTERNAL_ERROR,
+  HTTP_STATUS_TOO_MANY_REQUESTS,
+  HTTP_STATUS_UNAUTHORIZED,
+  SERVER_ERROR_MESSAGE,
+  awaitAllSettledRequests,
+  formatBatchPathIds,
+  isGlobalHandledHttpError,
+  isInvalidTenantSwitchError,
+  isServerErrorCode,
+  resolveContextualErrorMessage,
+  resolveErrorMessage,
+  resolveFriendlyServerErrorMessage,
+} from '@/utils/httpError';
 
 /**
  * 默认平台租户标识
  */
 export const DEFAULT_TENANT_ID = '0';
 
-const HTTP_STATUS_UNAUTHORIZED = 401;
-const HTTP_STATUS_FORBIDDEN = 403;
-const HTTP_STATUS_TOO_MANY_REQUESTS = 429;
-const HTTP_STATUS_INTERNAL_ERROR = 500;
-const HTTP_STATUS_SERVICE_UNAVAILABLE = 503;
-
-const BIZ_IDEMPOTENT_DUPLICATE = 40003;
-export const BIZ_INVALID_TENANT_SWITCH = 100002;
-const BIZ_LOGIN_LOCKED = 101004;
-const BIZ_TENANT_UNAVAILABLE = 101005;
+export {
+  BIZ_INVALID_TENANT_SWITCH,
+  awaitAllSettledRequests,
+  formatBatchPathIds,
+  isGlobalHandledHttpError,
+  isInvalidTenantSwitchError,
+  resolveContextualErrorMessage,
+  resolveErrorMessage,
+};
 
 const SESSION_EXPIRED_MESSAGE = '登录状态已失效，请重新登录';
 const TENANT_EXPIRED_MESSAGE = '当前所属租户已停用或已过期，请联系平台管理员';
 const INVALID_TENANT_SWITCH_MESSAGE = '目标租户不存在、已停用或已过期，已自动切回平台默认租户';
 const RATE_LIMIT_MESSAGE = '操作过于频繁，请稍后再试';
-const SERVER_ERROR_MESSAGE = '系统繁忙，请稍后重试';
-const SERVICE_UNAVAILABLE_MESSAGE = '服务暂不可用，请稍后重试';
-const NETWORK_TIMEOUT_MESSAGE = '网络请求超时或服务连接异常，请稍后重试';
-const RATE_LIMIT_COALESCE_MS = 2_000;
+const WARNING_COALESCE_MS = 2_000;
 
 interface AxiosLikeError {
   isAxiosError?: boolean;
@@ -96,7 +111,9 @@ const RESULT_REQUEST_META = new WeakMap<object, RequestMeta>();
 let registeredHandlers: HttpErrorHandlers = {};
 let isHandlingAuthReset = false;
 let authResetReleaseTimer: ReturnType<typeof setTimeout> | undefined;
-let lastRateLimitToastAt = 0;
+let lastRateLimitToastAt = -WARNING_COALESCE_MS;
+let lastInvalidTenantToastAt = -WARNING_COALESCE_MS;
+let lastServerErrorToastAt = -WARNING_COALESCE_MS;
 
 /**
  * 注册会话失效与租户回退的上层协调回调（通常在 main.ts 完成 Store/Router 挂载后调用）。
@@ -108,15 +125,18 @@ export function registerHttpErrorHandlers(handlers: HttpErrorHandlers): void {
 }
 
 /**
- * 重置拦截器内部防重入与节流状态（专供离线单元测试在用例间重置现场）。
+ * 重置拦截器内部防重入、节流与注册回调状态（专供离线单元测试在用例间重置现场）。
  */
 export function resetHttpInterceptorState(): void {
   if (authResetReleaseTimer !== undefined) {
     clearTimeout(authResetReleaseTimer);
     authResetReleaseTimer = undefined;
   }
+  registeredHandlers = {};
   isHandlingAuthReset = false;
-  lastRateLimitToastAt = 0;
+  lastRateLimitToastAt = -WARNING_COALESCE_MS;
+  lastInvalidTenantToastAt = -WARNING_COALESCE_MS;
+  lastServerErrorToastAt = -WARNING_COALESCE_MS;
 }
 
 function asAxiosLikeError(value: unknown): AxiosLikeError | undefined {
@@ -198,15 +218,20 @@ export const adminHttpClient = createHttpClient({
 
 async function resolveBusinessException(error: unknown): Promise<BusinessException> {
   if (!(error instanceof BusinessException)) {
-    const message = error instanceof Error ? error.message : String(error);
-    return new BusinessException(
+    const rawMessage = error instanceof Error ? error.message : String(error);
+    const wrapped = new BusinessException(
       HTTP_STATUS_INTERNAL_ERROR,
-      message || SERVER_ERROR_MESSAGE,
+      rawMessage || SERVER_ERROR_MESSAGE,
       undefined,
       error,
     );
+    const friendlyMessage = resolveFriendlyServerErrorMessage(wrapped);
+    return friendlyMessage === wrapped.msg
+      ? wrapped
+      : new BusinessException(wrapped.code, friendlyMessage, wrapped.traceId, wrapped.cause);
   }
 
+  let resolved = error;
   // @atengk/core 对 200+Blob JSON 错误已提前转译；此处兜底处理 HTTP 4xx/5xx 状态下的 Blob JSON 错误体
   const axiosCause = asAxiosLikeError(error.cause);
   const response = axiosCause?.response;
@@ -216,11 +241,18 @@ async function resolveBusinessException(error: unknown): Promise<BusinessExcepti
       await checkBlobForJsonError(response.data, contentType, response.status);
     } catch (translated) {
       if (translated instanceof BusinessException) {
-        return translated;
+        resolved = translated;
       }
     }
   }
-  return error;
+
+  if (isServerErrorCode(resolved.code)) {
+    const friendlyMessage = resolveFriendlyServerErrorMessage(resolved);
+    if (friendlyMessage !== resolved.msg) {
+      return new BusinessException(resolved.code, friendlyMessage, resolved.traceId, resolved.cause);
+    }
+  }
+  return resolved;
 }
 
 function isLoginEndpointUrl(url?: string): boolean {
@@ -279,13 +311,19 @@ adminHttpClient.instance.interceptors.request.use(config => {
   return config;
 });
 
-function notifyRateLimited(): void {
+function emitCoalescedToast(lastAt: number, emit: () => void): number {
   const now = Date.now();
-  if (now - lastRateLimitToastAt < RATE_LIMIT_COALESCE_MS) {
-    return;
+  if (now - lastAt < WARNING_COALESCE_MS) {
+    return lastAt;
   }
-  lastRateLimitToastAt = now;
-  ElMessage.warning(RATE_LIMIT_MESSAGE);
+  emit();
+  return now;
+}
+
+function notifyRateLimited(): void {
+  lastRateLimitToastAt = emitCoalescedToast(lastRateLimitToastAt, () => {
+    ElMessage.warning(RATE_LIMIT_MESSAGE);
+  });
 }
 
 function copyTraceId(traceId: string): void {
@@ -296,47 +334,31 @@ function copyTraceId(traceId: string): void {
   }
 }
 
-function resolveFriendlyServerErrorMessage(exception: BusinessException): string {
-  const raw = exception.msg?.trim() ?? '';
-  const isRawTransportError =
-    !raw ||
-    raw.startsWith('timeout of ') ||
-    raw === 'Network Error' ||
-    raw.startsWith('Request failed with status code ');
-  if (!isRawTransportError) {
-    return raw;
-  }
-  if (raw.startsWith('timeout of ') || raw === 'Network Error') {
-    return NETWORK_TIMEOUT_MESSAGE;
-  }
-  return exception.code === HTTP_STATUS_SERVICE_UNAVAILABLE
-    ? SERVICE_UNAVAILABLE_MESSAGE
-    : SERVER_ERROR_MESSAGE;
-}
-
 function notifyServerError(exception: BusinessException): void {
-  const friendlyMessage = resolveFriendlyServerErrorMessage(exception);
-  const traceId = exception.traceId?.trim();
-  if (!traceId) {
-    ElMessage.error(friendlyMessage);
-    return;
-  }
+  lastServerErrorToastAt = emitCoalescedToast(lastServerErrorToastAt, () => {
+    const friendlyMessage = resolveFriendlyServerErrorMessage(exception);
+    const traceId = exception.traceId?.trim();
+    if (!traceId) {
+      ElMessage.error(friendlyMessage);
+      return;
+    }
 
-  ElMessage.error({
-    showClose: true,
-    duration: 5_000,
-    message: h('span', { class: 'inline-flex items-center gap-2' }, [
-      h('span', `${friendlyMessage}（TraceId: ${traceId}）`),
-      h(
-        'button',
-        {
-          type: 'button',
-          class: 'cursor-pointer underline text-xs font-medium',
-          onClick: () => copyTraceId(traceId),
-        },
-        '复制 TraceId',
-      ),
-    ]),
+    ElMessage.error({
+      showClose: true,
+      duration: 5_000,
+      message: h('span', { class: 'inline-flex items-center gap-2' }, [
+        h('span', `${friendlyMessage}（TraceId: ${traceId}）`),
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'cursor-pointer underline text-xs font-medium',
+            onClick: () => copyTraceId(traceId),
+          },
+          '复制 TraceId',
+        ),
+      ]),
+    });
   });
 }
 
@@ -345,68 +367,12 @@ function handleInvalidTenantSwitch(exception: BusinessException): void {
   adminTenantManager.setTenantId(DEFAULT_TENANT_ID);
   DictManager.clearCache();
   const message = exception.msg || INVALID_TENANT_SWITCH_MESSAGE;
-  ElMessage.warning(message);
+  lastInvalidTenantToastAt = emitCoalescedToast(lastInvalidTenantToastAt, () => {
+    ElMessage.warning(message);
+  });
   void Promise.resolve(registeredHandlers.onTenantInvalid?.(message)).catch(() => {
     // 隔离上层刷新回调异常
   });
-}
-
-const GLOBAL_HANDLED_ERROR_CODES = new Set<number>([
-  HTTP_STATUS_UNAUTHORIZED,
-  HTTP_STATUS_FORBIDDEN,
-  HTTP_STATUS_TOO_MANY_REQUESTS,
-  BIZ_INVALID_TENANT_SWITCH,
-  BIZ_TENANT_UNAVAILABLE,
-  BIZ_IDEMPOTENT_DUPLICATE,
-]);
-
-function isServerErrorCode(code: number): boolean {
-  return (code >= HTTP_STATUS_INTERNAL_ERROR && code < 600) || code <= 0;
-}
-
-/**
- * 判断异常是否已由全局 HTTP 拦截器统一弹窗或跳页处理，避免组件局部重复提示。
- *
- * @param error 捕获到的异常对象
- * @returns 已由全局拦截器处理返回 `true`
- */
-export function isGlobalHandledHttpError(error: unknown): boolean {
-  if (!(error instanceof BusinessException)) {
-    return false;
-  }
-  return GLOBAL_HANDLED_ERROR_CODES.has(error.code) || isServerErrorCode(error.code);
-}
-
-/**
- * 从捕获的业务或网络异常中提取可安全展示给用户的诊断提示文案。
- *
- * @param error 捕获到的异常对象
- * @param fallback 未携带具体业务文案时的兜底提示
- * @returns 面向用户的可读提示字符串
- */
-export function resolveErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof BusinessException && error.msg?.trim()) {
-    return error.msg.trim();
-  }
-  if (error instanceof Error && error.message?.trim()) {
-    return error.message.trim();
-  }
-  return fallback;
-}
-
-/**
- * 将单个或数组形式的主键集合归一化为逗号分隔 URL 路径段。
- *
- * @param ids 单个主键、逗号串或主键数组
- * @returns 经过 `encodeURIComponent` 编码的逗号分隔路径串；有效 ID 为空时返回空串
- */
-export function formatBatchPathIds(ids: string | string[]): string {
-  const rawList = Array.isArray(ids) ? ids : ids.split(',');
-  return rawList
-    .map(item => item.trim())
-    .filter(Boolean)
-    .map(item => encodeURIComponent(item))
-    .join(',');
 }
 
 const ERROR_DISPATCH_TABLE: Record<number, (exception: BusinessException) => void> = {

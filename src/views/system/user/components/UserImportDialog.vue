@@ -10,7 +10,11 @@ import {
   type ImportErrorVO,
 } from '@/api/system/user';
 import FormErrorBanner from '@/components/FormErrorBanner.vue';
-import { isGlobalHandledHttpError, resolveErrorMessage } from '@/utils/http';
+import {
+  isGlobalHandledHttpError,
+  resolveContextualErrorMessage,
+  resolveErrorMessage,
+} from '@/utils/http';
 import { IMPORT_MAX_BYTES, IMPORT_MAX_ROWS } from '@/views/system/user/userHelper';
 
 /**
@@ -68,6 +72,14 @@ function clearFeedbackState(): void {
   feedbackToken.value = '';
 }
 
+function handleImportActionError(error: unknown, fallback: string): void {
+  const message = resolveContextualErrorMessage(error, fallback);
+  uploadError.value = message;
+  if (!isGlobalHandledHttpError(error)) {
+    ElMessage.error(message);
+  }
+}
+
 async function handleDownloadTemplate(): Promise<void> {
   if (templateDownloading.value) {
     return;
@@ -77,11 +89,7 @@ async function handleDownloadTemplate(): Promise<void> {
   try {
     await downloadUserImportTemplate();
   } catch (error) {
-    const message = resolveErrorMessage(error, '下载导入模板失败，请稍后重试');
-    uploadError.value = message;
-    if (!isGlobalHandledHttpError(error)) {
-      ElMessage.error(message);
-    }
+    handleImportActionError(error, '下载导入模板失败，请稍后重试');
   } finally {
     templateDownloading.value = false;
   }
@@ -114,11 +122,7 @@ async function handleImportRequest(options: UploadRequestOptions): Promise<unkno
     emit('imported');
     return result;
   } catch (error) {
-    const message = resolveErrorMessage(error, '批量导入用户失败，请核对模板表头及行数限制');
-    uploadError.value = message;
-    if (!isGlobalHandledHttpError(error)) {
-      ElMessage.error(message);
-    }
+    handleImportActionError(error, '批量导入用户失败，请核对模板表头及行数限制');
     throw error;
   } finally {
     uploading.value = false;

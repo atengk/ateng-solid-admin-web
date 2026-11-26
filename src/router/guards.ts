@@ -4,6 +4,8 @@ import { AtengLoadingBar } from '@atengk/element-plus';
 import { ANONYMOUS_WHITELIST_PATHS, STATIC_BUSINESS_PATHS } from '@/router/routes';
 import { useAuthStore } from '@/stores/auth';
 import { usePermissionStore } from '@/stores/permission';
+import { useTenantStore } from '@/stores/tenant';
+import { awaitAllSettledRequests, isInvalidTenantSwitchError } from '@/utils/http';
 
 const REJECTED_REDIRECT_PREFIXES = ['/login', '/403', '/404'];
 const SAFE_HOST_BASE = 'http://localhost';
@@ -133,13 +135,38 @@ export function setupRouterGuards(router: Router, pinia: Pinia): () => void {
     const permissionStore = usePermissionStore(pinia);
 
     initializingPromise = (async () => {
-      await Promise.all([authStore.fetchUserInfo(), permissionStore.buildRoutes(router)]);
+      await awaitAllSettledRequests([
+        authStore.fetchUserInfo(),
+        permissionStore.buildRoutes(router),
+      ]);
     })();
 
     try {
       await initializingPromise;
     } finally {
       initializingPromise = null;
+    }
+  }
+
+  async function initializeSessionWithRecovery(): Promise<'ok' | 'recovered' | 'failed'> {
+    const tenantStore = useTenantStore(pinia);
+    tenantStore.setGuardInitializationActive(true);
+    try {
+      await ensureSessionInitialized();
+      return 'ok';
+    } catch (error) {
+      if (!isInvalidTenantSwitchError(error)) {
+        return 'failed';
+      }
+      try {
+        // 100002（本地残留失效租户 ID）：待并发初始化全量结算后复位至平台租户 '0' 重拉，绝不注销超管会话
+        await tenantStore.recoverFromInvalidTenant(router, { skipRedirect: true });
+        return 'recovered';
+      } catch {
+        return 'failed';
+      }
+    } finally {
+      tenantStore.setGuardInitializationActive(false);
     }
   }
 
@@ -165,12 +192,15 @@ export function setupRouterGuards(router: Router, pinia: Pinia): () => void {
 
     // 3. 首次进入或浏览器刷新后，并行拉取当前用户身份与动态路由表
     if (!authStore.isInitialized || !permissionStore.routesLoaded) {
-      try {
-        await ensureSessionInitialized();
-      } catch {
+      const initStatus = await initializeSessionWithRecovery();
+      if (initStatus === 'failed') {
         AtengLoadingBar.error();
         authStore.clearLocalSession(router);
         return buildLoginRedirectLocation(to.fullPath);
+      }
+
+      if (initStatus === 'recovered') {
+        return to.fullPath === '/dashboard' ? true : { path: '/dashboard', replace: true };
       }
 
       if (to.path === '/login') {

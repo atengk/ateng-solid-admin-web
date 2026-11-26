@@ -3,11 +3,17 @@ import { createPinia, setActivePinia } from 'pinia';
 import { createMemoryHistory, createRouter } from 'vue-router';
 import { useAuth } from '@atengk/vue';
 import { DictManager } from '@atengk/element-plus';
-import { BusinessException } from '@atengk/core';
+import { BusinessException, type HttpRequestConfig } from '@atengk/core';
+import { ElMessage } from 'element-plus';
 import * as authApi from '@/api/auth';
 import * as tenantApi from '@/api/system/tenant';
 import type { AdminProfileVO, RouteMenuVO } from '@/api/auth';
-import { adminAuthManager, adminTenantManager } from '@/utils/http';
+import {
+  adminAuthManager,
+  adminHttpClient,
+  adminTenantManager,
+  registerHttpErrorHandlers,
+} from '@/utils/http';
 import { useAuthStore } from '@/stores/auth';
 import { useAppStore } from '@/stores/app';
 import { usePermissionStore } from '@/stores/permission';
@@ -280,5 +286,159 @@ describe('useTenantStore', () => {
     expect(tenantStore.isObservingTenant).toBe(false);
     expect(permissionStore.routesLoaded).toBe(true);
     expect(router.currentRoute.value.path).toBe('/dashboard');
+  });
+
+  it('coalesces concurrent 100002 responses on initialized business pages, recovers to tenant 0, and redirects to /dashboard without logout', async () => {
+    const authStore = useAuthStore();
+    const permissionStore = usePermissionStore();
+    const tenantStore = useTenantStore();
+    const router = createTestRouter();
+    const warnSpy = vi.spyOn(ElMessage, 'warning').mockImplementation(() => ({ close: vi.fn() }));
+
+    authStore.setTenantEnabled(true);
+    useAuth({ authManager: adminAuthManager, superAdminRoles: ['super_admin'] }).login({
+      token: 'super-token-in-session',
+      roles: ['super_admin'],
+      permissions: ['*:*:*'],
+      user: createProfile(),
+    });
+    tenantStore.initForUser(createProfile());
+    adminTenantManager.setTenantId('119405572993097728');
+
+    vi.spyOn(authApi, 'getAuthRoutes').mockResolvedValueOnce(buildTenantRouteMenus(false));
+    await permissionStore.buildRoutes(router);
+    await router.push('/system/visible');
+    await router.isReady();
+    expect(router.currentRoute.value.path).toBe('/system/visible');
+
+    let recoverCompleted: (() => void) | undefined;
+    const recoverGate = new Promise<void>(resolve => {
+      recoverCompleted = resolve;
+    });
+
+    registerHttpErrorHandlers({
+      onTenantInvalid: async () => {
+        await tenantStore.handleHttpInvalidTenantSwitch(router);
+        recoverCompleted?.();
+      },
+    });
+
+    const appStore = useAppStore();
+    const resetTabsSpy = vi.fn();
+    appStore.registerTabsResetHandler(resetTabsSpy);
+
+    const infoSpy = vi
+      .spyOn(authApi, 'getAuthInfo')
+      .mockResolvedValueOnce(createProfile({ tenantId: '0', tenantName: '平台主租户' }));
+    const routesSpy = vi
+      .spyOn(authApi, 'getAuthRoutes')
+      .mockResolvedValueOnce(buildTenantRouteMenus(true));
+
+    type AdapterConfig = Parameters<
+      Extract<NonNullable<HttpRequestConfig['adapter']>, (config: never) => unknown>
+    >[0];
+    const invalidTenantAdapter = async (config: AdapterConfig) => ({
+      data: {
+        code: 100002,
+        msg: '目标租户不存在、已停用或已过期，无法切换',
+        data: null,
+      },
+      status: 200,
+      statusText: 'OK',
+      headers: { 'content-type': 'application/json' },
+      config,
+    });
+
+    try {
+      await Promise.allSettled([
+        adminHttpClient.get('/admin/system/user/page', { adapter: invalidTenantAdapter }),
+        adminHttpClient.get('/admin/system/dept/options', { adapter: invalidTenantAdapter }),
+      ]);
+      await recoverGate;
+    } finally {
+      registerHttpErrorHandlers({});
+    }
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(infoSpy).toHaveBeenCalledTimes(1);
+    expect(routesSpy).toHaveBeenCalledTimes(1);
+    expect(resetTabsSpy).toHaveBeenCalledTimes(1);
+    expect(authStore.isAuthenticated).toBe(true);
+    expect(adminAuthManager.getToken()).toBe('super-token-in-session');
+    expect(adminTenantManager.getTenantId()).toBe('0');
+    expect(tenantStore.activeTenantId).toBe('0');
+    expect(tenantStore.activeTenantName).toBe('平台主租户');
+    expect(router.currentRoute.value.path).toBe('/dashboard');
+  });
+
+  it('defers handleHttpInvalidTenantSwitch during guard initialization, shares one recoveryPromise when concurrent, and keeps state unchanged if platform retry fails', async () => {
+    const authStore = useAuthStore();
+    const tenantStore = useTenantStore();
+    const router = createTestRouter();
+
+    authStore.setTenantEnabled(true);
+    useAuth({ authManager: adminAuthManager, superAdminRoles: ['super_admin'] }).login({
+      token: 'super-token-alive',
+      roles: ['super_admin'],
+      permissions: ['*:*:*'],
+      user: createProfile(),
+    });
+    vi.spyOn(tenantApi, 'getTenantOptions').mockResolvedValueOnce([
+      {
+        id: '10002',
+        tenantCode: '100002',
+        tenantName: '星辰智能科技',
+        status: 0,
+        expireTime: null,
+      },
+    ]);
+    await tenantStore.loadTenantOptions();
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValueOnce(
+      createProfile({ tenantId: '10002', tenantName: '星辰智能科技' }),
+    );
+    vi.spyOn(authApi, 'getAuthRoutes').mockResolvedValueOnce(buildTenantRouteMenus(false));
+    await tenantStore.switchTenant('10002', router);
+    await router.push('/system/visible');
+    expect(tenantStore.activeTenantName).toBe('星辰智能科技');
+
+    // 1. 守卫并发初始化期内（guardInitDepth > 0），http 100002 回调必须让步，不得抢先触发恢复
+    const infoCallSpy = vi.spyOn(authApi, 'getAuthInfo');
+    tenantStore.setGuardInitializationActive(true);
+    await tenantStore.handleHttpInvalidTenantSwitch(router);
+    expect(infoCallSpy).not.toHaveBeenCalled();
+    tenantStore.setGuardInitializationActive(false);
+
+    // 2. 非初始化期内并发重入 handleHttpInvalidTenantSwitch 必须阻塞等待同一 recoveryPromise，且重试失败不得误写名称与跳转
+    let releaseRetry!: (fail: boolean) => void;
+    const retryGate = new Promise<boolean>(resolve => {
+      releaseRetry = resolve;
+    });
+    const getAuthInfoSpy = vi.spyOn(authApi, 'getAuthInfo').mockImplementation(async () => {
+      const shouldFail = await retryGate;
+      if (shouldFail) {
+        throw new BusinessException(500, '服务暂时不可用');
+      }
+      return createProfile({ tenantId: '0', tenantName: '平台默认租户' });
+    });
+    const getAuthRoutesSpy = vi
+      .spyOn(authApi, 'getAuthRoutes')
+      .mockResolvedValue(buildTenantRouteMenus(true));
+
+    let secondResolved = false;
+    const firstCall = tenantStore.handleHttpInvalidTenantSwitch(router);
+    const secondCall = tenantStore.handleHttpInvalidTenantSwitch(router).then(() => {
+      secondResolved = true;
+    });
+
+    await Promise.resolve();
+    expect(secondResolved).toBe(false);
+
+    releaseRetry(true);
+    await expect(firstCall).rejects.toBeInstanceOf(BusinessException);
+    await expect(secondCall).rejects.toBeInstanceOf(BusinessException);
+    expect(getAuthInfoSpy).toHaveBeenCalledTimes(1);
+    expect(getAuthRoutesSpy).toHaveBeenCalledTimes(1);
+    expect(tenantStore.activeTenantName).toBe('星辰智能科技');
+    expect(router.currentRoute.value.path).toBe('/system/visible');
   });
 });

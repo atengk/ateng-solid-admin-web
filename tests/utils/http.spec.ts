@@ -10,7 +10,10 @@ import {
   adminTenantManager,
   isGlobalHandledHttpError,
   registerHttpErrorHandlers,
+  resetHttpInterceptorState,
   resolveApiTimeoutMs,
+  resolveContextualErrorMessage,
+  resolveErrorMessage,
 } from '@/utils/http';
 
 /**
@@ -186,26 +189,48 @@ describe('http client & global error dispatcher', () => {
   });
 
   it('handles 100002 by resetting active tenant to 0 without logging out super admin', async () => {
-    adminAuthManager.setToken('super-admin-token');
-    adminTenantManager.setTenantId('9999');
-    const clearCacheSpy = vi.spyOn(DictManager, 'clearCache');
-    const { warnSpy } = spyElMessage();
-    const onSessionExpired = vi.fn();
-    const onTenantInvalid = vi.fn();
-    registerHttpErrorHandlers({ onSessionExpired, onTenantInvalid });
+    vi.useFakeTimers();
+    try {
+      adminAuthManager.setToken('super-admin-token');
+      adminTenantManager.setTenantId('9999');
+      const clearCacheSpy = vi.spyOn(DictManager, 'clearCache');
+      const { warnSpy } = spyElMessage();
+      const onSessionExpired = vi.fn();
+      const onTenantInvalid = vi.fn();
+      registerHttpErrorHandlers({ onSessionExpired, onTenantInvalid });
 
-    await expect(
-      adminHttpClient.get('/admin/auth/routes', {
-        adapter: mockJsonResultAdapter(200, { code: 100002, msg: '目标租户不存在' }),
-      }),
-    ).rejects.toBeInstanceOf(BusinessException);
+      await expect(
+        adminHttpClient.get('/admin/auth/routes', {
+          adapter: mockJsonResultAdapter(200, { code: 100002, msg: '目标租户不存在' }),
+        }),
+      ).rejects.toBeInstanceOf(BusinessException);
 
-    expect(adminAuthManager.getToken()).toBe('super-admin-token');
-    expect(onSessionExpired).not.toHaveBeenCalled();
-    expect(adminTenantManager.getTenantId()).toBe('0');
-    expect(clearCacheSpy).toHaveBeenCalled();
-    expect(onTenantInvalid).toHaveBeenCalledWith('目标租户不存在');
-    expect(warnSpy).toHaveBeenCalledWith('目标租户不存在');
+      expect(adminAuthManager.getToken()).toBe('super-admin-token');
+      expect(onSessionExpired).not.toHaveBeenCalled();
+      expect(adminTenantManager.getTenantId()).toBe('0');
+      expect(clearCacheSpy).toHaveBeenCalled();
+      expect(onTenantInvalid).toHaveBeenCalledWith('目标租户不存在');
+      expect(warnSpy).toHaveBeenCalledWith('目标租户不存在');
+
+      // 并发 100002 在 2s 节流窗口内仅提示一次警告弹窗
+      await expect(
+        adminHttpClient.get('/admin/auth/info', {
+          adapter: mockJsonResultAdapter(200, { code: 100002, msg: '目标租户不存在' }),
+        }),
+      ).rejects.toBeInstanceOf(BusinessException);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+
+      // 超过 2s 节流窗口后，新的 100002 告警恢复正常弹出
+      vi.advanceTimersByTime(2100);
+      await expect(
+        adminHttpClient.get('/admin/auth/info', {
+          adapter: mockJsonResultAdapter(200, { code: 100002, msg: '目标租户不存在' }),
+        }),
+      ).rejects.toBeInstanceOf(BusinessException);
+      expect(warnSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('passes 101004 lock payload silently without global toast messages', async () => {
@@ -374,5 +399,85 @@ describe('http client & global error dispatcher', () => {
     expect(resolveApiTimeoutMs('-500')).toBe(DEFAULT_API_TIMEOUT_MS);
     expect(resolveApiTimeoutMs('30000')).toBe(30_000);
     expect(resolveApiTimeoutMs(' 20000.8 ')).toBe(20_000);
+  });
+
+  it('distinguishes 500/502/503/504, coalesces burst 5xx toasts within 2s, and strips raw English transport errors', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-26T12:00:00Z'));
+    resetHttpInterceptorState();
+    const { errSpy } = spyElMessage();
+
+    let caught502: unknown;
+    try {
+      await adminHttpClient.get('/admin/system/tenant/1', {
+        adapter: async (config: AdapterConfig) => {
+          throw buildAxiosError(config, {
+            data: '<html><body>502 Bad Gateway</body></html>',
+            status: 502,
+            statusText: 'Bad Gateway',
+            headers: { 'content-type': 'text/html' },
+            config,
+          });
+        },
+      });
+    } catch (error) {
+      caught502 = error;
+    }
+
+    expect(caught502).toBeInstanceOf(BusinessException);
+    expect((caught502 as BusinessException).msg).toBe('网关或后端服务连接异常，请稍后重试');
+    expect(errSpy).toHaveBeenCalledTimes(1);
+    expect(errSpy).toHaveBeenLastCalledWith('网关或后端服务连接异常，请稍后重试');
+    expect(resolveContextualErrorMessage(caught502, '加载租户信息失败，请关闭重试')).toBe(
+      '加载租户信息失败，请关闭重试',
+    );
+
+    // 2 秒防抖合并窗口内再次触发 500 不重复弹出全屏 toast
+    await expect(
+      adminHttpClient.get('/admin/system/config/page', {
+        adapter: async (config: AdapterConfig) => {
+          throw buildAxiosError(config, {
+            data: null,
+            status: 500,
+            statusText: 'Internal Server Error',
+            headers: {},
+            config,
+          });
+        },
+      }),
+    ).rejects.toMatchObject({ msg: '系统繁忙，请稍后再试' });
+    expect(errSpy).toHaveBeenCalledTimes(1);
+
+    // 越过 2 秒窗口后恢复展示新一次 5xx 错误（且 500 统一对齐“请稍后再试”）
+    vi.advanceTimersByTime(2_100);
+    await expect(
+      adminHttpClient.get('/admin/system/user/page', {
+        adapter: async (config: AdapterConfig) => {
+          throw buildAxiosError(config, {
+            data: null,
+            status: 500,
+            statusText: 'Internal Server Error',
+            headers: {},
+            config,
+          });
+        },
+      }),
+    ).rejects.toMatchObject({ msg: '系统繁忙，请稍后再试' });
+    expect(errSpy).toHaveBeenCalledTimes(2);
+    expect(errSpy).toHaveBeenLastCalledWith('系统繁忙，请稍后再试');
+
+    // 域内 4xx/102002 报错保留真实服务端说明，而裸英文 Error 不透传给用户
+    expect(
+      resolveContextualErrorMessage(new BusinessException(102002, '参数键名已存在'), '保存失败'),
+    ).toBe('参数键名已存在');
+    expect(
+      resolveErrorMessage(new Error('Request failed with status code 502'), '操作失败，请重试'),
+    ).toBe('操作失败，请重试');
+    expect(
+      resolveErrorMessage(new BusinessException(502, '502 Bad Gateway'), '操作失败，请重试'),
+    ).toBe('网关或后端服务连接异常，请稍后重试');
+    expect(resolveErrorMessage(new Error('Network Error'), '操作失败，请重试')).toBe(
+      '网络请求超时或服务连接异常，请稍后重试',
+    );
   });
 });

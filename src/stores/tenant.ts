@@ -1,13 +1,17 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import type { Router } from 'vue-router';
-import { BusinessException } from '@atengk/core';
 import { DictManager } from '@atengk/element-plus';
 import { useTenant } from '@atengk/vue';
 import type { AdminProfileVO } from '@/api/auth';
 import { getTenantOptions, type TenantOptionVO } from '@/api/system/tenant';
 import { ANONYMOUS_WHITELIST_PATHS, STATIC_BUSINESS_PATHS } from '@/router/routes';
-import { adminTenantManager, BIZ_INVALID_TENANT_SWITCH, DEFAULT_TENANT_ID } from '@/utils/http';
+import {
+  adminTenantManager,
+  awaitAllSettledRequests,
+  DEFAULT_TENANT_ID,
+  isInvalidTenantSwitchError,
+} from '@/utils/http';
 import { useAppStore } from '@/stores/app';
 import { useAuthStore } from '@/stores/auth';
 import { usePermissionStore } from '@/stores/permission';
@@ -18,16 +22,6 @@ const STATIC_ACCESSIBLE_PATHS = new Set([
   ...ANONYMOUS_WHITELIST_PATHS,
   '/404',
 ]);
-
-function isInvalidTenantSwitchError(error: unknown): boolean {
-  if (error instanceof BusinessException) {
-    return error.code === BIZ_INVALID_TENANT_SWITCH;
-  }
-  if (error && typeof error === 'object' && 'code' in error) {
-    return (error as { code?: unknown }).code === BIZ_INVALID_TENANT_SWITCH;
-  }
-  return false;
-}
 
 /**
  * 多租户上下文与平台超管视角切换 Pinia Setup Store（严格 7 步切租户时序与 100002 安全回退）。
@@ -48,6 +42,16 @@ export const useTenantStore = defineStore('tenant', () => {
   const switching = ref<boolean>(false);
 
   let recoveryPromise: Promise<void> | null = null;
+  let guardInitDepth = 0;
+
+  /**
+   * 标记路由守卫正在执行首轮初始化（避免底层异步 100002 回调抢先调用 router.replace 干扰守卫重定向）。
+   *
+   * @param active 是否进入初始化阶段
+   */
+  function setGuardInitializationActive(active: boolean): void {
+    guardInitDepth = active ? guardInitDepth + 1 : Math.max(0, guardInitDepth - 1);
+  }
 
   const isSuperAdminTenantSwitchAllowed = computed<boolean>(
     () =>
@@ -80,8 +84,8 @@ export const useTenantStore = defineStore('tenant', () => {
     appStore.resetNonAffixTabs();
     // 4. 卸载旧租户视角的动态路由
     permissionStore.resetRoutes(router);
-    // 5. 并行重拉新视角用户身份与动态菜单树并重建路由
-    const [profile] = await Promise.all([
+    // 5. 并行重拉新视角用户身份与动态菜单树并重建路由（等待全量请求结算，避免旧响应在错峰到达后污染路由）
+    const [profile] = await awaitAllSettledRequests([
       authStore.fetchUserInfo(),
       permissionStore.buildRoutes(router),
     ]);
@@ -159,21 +163,27 @@ export const useTenantStore = defineStore('tenant', () => {
    * 遇 100002（目标租户不可用）时将视角安全回退至平台租户 '0'，严禁注销平台超管登录态。
    *
    * @param router 可选 Vue Router 实例
+   * @param options 恢复选项（`skipRedirect` 为 `true` 时交由外层路由守卫统一决定落点）
    */
-  async function recoverFromInvalidTenant(router?: Router): Promise<void> {
+  async function recoverFromInvalidTenant(
+    router?: Router,
+    options?: { skipRedirect?: boolean },
+  ): Promise<void> {
     if (recoveryPromise) {
       await recoveryPromise;
       return;
     }
 
     recoveryPromise = (async () => {
-      try {
-        await applyTenantResetAndReload(DEFAULT_TENANT_ID, router);
-      } finally {
-        activeTenantName.value = DEFAULT_TENANT_NAME;
-        if (router && router.currentRoute.value.path !== '/dashboard') {
-          await router.replace('/dashboard');
-        }
+      const profile = await applyTenantResetAndReload(DEFAULT_TENANT_ID, router);
+      activeTenantName.value = resolveOptionName(DEFAULT_TENANT_ID, profile.tenantName);
+      const shouldRedirect =
+        !options?.skipRedirect &&
+        guardInitDepth === 0 &&
+        router &&
+        router.currentRoute.value.path !== '/dashboard';
+      if (shouldRedirect) {
+        await router.replace('/dashboard');
       }
     })();
 
@@ -185,12 +195,12 @@ export const useTenantStore = defineStore('tenant', () => {
   }
 
   /**
-   * 响应全局 HTTP 100002 拦截回调：当非 switchTenant 内部流程触发时执行单次平台回退。
+   * 响应全局 HTTP 100002 拦截回调：当非 switchTenant 或首屏守卫并发初始化阶段触发时，执行或复用单次平台回退。
    *
    * @param router 可选 Vue Router 实例
    */
   async function handleHttpInvalidTenantSwitch(router?: Router): Promise<void> {
-    if (switching.value || recoveryPromise) {
+    if (switching.value || guardInitDepth > 0) {
       return;
     }
     await recoverFromInvalidTenant(router);
@@ -265,6 +275,7 @@ export const useTenantStore = defineStore('tenant', () => {
     initForUser,
     loadTenantOptions,
     resetLocalTenant,
+    setGuardInitializationActive,
     recoverFromInvalidTenant,
     handleHttpInvalidTenantSwitch,
     switchTenant,

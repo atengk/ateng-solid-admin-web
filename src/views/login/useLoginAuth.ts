@@ -6,6 +6,11 @@ import { getCaptcha, type CaptchaVO, type LoginLockDetailVO } from '@/api/auth';
 import { resolveAuthenticatedRedirectTarget } from '@/router/guards';
 import { useAuthStore } from '@/stores/auth';
 import { usePermissionStore } from '@/stores/permission';
+import {
+  awaitAllSettledRequests,
+  resolveContextualErrorMessage,
+  resolveErrorMessage,
+} from '@/utils/http';
 
 /**
  * 管理端登录认证编排 Hook：
@@ -114,14 +119,12 @@ function extractLockDetail(error: unknown): LoginLockDetailVO | undefined {
   return undefined;
 }
 
-function resolveFriendlyLoginError(error: unknown): string {
-  if (error instanceof BusinessException) {
-    return error.msg || '登录认证失败，请核对后重试';
+function resolveFriendlyLoginError(error: unknown, loginSucceeded: boolean): string {
+  // 登录提交阶段遇 101005 由 http 拦截器豁免全局登出与弹窗，须在表单内联展示具体租户不可用原因
+  if (!loginSucceeded && error instanceof BusinessException && error.code === CODE_TENANT_UNAVAILABLE) {
+    return resolveErrorMessage(error, '当前所属租户不可用，请联系管理员');
   }
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-  return '登录认证失败，请稍后重试';
+  return resolveContextualErrorMessage(error, '登录认证失败，请检查服务连接或核对后重试');
 }
 
 /**
@@ -355,7 +358,7 @@ export function useLoginAuth(options: UseLoginAuthOptions) {
       );
 
       // 2. 并行拉取认证身份与动态路由表，并经白名单与权限可达校验后安全跳转
-      await Promise.all([authStore.fetchUserInfo(), permissionStore.buildRoutes(router)]);
+      await awaitAllSettledRequests([authStore.fetchUserInfo(), permissionStore.buildRoutes(router)]);
       const targetPath = resolveAuthenticatedRedirectTarget(route.query.redirect, permissionStore);
       await router.replace(targetPath);
     } catch (error) {
@@ -368,7 +371,7 @@ export function useLoginAuth(options: UseLoginAuthOptions) {
       if (lockInfo) {
         startLockCountdown(lockInfo);
       } else {
-        loginErrorMessage.value = resolveFriendlyLoginError(error);
+        loginErrorMessage.value = resolveFriendlyLoginError(error, loginSucceeded);
       }
 
       if (error instanceof BusinessException && error.code === CODE_TENANT_UNAVAILABLE) {

@@ -24,6 +24,7 @@ import {
   useListTableLayout,
 } from '@/composables/useListTableLayout';
 import { useAuthStore } from '@/stores/auth';
+import { isGlobalHandledHttpError, resolveErrorMessage } from '@/utils/http';
 
 /**
  * 管理端在线会话治理视图（/system/online）：
@@ -37,7 +38,6 @@ defineOptions({ name: 'OnlineSession' });
 const MAX_SCAN_LIMIT = 2000;
 const EXPIRING_SOON_SECONDS = 300;
 const CODE_CANNOT_KICKOUT_SELF = 101007;
-const GLOBAL_HANDLED_HTTP_CODES = new Set<number>([401, 403, 429, 100002, 101005, 40003]);
 const STORAGE_KEY = 'solid:table:online-session';
 
 const pagination = usePagination<OnlineSessionVO, OnlineSessionQuery>(getOnlineSessionPage, {
@@ -88,13 +88,6 @@ function asSessionRow(row: unknown): OnlineSessionVO {
   return row as OnlineSessionVO;
 }
 
-function isGlobalHandledError(error: unknown): boolean {
-  if (!(error instanceof BusinessException)) {
-    return false;
-  }
-  return GLOBAL_HANDLED_HTTP_CODES.has(error.code) || error.code >= 500 || error.code <= 0;
-}
-
 function openKickoutDialog(row: OnlineSessionVO): void {
   if (row.currentSession) {
     return;
@@ -112,12 +105,8 @@ async function handleConfirmKickout(): Promise<boolean> {
   } catch (error) {
     if (error instanceof BusinessException && error.code === CODE_CANNOT_KICKOUT_SELF) {
       ElMessage.error(error.msg || '不可强退当前正在使用的会话');
-    } else if (!isGlobalHandledError(error)) {
-      ElMessage.error(
-        error instanceof BusinessException && error.msg
-          ? error.msg
-          : '强退在线会话失败，请稍后重试',
-      );
+    } else if (!isGlobalHandledHttpError(error)) {
+      ElMessage.error(resolveErrorMessage(error, '强退在线会话失败，请稍后重试'));
     }
     return false;
   }

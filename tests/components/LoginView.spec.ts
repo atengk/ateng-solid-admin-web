@@ -403,7 +403,7 @@ describe('LoginView (/login)', () => {
       tenantName: '租赁测试',
     });
     vi.spyOn(authApi, 'getAuthInfo').mockRejectedValueOnce(
-      new BusinessException(500, '服务异常', 't-500'),
+      new BusinessException(500, '系统繁忙，请稍后再试', 't-500'),
     );
     vi.spyOn(authApi, 'getAuthRoutes').mockResolvedValueOnce([]);
 
@@ -411,7 +411,9 @@ describe('LoginView (/login)', () => {
     await flushPromises();
 
     expect(useAuthStore().isAuthenticated).toBe(false);
-    expect(wrapper.find('[data-testid="login-error-alert"]').text()).toContain('服务异常');
+    const alertText = wrapper.find('[data-testid="login-error-alert"]').text();
+    expect(alertText).toContain('登录认证失败');
+    expect(alertText).not.toContain('系统繁忙');
     expect(router.currentRoute.value.path).toBe('/login');
   });
 });
