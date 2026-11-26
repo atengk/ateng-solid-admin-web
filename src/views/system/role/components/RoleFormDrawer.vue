@@ -276,7 +276,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
           />
         </el-form-item>
 
-        <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
+        <div class="grid grid-cols-1 items-start gap-x-4 sm:grid-cols-2">
           <el-form-item label="显示排序" prop="sort">
             <el-input-number
               v-model="form.sort"

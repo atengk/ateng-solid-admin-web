@@ -113,12 +113,12 @@ const form = reactive<{
   remark: '',
 });
 
-const previewKey = computed<string>(() => form.dictValue.trim() || '__preview__');
+const PREVIEW_TAG_KEY = '__preview__';
 
 const previewOptions = computed<DictItem[]>(() => [
   {
     label: form.dictLabel.trim() || '预览标签效果',
-    value: previewKey.value,
+    value: PREVIEW_TAG_KEY,
     tagType: normalizeTagType(form.tagType),
     cssClass: form.cssClass.trim() || undefined,
   },
@@ -286,10 +286,10 @@ async function handleBeforeConfirm(): Promise<boolean> {
       <div v-else class="flex flex-col gap-3">
         <div
           data-testid="dict-data-preview"
-          class="flex items-center justify-between rounded-[var(--solid-radius-md)] border border-border bg-surface-subtle px-3 py-2"
+          class="flex min-h-10 items-center justify-between gap-3 rounded-[var(--solid-radius-md)] border border-border bg-surface-subtle px-3 py-2"
         >
-          <span class="text-xs font-medium text-ink-secondary">样式实时预览</span>
-          <AtengDictTag :options="previewOptions" :value="previewKey" />
+          <span class="shrink-0 text-xs font-medium text-ink-secondary">样式实时预览</span>
+          <AtengDictTag :options="previewOptions" :value="PREVIEW_TAG_KEY" />
         </div>
 
         <el-form
@@ -356,12 +356,13 @@ async function handleBeforeConfirm(): Promise<boolean> {
         </el-form-item>
 
         <el-form-item label="默认选项" prop="isDefault">
-          <div class="flex flex-col gap-1">
+          <div class="flex flex-col items-start gap-1">
             <el-switch
               v-model="form.isDefault"
               data-testid="dict-data-form-default"
               :active-value="1"
               :inactive-value="0"
+              :width="54"
               inline-prompt
               active-text="默认"
               inactive-text="否"

@@ -441,6 +441,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
           <el-switch
             v-model="form.isExternal"
             data-testid="menu-form-external"
+            :width="54"
             inline-prompt
             active-text="外链"
             inactive-text="内页"
@@ -539,6 +540,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
           <el-switch
             v-model="form.keepAlive"
             data-testid="menu-form-keep-alive"
+            :width="66"
             inline-prompt
             active-text="缓存"
             inactive-text="不缓存"
@@ -550,11 +552,12 @@ async function handleBeforeConfirm(): Promise<boolean> {
         </el-form-item>
 
         <el-form-item label="平台专属" prop="platformOnly">
-          <div class="flex flex-col gap-1">
+          <div class="flex flex-col items-start gap-1">
             <el-switch
               v-model="form.platformOnly"
               data-testid="menu-form-platform-only"
               :disabled="parentInheritedPlatformOnly"
+              :width="66"
               inline-prompt
               active-text="仅平台"
               inactive-text="通用"

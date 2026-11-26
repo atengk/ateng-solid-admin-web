@@ -11,7 +11,7 @@ import {
 } from '@atengk/element-plus';
 import { usePagination } from '@atengk/vue';
 import { getOperLogPage, type OperLogQuery, type OperLogVO } from '@/api/system/log';
-import { useListTableLayout } from '@/composables/useListTableLayout';
+import { QUERY_FORM_LOADING_DELAY, useListTableLayout } from '@/composables/useListTableLayout';
 import { withDictPreload } from '@/utils/dict';
 import AuditTraceCell from '@/views/system/log/components/AuditTraceCell.vue';
 import OperLogDetailDrawer from '@/views/system/oper-log/components/OperLogDetailDrawer.vue';
@@ -84,6 +84,7 @@ function handleQueryReset(): void {
           :cols="QUERY_FORM_COLS"
           :default-collapsed="true"
           :collapsed-rows="1"
+          :loading-delay="QUERY_FORM_LOADING_DELAY"
           @reset="handleQueryReset"
         >
           <el-form-item label="操作模块" prop="module">

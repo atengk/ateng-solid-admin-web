@@ -21,6 +21,7 @@ import * as userApi from '@/api/system/user';
 import {
   QUERY_COLS_THREE_ITEMS,
   QUERY_COLS_TWO_ITEMS,
+  QUERY_FORM_LOADING_DELAY,
   TABLE_AUTO_HEIGHT_OFFSET,
   useListTableLayout,
 } from '@/composables/useListTableLayout';
@@ -323,9 +324,11 @@ describe('useListTableLayout & Tiered Query / Max Auto-Height Views (ADR-0005)',
     const dictQueries = dictWrapper.findAllComponents({ name: 'AtengQueryForm' });
     expect(dictQueries).toHaveLength(2);
     expect(dictQueries[0]!.props('defaultCollapsed')).toBe(true);
+    expect(dictQueries[0]!.props('loadingDelay')).toBe(QUERY_FORM_LOADING_DELAY);
     expect(dictQueries[1]!.props('cols')).toEqual(QUERY_COLS_TWO_ITEMS);
     expect(dictQueries[1]!.props('defaultCollapsed')).toBe(false);
     expect(dictQueries[1]!.props('showCollapse')).toBe(false);
+    expect(dictQueries[1]!.props('loadingDelay')).toBe(QUERY_FORM_LOADING_DELAY);
 
     const dictTables = dictWrapper.findAllComponents({ name: 'AtengTable' });
     expect(dictTables).toHaveLength(2);

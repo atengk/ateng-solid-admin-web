@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { ElButton, ElFormItem, ElInput, ElSwitch, ElTableColumn, ElTag, ElTooltip } from 'element-plus';
+import {
+  ElButton,
+  ElFormItem,
+  ElInput,
+  ElSwitch,
+  ElTableColumn,
+  ElTag,
+  ElTooltip,
+} from 'element-plus';
 import { Delete, Edit, Key, Plus } from '@element-plus/icons-vue';
 import {
   AtengDictSelect,
@@ -21,6 +29,7 @@ import type { CommonStatus } from '@/api/types';
 import { runConfirmedAction } from '@/composables/useConfirmAction';
 import {
   QUERY_COLS_THREE_ITEMS,
+  QUERY_FORM_LOADING_DELAY,
   useListTableLayout,
 } from '@/composables/useListTableLayout';
 import { useAuthStore } from '@/stores/auth';
@@ -116,7 +125,11 @@ async function handleToggleStatus(row: RoleVO): Promise<void> {
   }
 }
 
-function confirmAndDelete(targetIds: string | string[], confirmMessage: string, successMessage: string): void {
+function confirmAndDelete(
+  targetIds: string | string[],
+  confirmMessage: string,
+  successMessage: string,
+): void {
   void runConfirmedAction({
     message: confirmMessage,
     title: '删除确认',
@@ -135,15 +148,25 @@ function handleDeleteSingle(row: RoleVO): void {
   if (isProtectedRole(row)) {
     return;
   }
-  confirmAndDelete(row.id, `确认删除角色【${row.roleName}】（编码：${row.roleKey}）吗？`, `已删除角色【${row.roleName}】`);
+  confirmAndDelete(
+    row.id,
+    `确认删除角色【${row.roleName}】（编码：${row.roleKey}）吗？`,
+    `已删除角色【${row.roleName}】`,
+  );
 }
 
 function handleBatchDelete(): void {
-  const deletableIds = selectedRows.value.filter(item => !isProtectedRole(item)).map(item => item.id);
+  const deletableIds = selectedRows.value
+    .filter(item => !isProtectedRole(item))
+    .map(item => item.id);
   if (deletableIds.length === 0) {
     return;
   }
-  confirmAndDelete(deletableIds, `确认批量删除已选中的 ${deletableIds.length} 个角色吗？`, `已删除选中的 ${deletableIds.length} 个角色`);
+  confirmAndDelete(
+    deletableIds,
+    `确认批量删除已选中的 ${deletableIds.length} 个角色吗？`,
+    `已删除选中的 ${deletableIds.length} 个角色`,
+  );
 }
 
 async function handleSaved(): Promise<void> {
@@ -172,21 +195,45 @@ async function handleSaved(): Promise<void> {
           :cols="QUERY_COLS_THREE_ITEMS"
           :default-collapsed="false"
           :show-collapse="false"
+          :loading-delay="QUERY_FORM_LOADING_DELAY"
         >
           <el-form-item label="角色名称" prop="roleName">
-            <el-input v-model="pagination.query.roleName" data-testid="role-query-name" clearable placeholder="请输入角色名称" />
+            <el-input
+              v-model="pagination.query.roleName"
+              data-testid="role-query-name"
+              clearable
+              placeholder="请输入角色名称"
+            />
           </el-form-item>
           <el-form-item label="角色编码" prop="roleKey">
-            <el-input v-model="pagination.query.roleKey" data-testid="role-query-key" clearable class="font-mono-data" placeholder="请输入角色编码" />
+            <el-input
+              v-model="pagination.query.roleKey"
+              data-testid="role-query-key"
+              clearable
+              class="font-mono-data"
+              placeholder="请输入角色编码"
+            />
           </el-form-item>
           <el-form-item label="状态" prop="status">
-            <AtengDictSelect v-model="pagination.query.status" data-testid="role-query-status" dict-code="commonStatus" value-type="number" placeholder="全部状态" />
+            <AtengDictSelect
+              v-model="pagination.query.status"
+              data-testid="role-query-status"
+              dict-code="commonStatus"
+              value-type="number"
+              placeholder="全部状态"
+            />
           </el-form-item>
         </AtengQueryForm>
       </template>
 
       <template #toolbar-left>
-        <el-button v-permission="'system:role:create'" data-testid="role-add-btn" type="primary" :icon="Plus" @click="openCreateDrawer">
+        <el-button
+          v-permission="'system:role:create'"
+          data-testid="role-add-btn"
+          type="primary"
+          :icon="Plus"
+          @click="openCreateDrawer"
+        >
           新增角色
         </el-button>
         <el-button
@@ -208,7 +255,12 @@ async function handleSaved(): Promise<void> {
         <template #default="{ row }">
           <span class="inline-flex items-center gap-1.5">
             <span class="font-mono-data text-ink">{{ asRoleRow(row).roleKey }}</span>
-            <el-tag v-if="isProtectedRole(asRoleRow(row))" :data-testid="`role-builtin-badge-${asRoleRow(row).id}`" size="small" type="primary">
+            <el-tag
+              v-if="isProtectedRole(asRoleRow(row))"
+              :data-testid="`role-builtin-badge-${asRoleRow(row).id}`"
+              size="small"
+              type="primary"
+            >
               平台内置
             </el-tag>
           </span>
@@ -229,7 +281,11 @@ async function handleSaved(): Promise<void> {
 
       <el-table-column prop="status" label="状态" width="96" align="center">
         <template #default="{ row }">
-          <el-tooltip :content="ROLE_PROTECTED_TOOLTIP" :disabled="!isProtectedRole(asRoleRow(row))" placement="top">
+          <el-tooltip
+            :content="ROLE_PROTECTED_TOOLTIP"
+            :disabled="!isProtectedRole(asRoleRow(row))"
+            placement="top"
+          >
             <span>
               <el-switch
                 :data-testid="`role-status-switch-${asRoleRow(row).id}`"
@@ -254,7 +310,11 @@ async function handleSaved(): Promise<void> {
 
       <el-table-column v-if="hasRowActions" label="操作" width="210" fixed="right" align="center">
         <template #default="{ row }">
-          <el-tooltip :content="ROLE_PROTECTED_TOOLTIP" :disabled="!isProtectedRole(asRoleRow(row))" placement="top">
+          <el-tooltip
+            :content="ROLE_PROTECTED_TOOLTIP"
+            :disabled="!isProtectedRole(asRoleRow(row))"
+            placement="top"
+          >
             <div class="inline-flex items-center justify-center gap-1">
               <el-button
                 v-permission="'system:role:update'"
@@ -298,8 +358,17 @@ async function handleSaved(): Promise<void> {
       </el-table-column>
     </AtengTable>
 
-    <RoleFormDrawer v-model="formDrawerVisible" :mode="formDrawerMode" :role-id="editingRoleId" @saved="handleSaved" />
-    <RoleDataScopeDialog v-model="dataScopeVisible" :role-id="dataScopeRoleId" @saved="handleSaved" />
+    <RoleFormDrawer
+      v-model="formDrawerVisible"
+      :mode="formDrawerMode"
+      :role-id="editingRoleId"
+      @saved="handleSaved"
+    />
+    <RoleDataScopeDialog
+      v-model="dataScopeVisible"
+      :role-id="dataScopeRoleId"
+      @saved="handleSaved"
+    />
   </section>
 </template>
 

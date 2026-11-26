@@ -271,39 +271,39 @@ async function handleBeforeConfirm(): Promise<boolean> {
         :validate-on-rule-change="false"
         label-width="92px"
       >
-        <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
-          <el-form-item label="上级部门" prop="parentId" class="sm:col-span-2">
-            <el-tree-select
-              v-model="form.parentId"
-              data-testid="dept-form-parent"
-              :data="parentTreeOptions"
-              node-key="id"
-              :props="{ label: 'label', children: 'children', disabled: 'disabled' }"
-              check-strictly
-              filterable
-              :render-after-expand="false"
-              class="w-full"
-              placeholder="请选择上级部门"
-            >
-              <template #default="{ data }">
-                <div class="flex items-center justify-between gap-2">
-                  <span>{{ data.label }}</span>
-                  <el-tag v-if="data.status === 1" size="small" type="info">已停用</el-tag>
-                </div>
-              </template>
-            </el-tree-select>
-          </el-form-item>
+        <el-form-item label="上级部门" prop="parentId">
+          <el-tree-select
+            v-model="form.parentId"
+            data-testid="dept-form-parent"
+            :data="parentTreeOptions"
+            node-key="id"
+            :props="{ label: 'label', children: 'children', disabled: 'disabled' }"
+            check-strictly
+            filterable
+            :render-after-expand="false"
+            class="w-full"
+            placeholder="请选择上级部门"
+          >
+            <template #default="{ data }">
+              <div class="flex items-center justify-between gap-2">
+                <span>{{ data.label }}</span>
+                <el-tag v-if="data.status === 1" size="small" type="info">已停用</el-tag>
+              </div>
+            </template>
+          </el-tree-select>
+        </el-form-item>
 
-          <el-form-item label="部门名称" prop="deptName">
-            <el-input
-              v-model="form.deptName"
-              data-testid="dept-form-name"
-              maxlength="50"
-              clearable
-              placeholder="请输入 2~50 个字符"
-            />
-          </el-form-item>
+        <el-form-item label="部门名称" prop="deptName">
+          <el-input
+            v-model="form.deptName"
+            data-testid="dept-form-name"
+            maxlength="50"
+            clearable
+            placeholder="请输入 2~50 个字符"
+          />
+        </el-form-item>
 
+        <div class="grid grid-cols-1 items-start gap-x-4 sm:grid-cols-2">
           <el-form-item label="显示排序" prop="sort">
             <el-input-number
               v-model="form.sort"
@@ -315,54 +315,54 @@ async function handleBeforeConfirm(): Promise<boolean> {
             />
           </el-form-item>
 
-          <el-form-item label="部门负责人" prop="leaderUserId">
-            <el-select
-              v-model="form.leaderUserId"
-              data-testid="dept-form-leader"
-              filterable
-              remote
-              clearable
-              reserve-keyword
-              :loading="leaderLoading"
-              :remote-method="handleSearchLeaders"
-              placeholder="输入昵称或账号搜索"
-              class="w-full"
-            >
-              <el-option
-                v-for="item in leaderOptions"
-                :key="item.userId"
-                :label="formatUserOptionLabel(item)"
-                :value="item.userId"
-              />
-            </el-select>
-          </el-form-item>
-
           <el-form-item for="" label="部门状态" prop="status">
             <AtengDictRadio v-model="form.status" dict-code="commonStatus" value-type="number" />
           </el-form-item>
-
-          <el-form-item label="联系电话" prop="phone">
-            <el-input
-              v-model="form.phone"
-              data-testid="dept-form-phone"
-              maxlength="20"
-              clearable
-              class="font-mono-data"
-              placeholder="请输入联系电话"
-            />
-          </el-form-item>
-
-          <el-form-item label="电子邮箱" prop="email">
-            <el-input
-              v-model="form.email"
-              data-testid="dept-form-email"
-              maxlength="64"
-              clearable
-              class="font-mono-data"
-              placeholder="请输入电子邮箱"
-            />
-          </el-form-item>
         </div>
+
+        <el-form-item label="部门负责人" prop="leaderUserId">
+          <el-select
+            v-model="form.leaderUserId"
+            data-testid="dept-form-leader"
+            filterable
+            remote
+            clearable
+            reserve-keyword
+            :loading="leaderLoading"
+            :remote-method="handleSearchLeaders"
+            placeholder="输入昵称或账号搜索"
+            class="w-full"
+          >
+            <el-option
+              v-for="item in leaderOptions"
+              :key="item.userId"
+              :label="formatUserOptionLabel(item)"
+              :value="item.userId"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="联系电话" prop="phone">
+          <el-input
+            v-model="form.phone"
+            data-testid="dept-form-phone"
+            maxlength="20"
+            clearable
+            class="font-mono-data"
+            placeholder="请输入联系电话"
+          />
+        </el-form-item>
+
+        <el-form-item label="电子邮箱" prop="email">
+          <el-input
+            v-model="form.email"
+            data-testid="dept-form-email"
+            maxlength="64"
+            clearable
+            class="font-mono-data"
+            placeholder="请输入电子邮箱"
+          />
+        </el-form-item>
       </el-form>
     </div>
   </AtengDialog>

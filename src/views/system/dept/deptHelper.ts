@@ -55,7 +55,7 @@ export function buildDeptFormRules(): FormRules {
         validator: (_rule, value: string, callback) => {
           const trimmed = (value ?? '').trim();
           if (trimmed.length < 2 || trimmed.length > 50) {
-            callback(new Error('部门名称长度须在 2~50 个字符之间'));
+            callback(new Error('部门名称须为 2~50 个字符'));
             return;
           }
           callback();
@@ -75,7 +75,7 @@ export function buildDeptFormRules(): FormRules {
             return;
           }
           if (!DEPT_PHONE_PATTERN.test(trimmed)) {
-            callback(new Error('请输入合法联系电话（5~20 位数字、+、- 或括号）'));
+            callback(new Error('请输入合法联系电话（5~20 位）'));
             return;
           }
           callback();
@@ -92,7 +92,7 @@ export function buildDeptFormRules(): FormRules {
             return;
           }
           if (trimmed.length > 64 || !DEPT_EMAIL_PATTERN.test(trimmed)) {
-            callback(new Error('请输入合法电子邮箱（不超过 64 个字符）'));
+            callback(new Error('请输入合法电子邮箱（64 字符内）'));
             return;
           }
           callback();

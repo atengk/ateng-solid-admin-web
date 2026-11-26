@@ -107,7 +107,7 @@ const formRules: FormRules = {
         }
         const trimmed = (value ?? '').trim();
         if (!DICT_TYPE_PATTERN.test(trimmed)) {
-          callback(new Error('字典类型须为小写字母开头的 2~64 位小写字母、数字或下划线'));
+          callback(new Error('须为小写字母开头的 2~64 位字母/数字/下划线'));
           return;
         }
         callback();

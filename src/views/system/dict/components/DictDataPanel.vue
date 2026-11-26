@@ -33,6 +33,7 @@ import type { CommonStatus } from '@/api/types';
 import { runConfirmedAction } from '@/composables/useConfirmAction';
 import {
   QUERY_COLS_TWO_ITEMS,
+  QUERY_FORM_LOADING_DELAY,
   useListTableLayout,
 } from '@/composables/useListTableLayout';
 import { useAuthStore } from '@/stores/auth';
@@ -90,7 +91,9 @@ const dataPagination = usePagination<DictDataVO, DictDataQuery>(
         size: params?.size ?? 10,
       });
     }
-    return withDictPreload(['commonStatus'], () => getDictDataPage({ ...params, dictType: activeType }));
+    return withDictPreload(['commonStatus'], () =>
+      getDictDataPage({ ...params, dictType: activeType }),
+    );
   },
   { defaultSize: 10 },
 );
@@ -241,6 +244,7 @@ async function handleRefreshActiveCache(): Promise<void> {
           :cols="QUERY_COLS_TWO_ITEMS"
           :default-collapsed="false"
           :show-collapse="false"
+          :loading-delay="QUERY_FORM_LOADING_DELAY"
         >
           <el-form-item label="字典标签" prop="dictLabel">
             <el-input

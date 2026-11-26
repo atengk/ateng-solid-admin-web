@@ -298,7 +298,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
           :validate-on-rule-change="false"
           label-width="88px"
         >
-        <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
+        <div class="grid grid-cols-1 items-start gap-x-4 sm:grid-cols-2">
           <el-form-item label="套餐名称" prop="packageName">
             <el-input
               v-model="form.packageName"

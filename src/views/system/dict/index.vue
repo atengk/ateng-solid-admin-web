@@ -19,7 +19,7 @@ import {
 } from '@/api/system/dict';
 import type { CommonStatus } from '@/api/types';
 import { runConfirmedAction } from '@/composables/useConfirmAction';
-import { useListTableLayout } from '@/composables/useListTableLayout';
+import { QUERY_FORM_LOADING_DELAY, useListTableLayout } from '@/composables/useListTableLayout';
 import { useAuthStore } from '@/stores/auth';
 import DictDataPanel from '@/views/system/dict/components/DictDataPanel.vue';
 import DictTypeFormDialog from '@/views/system/dict/components/DictTypeFormDialog.vue';
@@ -171,6 +171,7 @@ function handleDeleteType(row: DictTypeVO): void {
                 :model="typePagination.query"
                 :default-collapsed="true"
                 :collapsed-rows="1"
+                :loading-delay="QUERY_FORM_LOADING_DELAY"
               >
                 <el-form-item label="字典名称" prop="dictName">
                   <el-input
@@ -253,7 +254,13 @@ function handleDeleteType(row: DictTypeVO): void {
               </template>
             </el-table-column>
 
-            <el-table-column v-if="hasRowActions" label="操作" width="136" fixed="right" align="center">
+            <el-table-column
+              v-if="hasRowActions"
+              label="操作"
+              width="136"
+              fixed="right"
+              align="center"
+            >
               <template #default="{ row }">
                 <div class="inline-flex items-center justify-center gap-1" @click.stop>
                   <el-button

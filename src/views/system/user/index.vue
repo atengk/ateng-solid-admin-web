@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { computed, onActivated, onMounted, ref } from 'vue';
-import { ElAvatar, ElButton, ElFormItem, ElInput, ElSwitch, ElTableColumn, ElTag, ElTooltip } from 'element-plus';
+import {
+  ElAvatar,
+  ElButton,
+  ElFormItem,
+  ElInput,
+  ElSwitch,
+  ElTableColumn,
+  ElTag,
+  ElTooltip,
+} from 'element-plus';
 import { Delete, Plus, Upload } from '@element-plus/icons-vue';
 import { formatMaskEmail, formatMaskPhone } from '@atengk/core';
 import {
@@ -14,10 +23,17 @@ import {
 } from '@atengk/element-plus';
 import { usePagination } from '@atengk/vue';
 import { getDeptOptions, type DeptTreeVO } from '@/api/system/dept';
-import { deleteUsers, exportUsers, getUserPage, updateUserStatus, type UserQuery, type UserVO } from '@/api/system/user';
+import {
+  deleteUsers,
+  exportUsers,
+  getUserPage,
+  updateUserStatus,
+  type UserQuery,
+  type UserVO,
+} from '@/api/system/user';
 import type { CommonStatus } from '@/api/types';
 import { runConfirmedAction } from '@/composables/useConfirmAction';
-import { useListTableLayout } from '@/composables/useListTableLayout';
+import { QUERY_FORM_LOADING_DELAY, useListTableLayout } from '@/composables/useListTableLayout';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
 import UserDeptSidebar from '@/views/system/user/components/UserDeptSidebar.vue';
@@ -83,16 +99,22 @@ const canUpdateUser = computed<boolean>(() => authStore.hasPermission('system:us
 const hasRowActions = computed<boolean>(() =>
   authStore.hasPermission(['system:user:update', 'system:user:delete']),
 );
-const allowPlatformSuperEdit = computed<boolean>(() => tenantStore.activeTenantId === '0' && authStore.hasRole('super_admin'));
+const allowPlatformSuperEdit = computed<boolean>(
+  () => tenantStore.activeTenantId === '0' && authStore.hasRole('super_admin'),
+);
 const selectedUserIds = computed<string[]>(() => selectedRows.value.map(item => item.id));
 
 const asUserRow = (row: unknown): UserVO => row as UserVO;
-const isRowSelectable = (row: unknown): boolean => canSelectUserRow(asUserRow(row), currentUserId.value);
+const isRowSelectable = (row: unknown): boolean =>
+  canSelectUserRow(asUserRow(row), currentUserId.value);
 const rowDisableReason = (row: UserVO): string =>
   resolveUserRowProtection(row, currentUserId.value, allowPlatformSuperEdit.value).disableReason;
 
 function containsDeptNode(nodes: DeptTreeVO[], targetId: string): boolean {
-  return nodes.some(node => node.id === targetId || (node.children ? containsDeptNode(node.children, targetId) : false));
+  return nodes.some(
+    node =>
+      node.id === targetId || (node.children ? containsDeptNode(node.children, targetId) : false),
+  );
 }
 
 async function loadDeptTree(): Promise<void> {
@@ -176,7 +198,11 @@ function openResetPwdDialog(row: UserVO): void {
 }
 
 async function handleToggleStatus(row: UserVO): Promise<void> {
-  if (!canUpdateUser.value || !canSelectUserRow(row, currentUserId.value) || statusUpdatingId.value === row.id) {
+  if (
+    !canUpdateUser.value ||
+    !canSelectUserRow(row, currentUserId.value) ||
+    statusUpdatingId.value === row.id
+  ) {
     return;
   }
   const nextStatus: CommonStatus = row.status === 0 ? 1 : 0;
@@ -199,7 +225,11 @@ async function handleToggleStatus(row: UserVO): Promise<void> {
   }
 }
 
-function confirmAndDelete(targetIds: string | string[], confirmMessage: string, successMessage: string): void {
+function confirmAndDelete(
+  targetIds: string | string[],
+  confirmMessage: string,
+  successMessage: string,
+): void {
   void runConfirmedAction({
     message: confirmMessage,
     title: '删除确认',
@@ -218,15 +248,25 @@ function handleDeleteSingle(row: UserVO): void {
   if (!canSelectUserRow(row, currentUserId.value)) {
     return;
   }
-  confirmAndDelete(row.id, `确认删除用户【${row.nickname}】（账号：${row.username}）吗？`, `已删除用户【${row.nickname}】`);
+  confirmAndDelete(
+    row.id,
+    `确认删除用户【${row.nickname}】（账号：${row.username}）吗？`,
+    `已删除用户【${row.nickname}】`,
+  );
 }
 
 function handleBatchDelete(): void {
-  const deletableIds = selectedRows.value.filter(item => canSelectUserRow(item, currentUserId.value)).map(item => item.id);
+  const deletableIds = selectedRows.value
+    .filter(item => canSelectUserRow(item, currentUserId.value))
+    .map(item => item.id);
   if (deletableIds.length === 0) {
     return;
   }
-  confirmAndDelete(deletableIds, `确认批量删除已选中的 ${deletableIds.length} 位用户吗？`, `已删除选中的 ${deletableIds.length} 位用户`);
+  confirmAndDelete(
+    deletableIds,
+    `确认批量删除已选中的 ${deletableIds.length} 位用户吗？`,
+    `已删除选中的 ${deletableIds.length} 位用户`,
+  );
 }
 
 async function handleExportExcel(params: Record<string, unknown>): Promise<Blob> {
@@ -253,7 +293,13 @@ async function handleTableReload(): Promise<void> {
       collapsible
     >
       <template #first>
-        <UserDeptSidebar ref="deptSidebarRef" :dept-tree="deptTree" :active-dept-id="activeDeptFilter?.id" @select="handleDeptSelect" @clear="clearDeptFilter(true)" />
+        <UserDeptSidebar
+          ref="deptSidebarRef"
+          :dept-tree="deptTree"
+          :active-dept-id="activeDeptFilter?.id"
+          @select="handleDeptSelect"
+          @clear="clearDeptFilter(true)"
+        />
       </template>
 
       <template #second>
@@ -271,15 +317,39 @@ async function handleTableReload(): Promise<void> {
             search-empty-description="未检索到匹配的用户信息"
           >
             <template #query>
-              <AtengQueryForm :model="pagination.query" :default-collapsed="true" :collapsed-rows="1" @reset="handleQueryReset">
+              <AtengQueryForm
+                :model="pagination.query"
+                :default-collapsed="true"
+                :collapsed-rows="1"
+                :loading-delay="QUERY_FORM_LOADING_DELAY"
+                @reset="handleQueryReset"
+              >
                 <el-form-item label="账号/昵称" prop="username">
-                  <el-input v-model="pagination.query.username" data-testid="user-query-username" clearable placeholder="请输入用户账号或昵称" />
+                  <el-input
+                    v-model="pagination.query.username"
+                    data-testid="user-query-username"
+                    clearable
+                    placeholder="请输入用户账号或昵称"
+                  />
                 </el-form-item>
                 <el-form-item label="手机号码" prop="phone">
-                  <el-input v-model="pagination.query.phone" data-testid="user-query-phone" clearable maxlength="11" class="font-mono-data" :placeholder="PHONE_QUERY_PLACEHOLDER" />
+                  <el-input
+                    v-model="pagination.query.phone"
+                    data-testid="user-query-phone"
+                    clearable
+                    maxlength="11"
+                    class="font-mono-data"
+                    :placeholder="PHONE_QUERY_PLACEHOLDER"
+                  />
                 </el-form-item>
                 <el-form-item label="账号状态" prop="status">
-                  <AtengDictSelect v-model="pagination.query.status" data-testid="user-query-status" dict-code="commonStatus" value-type="number" placeholder="全部状态" />
+                  <AtengDictSelect
+                    v-model="pagination.query.status"
+                    data-testid="user-query-status"
+                    dict-code="commonStatus"
+                    value-type="number"
+                    placeholder="全部状态"
+                  />
                 </el-form-item>
                 <el-form-item label="创建时间" prop="beginTime">
                   <AtengDateRange
@@ -302,23 +372,64 @@ async function handleTableReload(): Promise<void> {
 
             <template #toolbar-left>
               <div class="flex flex-wrap items-center gap-2">
-                <el-button v-permission="'system:user:create'" data-testid="user-add-btn" type="primary" :icon="Plus" @click="openCreateDrawer">
+                <el-button
+                  v-permission="'system:user:create'"
+                  data-testid="user-add-btn"
+                  type="primary"
+                  :icon="Plus"
+                  @click="openCreateDrawer"
+                >
                   新增用户
                 </el-button>
-                <el-button v-permission="'system:user:delete'" data-testid="user-batch-delete-btn" type="danger" plain :disabled="selectedRows.length === 0" :icon="Delete" @click="handleBatchDelete">
+                <el-button
+                  v-permission="'system:user:delete'"
+                  data-testid="user-batch-delete-btn"
+                  type="danger"
+                  plain
+                  :disabled="selectedRows.length === 0"
+                  :icon="Delete"
+                  @click="handleBatchDelete"
+                >
                   批量删除{{ selectedRows.length > 0 ? ` (${selectedRows.length})` : '' }}
                 </el-button>
-                <el-button v-permission="'system:user:import'" data-testid="user-import-btn" plain :icon="Upload" @click="importDialogVisible = true">
+                <el-button
+                  v-permission="'system:user:import'"
+                  data-testid="user-import-btn"
+                  plain
+                  :icon="Upload"
+                  @click="importDialogVisible = true"
+                >
                   导入
                 </el-button>
-                <AtengExcelExport v-permission="'system:user:export'" data-testid="user-export-btn" mode="dropdown" type="default" plain text="导出" :selected-ids="selectedUserIds" :action="handleExportExcel" />
-                <el-tag v-if="activeDeptFilter" data-testid="user-active-dept-capsule" closable type="primary" effect="light" @close="clearDeptFilter(true)">
+                <AtengExcelExport
+                  v-permission="'system:user:export'"
+                  data-testid="user-export-btn"
+                  mode="dropdown"
+                  type="default"
+                  plain
+                  text="导出"
+                  :selected-ids="selectedUserIds"
+                  :action="handleExportExcel"
+                />
+                <el-tag
+                  v-if="activeDeptFilter"
+                  data-testid="user-active-dept-capsule"
+                  closable
+                  type="primary"
+                  effect="light"
+                  @close="clearDeptFilter(true)"
+                >
                   筛选部门：{{ activeDeptFilter.deptName }}（含下级）
                 </el-tag>
               </div>
             </template>
 
-            <el-table-column type="selection" width="48" align="center" :selectable="isRowSelectable" />
+            <el-table-column
+              type="selection"
+              width="48"
+              align="center"
+              :selectable="isRowSelectable"
+            />
             <el-table-column prop="id" label="用户ID" min-width="164" show-overflow-tooltip>
               <template #default="{ row }">
                 <span class="font-mono-data text-ink-secondary">{{ asUserRow(row).id }}</span>
@@ -328,11 +439,18 @@ async function handleTableReload(): Promise<void> {
               <template #default="{ row }">
                 <span class="inline-flex items-center gap-1.5">
                   <span class="font-mono-data text-ink">{{ asUserRow(row).username }}</span>
-                  <el-tag v-if="asUserRow(row).builtinSuperAdmin" size="small" type="primary">内置</el-tag>
+                  <el-tag v-if="asUserRow(row).builtinSuperAdmin" size="small" type="primary"
+                    >内置</el-tag
+                  >
                 </span>
               </template>
             </el-table-column>
-            <el-table-column prop="nickname" label="用户昵称" min-width="115" show-overflow-tooltip />
+            <el-table-column
+              prop="nickname"
+              label="用户昵称"
+              min-width="115"
+              show-overflow-tooltip
+            />
             <el-table-column prop="avatar" label="头像" width="72" align="center">
               <template #default="{ row }">
                 <el-avatar
@@ -351,17 +469,25 @@ async function handleTableReload(): Promise<void> {
             </el-table-column>
             <el-table-column prop="phone" label="手机号码" width="138">
               <template #default="{ row }">
-                <span class="font-mono-data">{{ formatMaskPhone(asUserRow(row).phone) || '--' }}</span>
+                <span class="font-mono-data">{{
+                  formatMaskPhone(asUserRow(row).phone) || '--'
+                }}</span>
               </template>
             </el-table-column>
             <el-table-column prop="email" label="电子邮箱" min-width="168" show-overflow-tooltip>
               <template #default="{ row }">
-                <span class="font-mono-data">{{ formatMaskEmail(asUserRow(row).email) || '--' }}</span>
+                <span class="font-mono-data">{{
+                  formatMaskEmail(asUserRow(row).email) || '--'
+                }}</span>
               </template>
             </el-table-column>
             <el-table-column prop="status" label="状态" width="94" align="center">
               <template #default="{ row }">
-                <el-tooltip :content="rowDisableReason(asUserRow(row))" :disabled="!rowDisableReason(asUserRow(row))" placement="top">
+                <el-tooltip
+                  :content="rowDisableReason(asUserRow(row))"
+                  :disabled="!rowDisableReason(asUserRow(row))"
+                  placement="top"
+                >
                   <span>
                     <el-switch
                       :data-testid="`user-status-switch-${asUserRow(row).id}`"
@@ -382,9 +508,22 @@ async function handleTableReload(): Promise<void> {
                 <span class="tabular-nums">{{ asUserRow(row).createTime || '--' }}</span>
               </template>
             </el-table-column>
-            <el-table-column v-if="hasRowActions" label="操作" width="210" fixed="right" align="center">
+            <el-table-column
+              v-if="hasRowActions"
+              label="操作"
+              width="210"
+              fixed="right"
+              align="center"
+            >
               <template #default="{ row }">
-                <UserRowActions :row="asUserRow(row)" :current-user-id="currentUserId" :allow-platform-super-edit="allowPlatformSuperEdit" @edit="openEditDrawer" @reset-password="openResetPwdDialog" @delete="handleDeleteSingle" />
+                <UserRowActions
+                  :row="asUserRow(row)"
+                  :current-user-id="currentUserId"
+                  :allow-platform-super-edit="allowPlatformSuperEdit"
+                  @edit="openEditDrawer"
+                  @reset-password="openResetPwdDialog"
+                  @delete="handleDeleteSingle"
+                />
               </template>
             </el-table-column>
           </AtengTable>
@@ -392,8 +531,19 @@ async function handleTableReload(): Promise<void> {
       </template>
     </AtengSplitLayout>
 
-    <UserFormDrawer v-model="formDrawerVisible" :mode="formDrawerMode" :user-id="editingUserId" :initial-dept-id="activeDeptFilter?.id" :dept-options="deptTree" @saved="handleTableReload" />
-    <UserResetPwdDialog v-model="resetPwdVisible" :user="resetPwdTarget" @saved="handleTableReload" />
+    <UserFormDrawer
+      v-model="formDrawerVisible"
+      :mode="formDrawerMode"
+      :user-id="editingUserId"
+      :initial-dept-id="activeDeptFilter?.id"
+      :dept-options="deptTree"
+      @saved="handleTableReload"
+    />
+    <UserResetPwdDialog
+      v-model="resetPwdVisible"
+      :user="resetPwdTarget"
+      @saved="handleTableReload"
+    />
     <UserImportDialog v-model="importDialogVisible" @imported="handleTableReload" />
   </section>
 </template>

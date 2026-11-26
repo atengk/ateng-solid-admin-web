@@ -27,6 +27,7 @@ import {
 import type { CommonStatus } from '@/api/types';
 import {
   QUERY_COLS_THREE_ITEMS,
+  QUERY_FORM_LOADING_DELAY,
   useListTableLayout,
 } from '@/composables/useListTableLayout';
 import { useAuthStore } from '@/stores/auth';
@@ -196,6 +197,7 @@ async function handleDialogSaved(): Promise<void> {
           :cols="QUERY_COLS_THREE_ITEMS"
           :default-collapsed="false"
           :show-collapse="false"
+          :loading-delay="QUERY_FORM_LOADING_DELAY"
         >
           <el-form-item label="岗位编码" prop="postCode">
             <el-input

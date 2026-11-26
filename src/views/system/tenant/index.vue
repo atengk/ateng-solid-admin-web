@@ -1,8 +1,23 @@
 <script setup lang="ts">
 import { computed, onActivated, onMounted, ref } from 'vue';
-import { ElButton, ElFormItem, ElInput, ElOption, ElSelect, ElSwitch, ElTableColumn, ElTag, ElTooltip } from 'element-plus';
+import {
+  ElButton,
+  ElFormItem,
+  ElInput,
+  ElOption,
+  ElSelect,
+  ElSwitch,
+  ElTableColumn,
+  ElTag,
+  ElTooltip,
+} from 'element-plus';
 import { Delete, Edit, Plus } from '@element-plus/icons-vue';
-import { AtengDictSelect, AtengQueryForm, AtengTable, type AtengTableInstance } from '@atengk/element-plus';
+import {
+  AtengDictSelect,
+  AtengQueryForm,
+  AtengTable,
+  type AtengTableInstance,
+} from '@atengk/element-plus';
 import { usePagination } from '@atengk/vue';
 import {
   deleteTenants,
@@ -15,7 +30,7 @@ import {
 import { getTenantPackageOptions, type TenantPackageOptionVO } from '@/api/system/tenant-package';
 import type { CommonStatus } from '@/api/types';
 import { runConfirmedAction } from '@/composables/useConfirmAction';
-import { useListTableLayout } from '@/composables/useListTableLayout';
+import { QUERY_FORM_LOADING_DELAY, useListTableLayout } from '@/composables/useListTableLayout';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
 import TenantFormDrawer from '@/views/system/tenant/components/TenantFormDrawer.vue';
@@ -119,7 +134,11 @@ function openEditDrawer(row: TenantVO): void {
 }
 
 async function handleToggleStatus(row: TenantVO): Promise<void> {
-  if (!canUpdateTenant.value || isProtectedPlatformTenant(row) || statusUpdatingId.value === row.id) {
+  if (
+    !canUpdateTenant.value ||
+    isProtectedPlatformTenant(row) ||
+    statusUpdatingId.value === row.id
+  ) {
     return;
   }
   const nextStatus: CommonStatus = row.status === 0 ? 1 : 0;
@@ -135,7 +154,10 @@ async function handleToggleStatus(row: TenantVO): Promise<void> {
       message: confirmMessage,
       title: `${actionText}确认`,
       confirmButtonText: `确认${actionText}`,
-      successMessage: nextStatus === 1 ? `已停用租户【${row.tenantName}】并强制下线其在线会话` : `已启用租户【${row.tenantName}】`,
+      successMessage:
+        nextStatus === 1
+          ? `已停用租户【${row.tenantName}】并强制下线其在线会话`
+          : `已启用租户【${row.tenantName}】`,
       errorFallback: `${actionText}租户失败，请稍后重试`,
       execute: () => updateTenantStatus(row.id, nextStatus),
       onSuccess: async () => {
@@ -148,7 +170,11 @@ async function handleToggleStatus(row: TenantVO): Promise<void> {
   }
 }
 
-function confirmAndDelete(targetIds: string | string[], confirmMessage: string, successMessage: string): void {
+function confirmAndDelete(
+  targetIds: string | string[],
+  confirmMessage: string,
+  successMessage: string,
+): void {
   void runConfirmedAction({
     message: confirmMessage,
     title: '删除租户确认',
@@ -176,7 +202,9 @@ function handleDeleteSingle(row: TenantVO): void {
 }
 
 function handleBatchDelete(): void {
-  const deletableIds = selectedRows.value.filter(item => !isProtectedPlatformTenant(item)).map(item => item.id);
+  const deletableIds = selectedRows.value
+    .filter(item => !isProtectedPlatformTenant(item))
+    .map(item => item.id);
   if (deletableIds.length === 0) {
     return;
   }
@@ -217,29 +245,76 @@ async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
       search-empty-description="未检索到匹配的租户信息"
     >
       <template #query>
-        <AtengQueryForm :model="pagination.query" :default-collapsed="true" :collapsed-rows="1">
+        <AtengQueryForm
+          :model="pagination.query"
+          :default-collapsed="true"
+          :collapsed-rows="1"
+          :loading-delay="QUERY_FORM_LOADING_DELAY"
+        >
           <el-form-item label="租户编码" prop="tenantCode">
-            <el-input v-model="pagination.query.tenantCode" data-testid="tenant-query-code" clearable class="font-mono-data" placeholder="如 000000 / 100002" />
+            <el-input
+              v-model="pagination.query.tenantCode"
+              data-testid="tenant-query-code"
+              clearable
+              class="font-mono-data"
+              placeholder="如 000000 / 100002"
+            />
           </el-form-item>
           <el-form-item label="租户名称" prop="tenantName">
-            <el-input v-model="pagination.query.tenantName" data-testid="tenant-query-name" clearable placeholder="请输入租户名称" />
+            <el-input
+              v-model="pagination.query.tenantName"
+              data-testid="tenant-query-name"
+              clearable
+              placeholder="请输入租户名称"
+            />
           </el-form-item>
           <el-form-item label="租户状态" prop="status">
-            <AtengDictSelect v-model="pagination.query.status" data-testid="tenant-query-status" dict-code="commonStatus" value-type="number" placeholder="全部状态" />
+            <AtengDictSelect
+              v-model="pagination.query.status"
+              data-testid="tenant-query-status"
+              dict-code="commonStatus"
+              value-type="number"
+              placeholder="全部状态"
+            />
           </el-form-item>
           <el-form-item label="所属套餐" prop="packageId">
-            <el-select v-model="pagination.query.packageId" data-testid="tenant-query-package" clearable filterable placeholder="全部套餐">
-              <el-option v-for="item in packageOptions" :key="item.id" :label="item.packageName" :value="item.id" />
+            <el-select
+              v-model="pagination.query.packageId"
+              data-testid="tenant-query-package"
+              clearable
+              filterable
+              placeholder="全部套餐"
+            >
+              <el-option
+                v-for="item in packageOptions"
+                :key="item.id"
+                :label="item.packageName"
+                :value="item.id"
+              />
             </el-select>
           </el-form-item>
         </AtengQueryForm>
       </template>
 
       <template #toolbar-left>
-        <el-button v-permission="'system:tenant:create'" data-testid="tenant-add-btn" type="primary" :icon="Plus" @click="openCreateDrawer">
+        <el-button
+          v-permission="'system:tenant:create'"
+          data-testid="tenant-add-btn"
+          type="primary"
+          :icon="Plus"
+          @click="openCreateDrawer"
+        >
           新增租户
         </el-button>
-        <el-button v-permission="'system:tenant:delete'" data-testid="tenant-batch-delete-btn" type="danger" plain :disabled="selectedRows.length === 0" :icon="Delete" @click="handleBatchDelete">
+        <el-button
+          v-permission="'system:tenant:delete'"
+          data-testid="tenant-batch-delete-btn"
+          type="danger"
+          plain
+          :disabled="selectedRows.length === 0"
+          :icon="Delete"
+          @click="handleBatchDelete"
+        >
           批量删除{{ selectedRows.length > 0 ? ` (${selectedRows.length})` : '' }}
         </el-button>
       </template>
@@ -256,7 +331,9 @@ async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
         <template #default="{ row }">
           <span class="inline-flex items-center gap-1.5">
             <span class="font-mono-data text-ink">{{ asTenantRow(row).tenantCode }}</span>
-            <el-tag v-if="isProtectedPlatformTenant(asTenantRow(row))" size="small" type="primary">平台默认</el-tag>
+            <el-tag v-if="isProtectedPlatformTenant(asTenantRow(row))" size="small" type="primary"
+              >平台默认</el-tag
+            >
           </span>
         </template>
       </el-table-column>
@@ -265,10 +342,14 @@ async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
 
       <el-table-column prop="packageName" label="关联套餐" min-width="175" show-overflow-tooltip>
         <template #default="{ row }">
-          <el-tag v-if="isProtectedPlatformTenant(asTenantRow(row))" size="small" type="info">平台全量免限</el-tag>
+          <el-tag v-if="isProtectedPlatformTenant(asTenantRow(row))" size="small" type="info"
+            >平台全量免限</el-tag
+          >
           <span v-else class="inline-flex items-center gap-1.5">
             <span>{{ asTenantRow(row).packageName?.trim() || '--' }}</span>
-            <el-tag v-if="asTenantRow(row).packageDisabled" size="small" type="warning">已停用</el-tag>
+            <el-tag v-if="asTenantRow(row).packageDisabled" size="small" type="warning"
+              >已停用</el-tag
+            >
           </span>
         </template>
       </el-table-column>
@@ -276,7 +357,9 @@ async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
       <el-table-column prop="accountCount" label="用户配额" min-width="135" align="center">
         <template #default="{ row }">
           <span class="inline-flex items-center gap-1 tabular-nums">
-            <span :class="getQuotaCell(row).full ? 'font-medium text-warning' : ''">{{ getQuotaCell(row).text }}</span>
+            <span :class="getQuotaCell(row).full ? 'font-medium text-warning' : ''">{{
+              getQuotaCell(row).text
+            }}</span>
             <el-tag v-if="getQuotaCell(row).full" size="small" type="warning">已满额</el-tag>
           </span>
         </template>
@@ -284,18 +367,28 @@ async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
 
       <el-table-column prop="expireTime" label="过期时间" min-width="210">
         <template #default="{ row }">
-          <span v-if="getExpireStatus(row) === 'permanent'" class="text-ink-secondary">永久有效</span>
+          <span v-if="getExpireStatus(row) === 'permanent'" class="text-ink-secondary"
+            >永久有效</span
+          >
           <span v-else class="inline-flex items-center gap-1.5 tabular-nums">
             <span>{{ asTenantRow(row).expireTime }}</span>
-            <el-tag v-if="getExpireStatus(row) === 'expired'" size="small" type="danger">已过期</el-tag>
-            <el-tag v-else-if="getExpireStatus(row) === 'expiring'" size="small" type="warning">即将到期</el-tag>
+            <el-tag v-if="getExpireStatus(row) === 'expired'" size="small" type="danger"
+              >已过期</el-tag
+            >
+            <el-tag v-else-if="getExpireStatus(row) === 'expiring'" size="small" type="warning"
+              >即将到期</el-tag
+            >
           </span>
         </template>
       </el-table-column>
 
       <el-table-column prop="status" label="状态" width="96" align="center">
         <template #default="{ row }">
-          <el-tooltip :content="TENANT_PROTECTED_TOOLTIP" :disabled="!isProtectedPlatformTenant(asTenantRow(row))" placement="top">
+          <el-tooltip
+            :content="TENANT_PROTECTED_TOOLTIP"
+            :disabled="!isProtectedPlatformTenant(asTenantRow(row))"
+            placement="top"
+          >
             <span>
               <el-switch
                 :data-testid="`tenant-status-switch-${asTenantRow(row).id}`"
@@ -321,12 +414,33 @@ async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
       <el-table-column v-if="hasRowActions" label="操作" width="140" fixed="right" align="center">
         <template #default="{ row }">
           <div class="inline-flex items-center justify-center gap-1">
-            <el-button v-permission="'system:tenant:update'" :data-testid="`tenant-edit-btn-${asTenantRow(row).id}`" type="primary" link size="small" :icon="Edit" @click="openEditDrawer(asTenantRow(row))">
+            <el-button
+              v-permission="'system:tenant:update'"
+              :data-testid="`tenant-edit-btn-${asTenantRow(row).id}`"
+              type="primary"
+              link
+              size="small"
+              :icon="Edit"
+              @click="openEditDrawer(asTenantRow(row))"
+            >
               编辑
             </el-button>
-            <el-tooltip :content="TENANT_PROTECTED_TOOLTIP" :disabled="!isProtectedPlatformTenant(asTenantRow(row))" placement="top">
+            <el-tooltip
+              :content="TENANT_PROTECTED_TOOLTIP"
+              :disabled="!isProtectedPlatformTenant(asTenantRow(row))"
+              placement="top"
+            >
               <span>
-                <el-button v-permission="'system:tenant:delete'" :data-testid="`tenant-delete-btn-${asTenantRow(row).id}`" type="danger" link size="small" :disabled="isProtectedPlatformTenant(asTenantRow(row))" :icon="Delete" @click="handleDeleteSingle(asTenantRow(row))">
+                <el-button
+                  v-permission="'system:tenant:delete'"
+                  :data-testid="`tenant-delete-btn-${asTenantRow(row).id}`"
+                  type="danger"
+                  link
+                  size="small"
+                  :disabled="isProtectedPlatformTenant(asTenantRow(row))"
+                  :icon="Delete"
+                  @click="handleDeleteSingle(asTenantRow(row))"
+                >
                   删除
                 </el-button>
               </span>
@@ -336,7 +450,13 @@ async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
       </el-table-column>
     </AtengTable>
 
-    <TenantFormDrawer v-model="formDrawerVisible" :mode="formDrawerMode" :tenant-id="editingTenantId" @saved="handleDrawerSaved" @created="handleTenantCreated" />
+    <TenantFormDrawer
+      v-model="formDrawerVisible"
+      :mode="formDrawerMode"
+      :tenant-id="editingTenantId"
+      @saved="handleDrawerSaved"
+      @created="handleTenantCreated"
+    />
     <TenantInitCredentialDialog v-model="initCredentialVisible" :credential="createdCredential" />
   </section>
 </template>

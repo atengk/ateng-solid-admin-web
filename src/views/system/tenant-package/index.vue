@@ -20,6 +20,7 @@ import type { CommonStatus } from '@/api/types';
 import { runConfirmedAction } from '@/composables/useConfirmAction';
 import {
   QUERY_COLS_TWO_ITEMS,
+  QUERY_FORM_LOADING_DELAY,
   useListTableLayout,
 } from '@/composables/useListTableLayout';
 import { useAuthStore } from '@/stores/auth';
@@ -180,6 +181,7 @@ onActivated(() => {
           :cols="QUERY_COLS_TWO_ITEMS"
           :default-collapsed="false"
           :show-collapse="false"
+          :loading-delay="QUERY_FORM_LOADING_DELAY"
         >
           <el-form-item label="套餐名称" prop="packageName">
             <el-input

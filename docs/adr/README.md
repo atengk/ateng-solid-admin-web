@@ -11,6 +11,7 @@
 | **0003** | **方案 A 轻量 `AdminLayout` 布局壳、单源鉴权状态桥接与上下文双保险** | 🟢 Accepted | 轻量自建方案 A 布局壳 + `provide(ATENG_PRO_LAYOUT_KEY)` 复用 `AtengTabsNav`/`useTabsNav`；`useAuthStore` 共享 `useAuth` `WeakMap` 零漂移 | `src/layouts/`、`src/stores/`、`src/main.ts` | [查看](./0003-lightweight-scheme-a-admin-layout-and-state-assembly.md) |
 | **0004** | **列表页上下双卡分体容器与自适应分页栏架构** | 🟢 Accepted | 检索卡与表格分页卡分体对齐（`8px` 圆角 + `1px` 细边 + `16px` 内边距）、总条数置左/控制置右、`0` 条隐藏与单页收起 `jumper`、通过 `ateng-ui#379` 下沉底座并全站收口（`dev` 放行，合 `main` 前待 npm 锁版） | `ateng-ui#379`、`src/styles/` 与全站 12 个列表页 | [查看](./0004-dual-card-table-and-adaptive-pagination.md) |
 | **0005** | **检索复杂度分级单行收口与表格弹性封顶滚动架构** | 🟢 Accepted | ≤3 项全宽检索默认单行展开不折叠（窄分栏与 ≥4 项保持 1 行折叠）；桌面端全站 12 页采用 `max-height` 弹性封顶表内滚动（移动端/垂直堆叠退回整页滚动），已通过 `ateng-ui#380` 下沉并经 `yalc` 全站收口（`dev` 放行，合 `main` 前待 npm 锁版） | `ateng-ui#380`、`useListTableLayout` 与全站 12 个系统列表页 | [查看](./0005-tiered-query-collapse-and-max-auto-height-table.md) |
+| **0006** | **非行内表单绝对定位固定校验槽位与单行文案收口** | 🟢 Accepted | 撤销全局 `position: static` 与弹窗末行 `6px` 压缩，恢复 Element Plus `position: absolute` `20px` 固定槽位消除容器高度跳动，并收口窄列排版与偏长校验文案（不改 `ateng-ui` 底座） | `src/styles/main.css`、`/login` 与全站弹窗/抽屉表单 | [查看](./0006-stable-form-validation-slot-and-single-line-copy.md) |
 
 ---
 

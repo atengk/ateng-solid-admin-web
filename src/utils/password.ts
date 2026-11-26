@@ -17,13 +17,37 @@ export const PASSWORD_POLICY_SHORT_MESSAGE = '请满足上述全部强口令规�
  */
 export interface PasswordPolicyEvaluation {
   /**
+   * 原始密码字符长度。
+   */
+  length: number;
+  /**
    * 长度是否处于 8~20 位闭区间。
    */
   lengthOk: boolean;
   /**
+   * 是否实际输入了空白或控制字符（用于前端精准高亮非法空白警示）。
+   */
+  hasWhitespace: boolean;
+  /**
    * 是否不含空格、制表符、换行或控制字符。
    */
   noWhitespace: boolean;
+  /**
+   * 是否包含 ASCII 大写字母（A-Z）。
+   */
+  hasUpper: boolean;
+  /**
+   * 是否包含 ASCII 小写字母（a-z）。
+   */
+  hasLower: boolean;
+  /**
+   * 是否包含 ASCII 数字（0-9）。
+   */
+  hasDigit: boolean;
+  /**
+   * 是否包含 ASCII 特殊字符。
+   */
+  hasSpecial: boolean;
   /**
    * 已命中的字符类别数量（大写、小写、数字、ASCII 特殊字符）。
    */
@@ -91,8 +115,14 @@ export function evaluatePasswordPolicy(password: string): PasswordPolicyEvaluati
   const categoriesOk = categoryCount >= PASSWORD_MIN_CATEGORIES;
 
   return {
+    length: password.length,
     lengthOk,
+    hasWhitespace: hasWhitespaceOrControl,
     noWhitespace,
+    hasUpper,
+    hasLower,
+    hasDigit,
+    hasSpecial,
     categoryCount,
     categoriesOk,
     valid: lengthOk && noWhitespace && categoriesOk,

@@ -676,4 +676,91 @@ describe('AdminLayout Core Shell', () => {
     await flushPromises();
     expect(profileMountCount).toBe(2);
   });
+
+  it('supports collapsible sidebar domain groups, auto-expands active route group, and keeps all icons visible in 60px collapsed mode', async () => {
+    const router = createLayoutTestRouter();
+    await router.push('/dashboard');
+    await router.isReady();
+
+    const permissionStore = usePermissionStore();
+    const multiGroupMenus: RouteMenuVO[] = [
+      ...buildSampleMenus(),
+      {
+        id: '2000',
+        parentId: '0',
+        menuType: 'M',
+        title: '基础配置',
+        path: '/config-dir',
+        sort: 2,
+        visible: 0,
+        children: [
+          {
+            id: '2100',
+            parentId: '2000',
+            menuType: 'C',
+            title: '系统参数',
+            name: 'SysConfig',
+            path: '/system/config',
+            component: 'dashboard/index',
+            icon: 'Setting',
+            sort: 1,
+            visible: 0,
+            keepAlive: false,
+            children: [],
+          },
+        ],
+      },
+    ];
+    vi.spyOn(authApi, 'getAuthRoutes').mockResolvedValue(multiGroupMenus);
+    await permissionStore.buildRoutes();
+
+    const RootOutlet = defineComponent({ name: 'RootOutletStub', template: '<router-view />' });
+    const wrapper = trackWrapper(
+      mount(RootOutlet, {
+        global: { plugins: [pinia, router, ElementPlus, AtengElementPlus] },
+      }),
+    );
+    await flushPromises();
+
+    const orgGroupBtn = wrapper.find('[data-testid="sidebar-group-toggle-1000"]');
+    const cfgGroupBtn = wrapper.find('[data-testid="sidebar-group-toggle-2000"]');
+    const orgGroupPanel = wrapper.find('[data-testid="sidebar-group-panel-1000"]');
+    const cfgGroupPanel = wrapper.find('[data-testid="sidebar-group-panel-2000"]');
+    expect(orgGroupBtn.attributes('aria-expanded')).toBe('true');
+    expect(cfgGroupBtn.attributes('aria-expanded')).toBe('true');
+    expect(orgGroupPanel.classes()).not.toContain('is-collapsed');
+    expect(cfgGroupPanel.classes()).not.toContain('is-collapsed');
+
+    // 点击折叠“组织权限”分组：组内菜单收起、禁焦并持久化，同时不影响“基础配置”
+    await orgGroupBtn.trigger('click');
+    await nextTick();
+    expect(orgGroupBtn.attributes('aria-expanded')).toBe('false');
+    expect(orgGroupPanel.classes()).toContain('is-collapsed');
+    expect(orgGroupPanel.attributes('aria-hidden')).toBe('true');
+    expect(wrapper.find('[data-testid="sidebar-item-/system/user"]').attributes('tabindex')).toBe(
+      '-1',
+    );
+    expect(cfgGroupPanel.classes()).not.toContain('is-collapsed');
+
+    // 整栏折叠至 60px 窄栏时忽略分组收起，展示全部图标入口；展开后恢复分组折叠记忆
+    await wrapper.find('[data-testid="header-sidebar-toggle"]').trigger('click');
+    await nextTick();
+    expect(orgGroupPanel.classes()).not.toContain('is-collapsed');
+    expect(
+      wrapper.find('[data-testid="sidebar-item-/system/user"]').attributes('tabindex'),
+    ).toBeUndefined();
+
+    await wrapper.find('[data-testid="header-sidebar-toggle"]').trigger('click');
+    await nextTick();
+    expect(orgGroupPanel.classes()).toContain('is-collapsed');
+
+    // 导航至折叠分组内的 /system/role 时自动展开所属“组织权限”分组
+    await router.push('/system/role');
+    await flushPromises();
+    expect(orgGroupBtn.attributes('aria-expanded')).toBe('true');
+    expect(orgGroupPanel.classes()).not.toContain('is-collapsed');
+    expect(
+      wrapper.find('[data-testid="sidebar-item-/system/role"]').attributes('tabindex'),
+    ).toBeUndefined();
+  });
 });

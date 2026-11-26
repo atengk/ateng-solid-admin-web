@@ -55,6 +55,11 @@ export const TABLE_AUTO_HEIGHT_OFFSET = 16;
 export const TABLE_AUTO_HEIGHT_MODE: TableAutoHeightMode = 'max';
 
 /**
+ * 检索表单查询按钮 Loading 防闪烁延迟窗口（ms，对齐 ateng-ui#388）。
+ */
+export const QUERY_FORM_LOADING_DELAY = 150;
+
+/**
  * 列表视口布局控制选项。
  */
 export interface UseListTableLayoutOptions {
@@ -121,8 +126,8 @@ export function useListTableLayout(
   const isStacked = computed<boolean>(() =>
     Boolean(
       layoutContext?.isMobile?.value ||
-        toValue(options.stacked) ||
-        viewportWidth.value < breakpoint,
+      toValue(options.stacked) ||
+      viewportWidth.value < breakpoint,
     ),
   );
 

@@ -9,7 +9,7 @@ import { createAtengVue } from '@atengk/vue';
 import * as authApi from '@/api/auth';
 import type { AdminProfileVO } from '@/api/auth';
 import * as logApi from '@/api/system/log';
-import type { LoginLogVO, OperLogVO } from '@/api/system/log';
+import type { LoginLogVO, OperLogDetailVO, OperLogVO } from '@/api/system/log';
 import { setupDictManager } from '@/utils/dict';
 import { adminAuthManager, adminHttpClient, adminTenantManager } from '@/utils/http';
 import { useAuthStore } from '@/stores/auth';
@@ -287,7 +287,13 @@ describe('Audit log views (/system/oper-log & /system/login-log)', () => {
       current: 1,
       pages: 1,
     });
-    vi.spyOn(logApi, 'getOperLogDetail').mockResolvedValue(partialRow);
+    let releaseDetail!: (val: OperLogDetailVO) => void;
+    vi.spyOn(logApi, 'getOperLogDetail').mockImplementation(
+      () =>
+        new Promise<OperLogDetailVO>(resolve => {
+          releaseDetail = resolve;
+        }),
+    );
 
     const wrapper = trackWrapper(
       mount(OperLogView, {
@@ -297,6 +303,14 @@ describe('Audit log views (/system/oper-log & /system/login-log)', () => {
     await flushPromises();
 
     await wrapper.find('[data-testid="oper-log-detail-btn-9002"]').trigger('click');
+    await flushPromises();
+
+    // 加载期间统一使用骨架屏占位，避免空报文卡片提前露出并被转圈遮罩覆盖
+    const detailBodyDuringLoad = document.body.querySelector('[data-testid="oper-log-detail-body"]');
+    expect(detailBodyDuringLoad?.querySelector('.el-skeleton')).not.toBeNull();
+    expect(document.body.querySelector('[data-testid="oper-log-req-params"]')).toBeNull();
+
+    releaseDetail(partialRow);
     await flushPromises();
 
     const drawerText =

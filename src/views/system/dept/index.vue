@@ -24,6 +24,7 @@ import {
 import type { CommonStatus } from '@/api/types';
 import {
   QUERY_COLS_TWO_ITEMS,
+  QUERY_FORM_LOADING_DELAY,
   useListTableLayout,
 } from '@/composables/useListTableLayout';
 import { useTreeTableControls } from '@/composables/useTreeTableControls';
@@ -217,6 +218,7 @@ onMounted(() => {
           :cols="QUERY_COLS_TWO_ITEMS"
           :default-collapsed="false"
           :show-collapse="false"
+          :loading-delay="QUERY_FORM_LOADING_DELAY"
           @search="handleQuerySearch"
           @reset="handleQueryReset"
         >

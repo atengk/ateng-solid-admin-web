@@ -271,14 +271,23 @@ describe('DictView (/system/dict) and ConfigView (/system/config)', () => {
       labelInput.dispatchEvent(new Event('input', { bubbles: true }));
     }
     if (valueInput) {
+      valueInput.value = 'PENDING,ALT';
+      valueInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    await flushPromises();
+
+    // 键值含逗号或实时变化时不得触发预览标签重新挂载、分裂或从左侧闪动
+    const previewEl = document.body.querySelector('[data-testid="dict-data-preview"]');
+    expect(previewEl?.textContent).toContain('待确认');
+    expect(previewEl?.querySelectorAll('.at-dict-tag__item')).toHaveLength(1);
+
+    if (valueInput) {
       valueInput.value = 'PENDING';
       valueInput.dispatchEvent(new Event('input', { bubbles: true }));
     }
     await flushPromises();
 
-    expect(document.body.querySelector('[data-testid="dict-data-preview"]')?.textContent).toContain(
-      '待确认',
-    );
+    expect(previewEl?.textContent).toContain('待确认');
 
     const saveDataBtn = Array.from(document.body.querySelectorAll('button')).find(btn =>
       btn.textContent?.includes('保存字典数据'),

@@ -85,6 +85,9 @@
   --el-color-primary-light-5: #8ea7ec;
   --el-color-primary-light-7: #bbcbf3;
   --el-color-primary-light-8: #d2dcf7;
+
+  /* 开关关闭态轨道底色（保障 inline-prompt 白字 >= 4.5:1 对比度） */
+  --solid-switch-off: #64748b;
 }
 
 html.dark {
@@ -149,6 +152,9 @@ html.dark {
   --el-color-primary-light-5: #244b8b;
   --el-color-primary-light-7: #1a3259;
   --el-color-primary-light-8: #152540;
+
+  /* 开关关闭态轨道底色（清晰区分亮钴蓝主色与暗黑容器表面） */
+  --solid-switch-off: #475569;
 }
 
 /*

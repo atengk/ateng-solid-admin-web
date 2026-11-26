@@ -180,7 +180,7 @@ export function useLoginAuth(options: UseLoginAuthOptions) {
                 return;
               }
               if (!/^[A-Za-z0-9_-]{1,32}$/.test(trimmed)) {
-                callback(new Error('租户编码须为 1~32 位字母、数字、下划线或连字符'));
+                callback(new Error('租户编码须为 1~32 位字母、数字、_ 或 -'));
                 return;
               }
               callback();

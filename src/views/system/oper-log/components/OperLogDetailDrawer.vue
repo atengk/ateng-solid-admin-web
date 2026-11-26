@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue';
-import { ElButton, ElIcon } from 'element-plus';
+import { ElButton, ElIcon, ElSkeleton } from 'element-plus';
 import { CopyDocument, Warning } from '@element-plus/icons-vue';
 import { AtengDescriptions, AtengDrawer, type DescriptionsItemConfig } from '@atengk/element-plus';
 import { getOperLogDetail, type OperLogDetailVO } from '@/api/system/log';
@@ -43,7 +43,8 @@ const visible = computed<boolean>({
   set: value => emit('update:modelValue', value),
 });
 
-const { detailLoading, submitError, resetDialogState, runDetailLoad } = useDetailDialogState();
+const { detailLoadFailed, detailReady, submitError, resetDialogState, runDetailLoad } =
+  useDetailDialogState();
 const detail = reactive<Partial<OperLogDetailVO>>({});
 const expandedPanels = reactive<Record<'requestParams' | 'responseResult' | 'extraJson', boolean>>({
   requestParams: false,
@@ -160,91 +161,94 @@ watch(
     cancel-text="关闭"
     @closed="clearDetailState"
   >
-    <div v-loading="detailLoading" data-testid="oper-log-detail-body" class="flex flex-col gap-4">
+    <div data-testid="oper-log-detail-body" class="flex flex-col gap-4">
       <FormErrorBanner :message="submitError" test-id="oper-log-detail-error" />
 
-      <AtengDescriptions
-        v-if="hasLoadedDetail"
-        :data="detail"
-        :items="detailItems"
-        :column="2"
-        border
-        empty-text="--"
-      >
-        <template #traceId="{ value }">
-          <span class="inline-flex items-center gap-1.5">
-            <span class="font-mono-data">{{ value || '--' }}</span>
-            <el-button
-              v-if="detail.traceId"
-              data-testid="oper-log-copy-trace"
-              type="primary"
-              link
-              size="small"
-              :icon="CopyDocument"
-              @click="copyAuditText(detail.traceId, 'TraceId')"
-            >
-              复制
-            </el-button>
-          </span>
-        </template>
-        <template #userName="{ data }">
-          <span>{{ formatAuditOperator(data.userName, data.userId) }}</span>
-        </template>
-        <template #browser="{ data }">
-          <span>{{ formatAuditClientEnv(data.browser, data.os) }}</span>
-        </template>
-      </AtengDescriptions>
+      <el-skeleton v-if="!detailReady && !detailLoadFailed" :rows="8" animated />
 
-      <div
-        v-for="panel in payloadPanels"
-        :key="panel.key"
-        class="flex flex-col gap-2 rounded-[var(--solid-radius-md)] border border-border bg-surface-subtle p-3"
-      >
-        <div class="flex items-center justify-between gap-2">
-          <span class="text-xs font-medium text-ink">{{ panel.title }}</span>
-          <div class="flex items-center gap-2">
-            <el-button
-              v-if="panel.raw?.trim()"
-              type="primary"
-              link
-              size="small"
-              :icon="CopyDocument"
-              @click="copyAuditText(panel.formatted, panel.title)"
-            >
-              复制
-            </el-button>
-            <el-button
-              v-if="panel.raw?.trim()"
-              type="primary"
-              link
-              size="small"
-              @click="expandedPanels[panel.key] = !expandedPanels[panel.key]"
-            >
-              {{ expandedPanels[panel.key] ? '收起' : '展开完整' }}
-            </el-button>
+      <template v-else-if="detailReady && hasLoadedDetail">
+        <AtengDescriptions
+          :data="detail"
+          :items="detailItems"
+          :column="2"
+          border
+          empty-text="--"
+        >
+          <template #traceId="{ value }">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="font-mono-data">{{ value || '--' }}</span>
+              <el-button
+                v-if="detail.traceId"
+                data-testid="oper-log-copy-trace"
+                type="primary"
+                link
+                size="small"
+                :icon="CopyDocument"
+                @click="copyAuditText(detail.traceId, 'TraceId')"
+              >
+                复制
+              </el-button>
+            </span>
+          </template>
+          <template #userName="{ data }">
+            <span>{{ formatAuditOperator(data.userName, data.userId) }}</span>
+          </template>
+          <template #browser="{ data }">
+            <span>{{ formatAuditClientEnv(data.browser, data.os) }}</span>
+          </template>
+        </AtengDescriptions>
+
+        <div
+          v-for="panel in payloadPanels"
+          :key="panel.key"
+          class="flex flex-col gap-2 rounded-[var(--solid-radius-md)] border border-border bg-surface-subtle p-3"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-medium text-ink">{{ panel.title }}</span>
+            <div class="flex items-center gap-2">
+              <el-button
+                v-if="panel.raw?.trim()"
+                type="primary"
+                link
+                size="small"
+                :icon="CopyDocument"
+                @click="copyAuditText(panel.formatted, panel.title)"
+              >
+                复制
+              </el-button>
+              <el-button
+                v-if="panel.raw?.trim()"
+                type="primary"
+                link
+                size="small"
+                @click="expandedPanels[panel.key] = !expandedPanels[panel.key]"
+              >
+                {{ expandedPanels[panel.key] ? '收起' : '展开完整' }}
+              </el-button>
+            </div>
           </div>
+          <pre
+            :data-testid="panel.testId"
+            class="font-mono-data m-0 overflow-auto whitespace-pre-wrap break-all rounded bg-surface p-2.5 text-xs leading-relaxed text-ink-regular"
+            :class="expandedPanels[panel.key] ? 'max-h-[480px]' : 'max-h-[240px]'"
+            >{{ panel.formatted }}</pre>
         </div>
-        <pre
-          :data-testid="panel.testId"
-          class="font-mono-data m-0 overflow-auto whitespace-pre-wrap break-all rounded bg-surface p-2.5 text-xs leading-relaxed text-ink-regular"
-          :class="expandedPanels[panel.key] ? 'max-h-[480px]' : 'max-h-[240px]'"
-          >{{ panel.formatted }}</pre>
-      </div>
 
-      <div
-        v-if="detail.status === 1 && detail.errorMsg"
-        data-testid="oper-log-error-msg"
-        role="alert"
-        class="flex flex-col gap-1 rounded-[var(--solid-radius-md)] border border-[var(--solid-danger-border)] bg-[var(--solid-danger-soft)] px-3 py-2.5 text-[13px] text-[var(--solid-danger)]"
-      >
-        <div class="flex items-center gap-1.5 font-medium">
-          <el-icon :size="15"><Warning /></el-icon>
-          <span>失败异常摘要</span>
+        <div
+          v-if="detail.status === 1 && detail.errorMsg"
+          data-testid="oper-log-error-msg"
+          role="alert"
+          class="flex flex-col gap-1 rounded-[var(--solid-radius-md)] border border-[var(--solid-danger-border)] bg-[var(--solid-danger-soft)] px-3 py-2.5 text-[13px] text-[var(--solid-danger)]"
+        >
+          <div class="flex items-center gap-1.5 font-medium">
+            <el-icon :size="15"><Warning /></el-icon>
+            <span>失败异常摘要</span>
+          </div>
+          <p class="m-0 max-h-[160px] overflow-auto whitespace-pre-wrap break-all leading-relaxed">
+            {{ detail.errorMsg }}
+          </p>
         </div>
-        <p class="m-0 max-h-[160px] overflow-auto whitespace-pre-wrap break-all leading-relaxed">
-          {{ detail.errorMsg }}
-        </p>
-      </div>
+      </template>
     </div>
   </AtengDrawer>
 </template>
