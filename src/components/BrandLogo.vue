@@ -84,7 +84,7 @@ const wordmarkSizeClass = computed(() => WORDMARK_SIZE_CLASS_MAP[props.wordmarkS
       v-if="showWordmark"
       data-testid="brand-logo-wordmark"
       :class="[
-        'truncate font-semibold leading-none tracking-tight whitespace-nowrap',
+        'truncate font-semibold leading-normal tracking-tight whitespace-nowrap',
         wordmarkSizeClass,
         toneClasses.text,
       ]"

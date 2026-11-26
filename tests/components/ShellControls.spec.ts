@@ -277,7 +277,8 @@ describe('Shell Controls & Error Views', () => {
       { id: '10002', tenantCode: '100002', tenantName: '星辰智能科技', status: 0 },
       { id: '10099', tenantCode: '100099', tenantName: '新建未来科技', status: 0 },
     ]);
-    const triggerEl = wrapper.find('[data-testid="tenant-switch-trigger"]').element as HTMLButtonElement;
+    const triggerEl = wrapper.find('[data-testid="tenant-switch-trigger"]')
+      .element as HTMLButtonElement;
     triggerEl.click();
     await new Promise(resolve => setTimeout(resolve, 30));
     await flushPromises();
@@ -382,6 +383,12 @@ describe('Shell Controls & Error Views', () => {
     );
     expect(defaultLogo.findAll('[data-testid="brand-logo-mark"] path')).toHaveLength(3);
     expect(defaultLogo.find('[data-testid="brand-logo-wordmark"]').text()).toBe('ateng-solid');
+    expect(defaultLogo.find('[data-testid="brand-logo-wordmark"]').classes()).toContain(
+      'leading-normal',
+    );
+    expect(defaultLogo.find('[data-testid="brand-logo-wordmark"]').classes()).not.toContain(
+      'leading-none',
+    );
 
     const darkPanelLogo = trackWrapper(
       mount(BrandLogo, {

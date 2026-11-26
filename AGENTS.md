@@ -8,7 +8,7 @@
 
 - **依赖克制**：优先复用 `@atengk/core`（HTTP 解包、长整型正则防截断、`AuthManager`/`TenantManager`、Blob 双态嗅探、`formatMask*`）、`@atengk/vue`（`useRequest`/`usePagination`/`useAuth`/`useTenant`/`useTabsNav`/`useExcel`/`useUpload`）与 `@atengk/element-plus`（`AtengProLayout`/`AtengTabsNav`/`AtengTable`/`AtengQueryForm`/`AtengDialog`/`AtengDrawer`/`AtengDict*`/`AtengCaptcha`/`AtengUpload`/`AtengExcel*`/`v-permission`/`v-idempotent`）。
 - **禁止引入**：`lodash`、`moment`、`jquery`、Vuex、Options API、OpenAPI 代码生成工具、外部 Mock 服务；首期不预装 `@atengk/monitor`、L2 重型图表/编辑器与 `vue-i18n`，不提前建立空 `src/modules/` 目录。
-- **底层零补丁与主干锁版门禁（Zero Workaround, Lock on `main`）**：遇 `@atengk/*` 能力缺失、设计不顺手或存在缺陷，严禁业务仓补丁绕过、严禁底座硬编码本项目约定，应先在 `ateng-ui` 本地改造并提交底座 `dev`；经 `pnpm pack + yalc` 刷新后可在 `dev` 继续开发、自测与提交（允许联调期远端 `dev` CI 暂红），**合入 `main` 与发版前必须锁回 npm 正式版**（由 `main` `pre-commit`、`pre-push`、`main` CI 与 `release.yml` 拦截 `file:.yalc`/`file:../`/`link:`/`.tgz`）。
+- **底层零补丁与主干锁版门禁（Zero Workaround, Lock on `main`）**：遇 `@atengk/*` 能力缺失、设计不顺手或存在缺陷，严禁业务仓补丁绕过、严禁底座硬编码本项目约定，**应先向 `atengk/ateng-ui` 提通用 Issue 并登记增强清单，未经用户明确确认严禁直接修改 `ateng-ui` 源码**；仅在获准协同改造后于 `ateng-ui` `dev` 本地改造并提交底座 `dev`，经 `pnpm pack + yalc` 刷新后可在 `dev` 继续开发、自测与提交（允许联调期远端 `dev` CI 暂红），**合入 `main` 与发版前必须锁回 npm 正式版**（由 `main` `pre-commit`、`pre-push`、`main` CI 与 `release.yml` 拦截 `file:.yalc`/`file:../`/`link:`/`.tgz`）。
 
 ---
 
