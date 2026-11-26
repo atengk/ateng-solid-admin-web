@@ -365,12 +365,19 @@ onBeforeUnmount(() => {
 
       <main class="min-h-0 flex-1 overflow-auto p-4">
         <slot>
-          <router-view v-slot="{ Component, route: currentRoute }">
+          <router-view
+            :key="tenantStore.activeTenantId"
+            v-slot="{ Component, route: currentRoute }"
+          >
             <KeepAlive :include="tabsNav.cachedViews.value">
               <component
                 :is="Component"
-                v-if="Component && tabsNav.refreshingKey.value !== currentRoute.fullPath"
-                :key="currentRoute.fullPath"
+                v-if="
+                  Component &&
+                  !tenantStore.switching &&
+                  tabsNav.refreshingKey.value !== currentRoute.fullPath
+                "
+                :key="`${tenantStore.activeTenantId}:${currentRoute.fullPath}`"
               />
             </KeepAlive>
           </router-view>

@@ -55,6 +55,7 @@ export const staticRoutes: RouteRecordRaw[] = [
         meta: {
           title: '个人中心',
           hidden: true,
+          keepAlive: true,
           requiresAuth: true,
         },
       },

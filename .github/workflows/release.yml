@@ -32,6 +32,15 @@ jobs:
       - name: 检出源码
         uses: actions/checkout@v4
 
+      - name: 校验底座正式版锁定（禁止 yalc 与本地路径依赖）
+        run: |
+          while IFS= read -r -d '' manifest; do
+            if grep -Eq 'file:\.yalc/|file:\.\./|link:|yalc:|file:.*\.tgz' "$manifest"; then
+              echo "::error file=$manifest::发版前禁止残留 yalc / link / file:../ / .tgz 联调依赖！请先执行 yalc remove --all && pnpm up @atengk/* 锁回正式版。"
+              exit 1
+            fi
+          done < <(find . -maxdepth 3 \( -name 'package.json' -o -name 'pnpm-lock.yaml' \) -not -path '*/node_modules/*' -print0)
+
       - name: 安装 pnpm (按 packageManager 自动匹配)
         uses: pnpm/action-setup@v4
 

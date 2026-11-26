@@ -232,7 +232,7 @@ function handleEnterKey(event: Event): void {
             </el-form-item>
 
             <div class="mb-5 flex items-center justify-start text-[13px] text-ink-regular">
-              <el-checkbox v-model="rememberAccount" data-testid="login-remember-checkbox">
+              <el-checkbox v-model="rememberAccount" name="rememberAccount" data-testid="login-remember-checkbox">
                 记住登录账号
               </el-checkbox>
             </div>

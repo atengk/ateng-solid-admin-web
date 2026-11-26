@@ -161,8 +161,6 @@ watch(
   opened => {
     if (opened) {
       void loadDialogData();
-    } else {
-      resetDialogState();
     }
   },
 );
@@ -210,6 +208,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
     :show-confirm="!detailLoadFailed"
     :confirm-loading="detailLoading ? true : undefined"
     :before-confirm="handleBeforeConfirm"
+    @closed="resetFormState"
   >
     <div class="flex flex-col gap-3">
       <div
@@ -255,7 +254,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
           </p>
         </el-form-item>
 
-        <el-form-item label="状态" prop="status">
+        <el-form-item for="" label="状态" prop="status">
           <AtengDictRadio v-model="form.status" dict-code="commonStatus" value-type="number" />
         </el-form-item>
 

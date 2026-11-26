@@ -11,6 +11,7 @@ import * as authApi from '@/api/auth';
 import type { AdminProfileVO, PersonalProfileVO } from '@/api/auth';
 import { setupDictManager } from '@/utils/dict';
 import { adminAuthManager, adminHttpClient, adminTenantManager } from '@/utils/http';
+import { staticRoutes } from '@/router/routes';
 import { useAuthStore } from '@/stores/auth';
 import ProfileView from '@/views/profile/index.vue';
 
@@ -341,5 +342,55 @@ describe('ProfileView (/profile)', () => {
     });
     expect(useAuthStore().isAuthenticated).toBe(false);
     expect(router.currentRoute.value.path).toBe('/login');
+  });
+
+  it('keeps /profile route alive and avoids flashing role key or placeholder rows while loading initial profile', async () => {
+    const rootLayoutRoute = staticRoutes.find(item => item.path === '/');
+    const profileRoute = rootLayoutRoute?.children?.find(item => item.path === '/profile');
+    expect(profileRoute?.meta?.keepAlive).toBe(true);
+
+    const router = createProfileRouter();
+    await router.push('/profile');
+    await router.isReady();
+
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue(
+      createAuthProfile({ roles: ['super_admin'], nickname: '超级管理员', username: 'superadmin' }),
+    );
+    let resolveProfile!: (val: PersonalProfileVO) => void;
+    vi.spyOn(authApi, 'getPersonalProfile').mockImplementation(
+      () =>
+        new Promise<PersonalProfileVO>(resolve => {
+          resolveProfile = resolve;
+        }),
+    );
+    await useAuthStore().fetchUserInfo();
+
+    const wrapper = trackWrapper(
+      mount(ProfileView, {
+        global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] },
+      }),
+    );
+
+    // 首次请求返回前，展示加载占位而非先闪出英文 roleKey (super_admin) 或大面积 '--' 表格
+    const overview = wrapper.find('[data-testid="profile-overview-card"]');
+    expect(overview.find('[data-testid="profile-overview-loading"]').exists()).toBe(true);
+    expect(overview.text()).not.toContain('super_admin');
+    expect(overview.findAll('.at-descriptions')).toHaveLength(0);
+
+    resolveProfile(createPersonalProfile({ roles: ['超级管理员'] }));
+    await flushPromises();
+
+    expect(overview.find('[data-testid="profile-overview-loading"]').exists()).toBe(false);
+    expect(overview.text()).toContain('超级管理员');
+    expect(overview.text()).toContain('核心架构部');
+
+    // 性别单选组采用 ARIA group + aria-labelledby，不再输出指向 div[role="radiogroup"] 的无效 <label for>（#52）
+    const radioGroup = wrapper.find('.at-dict-radio[role="radiogroup"]');
+    expect(radioGroup.exists()).toBe(true);
+    const genderFormItem = radioGroup.element.closest('.el-form-item');
+    expect(genderFormItem?.getAttribute('role')).toBe('group');
+    const labelEl = genderFormItem?.querySelector('.el-form-item__label');
+    expect(labelEl?.tagName).toBe('DIV');
+    expect(genderFormItem?.querySelectorAll('label[for]')).toHaveLength(0);
   });
 });

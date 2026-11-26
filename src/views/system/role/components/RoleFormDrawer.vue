@@ -188,8 +188,6 @@ watch(
   opened => {
     if (opened) {
       void loadDrawerData();
-    } else {
-      resetFormState();
     }
   },
 );
@@ -237,6 +235,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
     :show-confirm="!detailLoadFailed"
     :confirm-loading="detailLoading ? true : undefined"
     :before-confirm="handleBeforeConfirm"
+    @closed="resetFormState"
   >
     <div class="flex flex-col gap-3">
       <FormErrorBanner :message="submitError" test-id="role-form-error" />
@@ -282,7 +281,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
             />
           </el-form-item>
 
-          <el-form-item label="角色状态" prop="status">
+          <el-form-item for="" label="角色状态" prop="status">
             <AtengDictRadio v-model="form.status" dict-code="commonStatus" value-type="number" />
           </el-form-item>
         </div>

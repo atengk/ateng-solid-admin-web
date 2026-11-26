@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@atengk/core": "^1.1.0",
-    "@atengk/element-plus": "^1.1.0",
+    "@atengk/element-plus": "file:.yalc/@atengk/element-plus",
     "@atengk/vue": "^1.1.0",
     "@element-plus/icons-vue": "^2.3.1",
     "element-plus": "^2.14.7",

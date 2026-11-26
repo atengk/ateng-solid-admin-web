@@ -31,6 +31,10 @@ import {
 } from '@/api/system/dict';
 import type { CommonStatus } from '@/api/types';
 import { runConfirmedAction } from '@/composables/useConfirmAction';
+import {
+  QUERY_COLS_TWO_ITEMS,
+  useListTableLayout,
+} from '@/composables/useListTableLayout';
 import { useAuthStore } from '@/stores/auth';
 import { normalizeTagType } from '@/utils/dict';
 import DictDataFormDialog from '@/views/system/dict/components/DictDataFormDialog.vue';
@@ -46,15 +50,31 @@ defineOptions({ name: 'DictDataPanel' });
 
 const DATA_STORAGE_KEY = 'solid:table:sys-dict-data';
 
-const props = defineProps<{
-  /**
-   * 左侧当前选中的字典类型对象；未选中时展示引导空状态。
-   */
-  selectedType: DictTypeVO | null;
-}>();
+const props = withDefaults(
+  defineProps<{
+    /**
+     * 左侧当前选中的字典类型对象；未选中时展示引导空状态。
+     */
+    selectedType: DictTypeVO | null;
+    /**
+     * 所属分栏是否处于垂直堆叠布局态（堆叠态关闭表内高度封顶，退回整页滚动）。
+     */
+    stacked?: boolean;
+  }>(),
+  {
+    stacked: false,
+  },
+);
+
+const { tableAutoHeight, tableAutoHeightMode } = useListTableLayout({
+  stacked: () => props.stacked,
+});
 
 const authStore = useAuthStore();
 const canUpdateDict = computed<boolean>(() => authStore.hasPermission('system:dict:update'));
+const hasRowActions = computed<boolean>(() =>
+  authStore.hasPermission(['system:dict:update', 'system:dict:delete']),
+);
 
 const dataStatusUpdatingId = ref<string>('');
 const dataDialogVisible = ref<boolean>(false);
@@ -174,7 +194,7 @@ async function handleRefreshActiveCache(): Promise<void> {
 </script>
 
 <template>
-  <div class="flex h-full min-w-0 flex-col gap-3 pl-2">
+  <div class="flex h-full min-h-0 min-w-0 flex-col gap-3 pl-2">
     <div
       v-if="selectedType"
       class="flex flex-wrap items-center justify-between gap-2 rounded-[var(--solid-radius-md)] border border-border bg-surface-subtle px-3 py-2"
@@ -210,15 +230,17 @@ async function handleRefreshActiveCache(): Promise<void> {
       :pagination="dataPagination"
       row-key="id"
       :storage-key="DATA_STORAGE_KEY"
-      pagination-layout="total, sizes, prev, pager, next"
+      :auto-height="tableAutoHeight"
+      :auto-height-mode="tableAutoHeightMode"
       empty-description="当前字典类型暂无明细，可点击“新增字典数据”添加"
       search-empty-description="未检索到匹配的字典项"
     >
       <template #query>
         <AtengQueryForm
           :model="dataPagination.query"
+          :cols="QUERY_COLS_TWO_ITEMS"
           :default-collapsed="false"
-          :collapsed-rows="1"
+          :show-collapse="false"
         >
           <el-form-item label="字典标签" prop="dictLabel">
             <el-input
@@ -294,7 +316,7 @@ async function handleRefreshActiveCache(): Promise<void> {
         </template>
       </el-table-column>
 
-      <el-table-column label="操作" width="136" fixed="right" align="center">
+      <el-table-column v-if="hasRowActions" label="操作" width="136" fixed="right" align="center">
         <template #default="{ row }">
           <div class="inline-flex items-center justify-center gap-1">
             <el-button

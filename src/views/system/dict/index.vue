@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { ElButton, ElFormItem, ElInput, ElSwitch, ElTableColumn } from 'element-plus';
 import { Delete, Edit, Plus } from '@element-plus/icons-vue';
 import {
@@ -19,6 +19,7 @@ import {
 } from '@/api/system/dict';
 import type { CommonStatus } from '@/api/types';
 import { runConfirmedAction } from '@/composables/useConfirmAction';
+import { useListTableLayout } from '@/composables/useListTableLayout';
 import { useAuthStore } from '@/stores/auth';
 import DictDataPanel from '@/views/system/dict/components/DictDataPanel.vue';
 import DictTypeFormDialog from '@/views/system/dict/components/DictTypeFormDialog.vue';
@@ -37,9 +38,11 @@ const TYPE_STORAGE_KEY = 'solid:table:sys-dict-type';
 const SPLIT_STORAGE_KEY = 'solid:split:sys-dict';
 
 const authStore = useAuthStore();
-const isStackedLayout = ref<boolean>(
-  typeof window !== 'undefined' ? window.innerWidth < STACKED_BREAKPOINT_PX : false,
-);
+const {
+  isStacked: isStackedLayout,
+  tableAutoHeight,
+  tableAutoHeightMode,
+} = useListTableLayout({ stackedBreakpoint: STACKED_BREAKPOINT_PX });
 
 const selectedType = ref<DictTypeVO | null>(null);
 const typeStatusUpdatingId = ref<string>('');
@@ -49,24 +52,9 @@ const typeDialogMode = ref<'create' | 'edit'>('create');
 const editingTypeId = ref<string | undefined>(undefined);
 
 const canUpdateDict = computed<boolean>(() => authStore.hasPermission('system:dict:update'));
-
-function handleViewportResize(): void {
-  if (typeof window !== 'undefined') {
-    isStackedLayout.value = window.innerWidth < STACKED_BREAKPOINT_PX;
-  }
-}
-
-onMounted(() => {
-  if (typeof window !== 'undefined') {
-    window.addEventListener('resize', handleViewportResize);
-  }
-});
-
-onBeforeUnmount(() => {
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('resize', handleViewportResize);
-  }
-});
+const hasRowActions = computed<boolean>(() =>
+  authStore.hasPermission(['system:dict:update', 'system:dict:delete']),
+);
 
 function selectDictType(row: DictTypeVO): void {
   selectedType.value = { ...row };
@@ -153,7 +141,10 @@ function handleDeleteType(row: DictTypeVO): void {
 </script>
 
 <template>
-  <section data-testid="sys-dict-page" class="flex min-h-[560px] flex-col">
+  <section
+    data-testid="sys-dict-page"
+    :class="['flex flex-col', isStackedLayout ? 'min-h-[560px]' : 'h-full min-h-0']"
+  >
     <AtengSplitLayout
       :storage-key="isStackedLayout ? '' : SPLIT_STORAGE_KEY"
       :direction="isStackedLayout ? 'vertical' : 'horizontal'"
@@ -162,12 +153,13 @@ function handleDeleteType(row: DictTypeVO): void {
       :max="isStackedLayout ? '75%' : '62%'"
     >
       <template #first>
-        <div class="flex h-full min-w-0 flex-col gap-3 pr-2">
+        <div class="flex h-full min-h-0 min-w-0 flex-col gap-3 pr-2">
           <AtengTable
             :pagination="typePagination"
             row-key="id"
             :storage-key="TYPE_STORAGE_KEY"
-            pagination-layout="total, prev, pager, next"
+            :auto-height="tableAutoHeight"
+            :auto-height-mode="tableAutoHeightMode"
             highlight-current-row
             :current-row-key="selectedType?.id"
             empty-description="暂无动态字典类型"
@@ -261,7 +253,7 @@ function handleDeleteType(row: DictTypeVO): void {
               </template>
             </el-table-column>
 
-            <el-table-column label="操作" width="136" fixed="right" align="center">
+            <el-table-column v-if="hasRowActions" label="操作" width="136" fixed="right" align="center">
               <template #default="{ row }">
                 <div class="inline-flex items-center justify-center gap-1" @click.stop>
                   <el-button
@@ -294,7 +286,7 @@ function handleDeleteType(row: DictTypeVO): void {
       </template>
 
       <template #second>
-        <DictDataPanel :selected-type="selectedType" />
+        <DictDataPanel :selected-type="selectedType" :stacked="isStackedLayout" />
       </template>
     </AtengSplitLayout>
 

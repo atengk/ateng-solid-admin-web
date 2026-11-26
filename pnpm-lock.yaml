@@ -12,8 +12,8 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
       '@atengk/element-plus':
-        specifier: ^1.1.0
-        version: 1.1.0(debug@4.4.3(supports-color@7.2.0))(element-plus@2.14.8(vue@3.5.45(typescript@5.9.3)))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))
+        specifier: file:.yalc/@atengk/element-plus
+        version: file:.yalc/@atengk/element-plus(debug@4.4.3(supports-color@7.2.0))(element-plus@2.14.8(vue@3.5.45(typescript@5.9.3)))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))
       '@atengk/vue':
         specifier: ^1.1.0
         version: 1.1.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))
@@ -96,8 +96,8 @@ packages:
   '@atengk/core@1.1.0':
     resolution: {integrity: sha512-bPL9YdqSugYPi+jBvRn2VMmlQihpEcmGVSB6tMSz/3+dG68N4trdHYtSAcWKrUGw/Yi6eGVb2a/sFk5/SP6zcg==}
 
-  '@atengk/element-plus@1.1.0':
-    resolution: {integrity: sha512-MtjtavCXomqt0AHGQEYTDCHEnYEwRctfCayrZfBEIqwswa+MiB+5cXDjt+lMVn1E5dpStfp7lxgt46hDUl5uZg==}
+  '@atengk/element-plus@file:.yalc/@atengk/element-plus':
+    resolution: {directory: .yalc/@atengk/element-plus, type: directory}
     peerDependencies:
       element-plus: '>=2.8.0'
       vue: '>=3.5.0'
@@ -1918,7 +1918,7 @@ snapshots:
       - debug
       - supports-color
 
-  '@atengk/element-plus@1.1.0(debug@4.4.3(supports-color@7.2.0))(element-plus@2.14.8(vue@3.5.45(typescript@5.9.3)))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))':
+  '@atengk/element-plus@file:.yalc/@atengk/element-plus(debug@4.4.3(supports-color@7.2.0))(element-plus@2.14.8(vue@3.5.45(typescript@5.9.3)))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))':
     dependencies:
       '@atengk/core': 1.1.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
       '@atengk/vue': 1.1.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(vue@3.5.45(typescript@5.9.3))

@@ -393,7 +393,8 @@ describe('DashboardView (/dashboard) & OnlineSessionView (/system/online)', () =
     );
     await flushPromises();
 
-    // 无 auth:online:kickout 权限时强退按钮及表格行外层 tooltip 包装均应被 v-permission 物理移除
+    // 无 auth:online:kickout 权限时隐藏操作列并移除强退按钮与 tooltip 包装（#51）
+    expect(wrapper.findAll('th').some(th => th.text().includes('操作'))).toBe(false);
     expect(wrapper.find('[data-testid="online-kickout-btn-sess-readonly"]').exists()).toBe(false);
     expect(wrapper.find('tbody .el-tooltip__trigger').exists()).toBe(false);
 

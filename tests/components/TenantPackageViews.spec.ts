@@ -1,4 +1,4 @@
-import { defineComponent } from 'vue';
+import { defineComponent, h, KeepAlive, ref } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
@@ -97,8 +97,10 @@ describe('Tenant & TenantPackage Views & Helpers', () => {
       avatar: null,
       roles: ['super_admin'],
       permissions: ['*:*:*'],
+      tenantEnabled: true,
       passwordNeedsChange: false,
     });
+    useAuthStore().setTenantEnabled(true);
     await useAuthStore().fetchUserInfo();
     await router.push(path);
     await router.isReady();
@@ -302,6 +304,7 @@ describe('Tenant & TenantPackage Views & Helpers', () => {
 
     vi.spyOn(tenantApi, 'getTenantPage').mockResolvedValue({ records: sampleTenants, total: 2, size: 10, current: 1, pages: 1 });
     vi.spyOn(tenantPackageApi, 'getTenantPackageOptions').mockResolvedValue([{ id: 'P_STD', packageName: '标准企业版' }]);
+    const tenantOptionsSpy = vi.spyOn(tenantApi, 'getTenantOptions').mockResolvedValue([]);
     vi.spyOn(tenantApi, 'getTenantDetail').mockResolvedValue(sampleTenants[0]!);
     const updateTenantSpy = vi.spyOn(tenantApi, 'updateTenant').mockResolvedValue();
     const createTenantSpy = vi.spyOn(tenantApi, 'createTenant').mockResolvedValue({
@@ -339,6 +342,7 @@ describe('Tenant & TenantPackage Views & Helpers', () => {
     findButtonByText('保存租户')?.click();
     await flushPromises();
     expect(updateTenantSpy).toHaveBeenCalledWith({ id: '0', tenantName: '平台运营底座', remark: '平台内置' });
+    expect(tenantOptionsSpy).toHaveBeenCalledTimes(1);
 
     // 3. 新建租户预填初始密码并弹出 CreateTenantVO 凭据回显框
     await wrapper.find('[data-testid="tenant-add-btn"]').trigger('click');
@@ -365,6 +369,7 @@ describe('Tenant & TenantPackage Views & Helpers', () => {
     expect(createTenantSpy).toHaveBeenCalledWith(
       expect.objectContaining({ tenantCode: '668899', tenantName: '未来智造', packageId: 'P_STD', accountCount: -1, expireTime: null, adminUsername: 'wl_admin', adminPassword: 'Ateng@2026' }),
     );
+    expect(tenantOptionsSpy).toHaveBeenCalledTimes(2);
 
     const credDialog = document.body.querySelector('[data-testid="tenant-init-credential-dialog"]');
     expect(credDialog?.textContent).toContain('10088');
@@ -382,11 +387,13 @@ describe('Tenant & TenantPackage Views & Helpers', () => {
     await flushPromises();
     expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('强制下线'), expect.any(String), expect.any(Object));
     expect(updateStatusSpy).toHaveBeenCalledWith('10002', 1);
+    expect(tenantOptionsSpy).toHaveBeenCalledTimes(3);
 
     await wrapper.find('[data-testid="tenant-delete-btn-10002"]').trigger('click');
     await flushPromises();
     expect(confirmSpy).toHaveBeenLastCalledWith(expect.stringContaining('强制下线'), expect.any(String), expect.any(Object));
     expect(deleteTenantsSpy).toHaveBeenCalledWith('10002');
+    expect(tenantOptionsSpy).toHaveBeenCalledTimes(4);
   });
 
   it('excludes platformOnly nodes from package menu tree, triggers shrink-preview on menu removal, aborts PUT on cancel, and submits PUT on confirm', async () => {
@@ -486,5 +493,77 @@ describe('Tenant & TenantPackage Views & Helpers', () => {
     expect(updatePkgSpy).toHaveBeenCalledWith(
       expect.objectContaining({ id: '34001', menuIds: expect.arrayContaining(['M_SYS', 'C_USER', 'F_USER_LIST']) }),
     );
+  });
+
+  it('refreshes package counts and tenant package options upon KeepAlive reactivation without duplicating mount requests (#48)', async () => {
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue({
+      userId: '1',
+      tenantId: '0',
+      tenantName: '平台默认租户',
+      username: 'superadmin',
+      nickname: '超级管理员',
+      avatar: null,
+      roles: ['super_admin'],
+      permissions: ['*:*:*'],
+      tenantEnabled: true,
+      passwordNeedsChange: false,
+    });
+    useAuthStore().setTenantEnabled(true);
+    await useAuthStore().fetchUserInfo();
+
+    const pkgPageSpy = vi.spyOn(tenantPackageApi, 'getTenantPackagePage').mockResolvedValue({
+      records: [{ id: 'P1', packageName: '标准套餐', menuCount: 2, tenantCount: 1, menuCheckStrictly: true, status: 0, createTime: '2026-11-25 10:00:00' }],
+      total: 1,
+      size: 10,
+      current: 1,
+      pages: 1,
+    });
+    const tenantPageSpy = vi.spyOn(tenantApi, 'getTenantPage').mockResolvedValue({
+      records: [],
+      total: 0,
+      size: 10,
+      current: 1,
+      pages: 0,
+    });
+    const pkgOptSpy = vi.spyOn(tenantPackageApi, 'getTenantPackageOptions').mockResolvedValue([
+      { id: 'P1', packageName: '标准套餐' },
+    ]);
+
+    const activeView = ref<'pkg' | 'tenant'>('pkg');
+    const Host = defineComponent({
+      setup() {
+        return { activeView };
+      },
+      render() {
+        return h(KeepAlive, null, {
+          default: () => (activeView.value === 'pkg' ? h(TenantPackageView) : h(TenantView)),
+        });
+      },
+    });
+
+    const wrapper = trackWrapper(
+      mount(Host, { global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] } }),
+    );
+    await flushPromises();
+    expect(wrapper.text()).toContain('标准套餐');
+    // 首次挂载 KeepAlive 不应双发
+    expect(pkgPageSpy).toHaveBeenCalledTimes(1);
+
+    // 切至租户管理页（KeepAlive 缓存套餐页）
+    activeView.value = 'tenant';
+    await flushPromises();
+    expect(tenantPageSpy).toHaveBeenCalledTimes(1);
+    expect(pkgOptSpy).toHaveBeenCalledTimes(1);
+
+    // 切回套餐页：必须触发二次刷新以同步最新绑定租户数
+    activeView.value = 'pkg';
+    await flushPromises();
+    expect(pkgPageSpy).toHaveBeenCalledTimes(2);
+
+    // 再切回租户页：必须同步重拉列表与套餐下拉选项
+    activeView.value = 'tenant';
+    await flushPromises();
+    expect(tenantPageSpy).toHaveBeenCalledTimes(2);
+    expect(pkgOptSpy).toHaveBeenCalledTimes(2);
   });
 });

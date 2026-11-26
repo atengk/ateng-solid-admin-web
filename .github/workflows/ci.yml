@@ -70,6 +70,24 @@ jobs:
               - '!.editorconfig'
               - '!LICENSE'
 
+  foundation-lock-guard:
+    name: 校验主干底座正式版锁定
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
+    timeout-minutes: 5
+    steps:
+      - name: 检出源码
+        uses: actions/checkout@v4
+
+      - name: 禁止 main 分支引入 yalc 与本地路径依赖
+        run: |
+          while IFS= read -r -d '' manifest; do
+            if grep -Eq 'file:\.yalc/|file:\.\./|link:|yalc:|file:.*\.tgz' "$manifest"; then
+              echo "::error file=$manifest::禁止在 main 分支残留 yalc / link / file:../ / .tgz 联调依赖！请先执行 yalc remove --all && pnpm up @atengk/* 锁回正式版。"
+              exit 1
+            fi
+          done < <(find . -maxdepth 3 \( -name 'package.json' -o -name 'pnpm-lock.yaml' \) -not -path '*/node_modules/*' -print0)
+
   quality-gate:
     name: 四合一质量门禁 (Node 22 / pnpm 11)
     runs-on: ubuntu-latest
@@ -115,13 +133,13 @@ jobs:
   all-checks-passed:
     name: 质量门禁终审 (All Checks Passed)
     runs-on: ubuntu-latest
-    needs: [detect-changes, validate-pr-title, quality-gate]
+    needs: [detect-changes, validate-pr-title, foundation-lock-guard, quality-gate]
     if: always()
     timeout-minutes: 5
     steps:
       - name: 汇总校验结果
         run: |
-          for res in "${{ needs.validate-pr-title.result }}" "${{ needs.detect-changes.result }}" "${{ needs.quality-gate.result }}"; do
+          for res in "${{ needs.validate-pr-title.result }}" "${{ needs.detect-changes.result }}" "${{ needs.foundation-lock-guard.result }}" "${{ needs.quality-gate.result }}"; do
             if [ "$res" = "failure" ] || [ "$res" = "cancelled" ]; then
               echo "::error::Frontend CI 质量门禁检查失败！"
               exit 1
@@ -132,6 +150,12 @@ jobs:
       - name: 生成门禁看板报告
         if: always()
         run: |
+          LOCK_RES="${{ needs.foundation-lock-guard.result }}"
+          case "$LOCK_RES" in
+            success) LOCK_DESC="✅ 通过" ;;
+            skipped) LOCK_DESC="⚡ dev 放行" ;;
+            *) LOCK_DESC="❌ 失败" ;;
+          esac
           {
             echo "## 🚦 ateng-solid-admin-web CI 门禁报告"
             echo ""
@@ -141,6 +165,7 @@ jobs:
               echo "| **PR 标题规范** | ${{ needs.validate-pr-title.result == 'success' && '✅ 通过' || '❌ 失败' }} | Conventional Commits |"
             fi
             echo "| **变更路径探测** | ${{ needs.detect-changes.result == 'success' && '✅ 通过' || '❌ 异常' }} | 纯文档改动自动短路 |"
+            echo "| **主干锁版门禁** | $LOCK_DESC | 仅在合入/推送 main 时强校验 |"
             if [ "${{ needs.detect-changes.outputs.code_changed }}" = "false" ]; then
               echo "| **四合一质量门禁** | ⚡ 短路直通 | 仅涉及文档改动 |"
             else

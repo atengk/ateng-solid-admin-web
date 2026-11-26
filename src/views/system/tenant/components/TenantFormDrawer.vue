@@ -176,8 +176,6 @@ watch(
   opened => {
     if (opened) {
       void loadDrawerData();
-    } else {
-      resetFormState();
     }
   },
 );
@@ -219,6 +217,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
     :show-confirm="!detailLoadFailed"
     :confirm-loading="detailLoading ? true : undefined"
     :before-confirm="handleBeforeConfirm"
+    @closed="resetFormState"
   >
     <div class="flex flex-col gap-3">
       <FormErrorBanner :message="submitError" test-id="tenant-form-error" />
@@ -269,7 +268,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
           <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
             <el-form-item label="账号配额" prop="accountCount">
               <div class="flex w-full flex-col gap-1.5">
-                <el-checkbox v-model="form.unlimitedAccount" data-testid="tenant-form-unlimited-account" @change="handleUnlimitedChange">
+                <el-checkbox v-model="form.unlimitedAccount" name="unlimitedAccount" data-testid="tenant-form-unlimited-account" @change="handleUnlimitedChange">
                   不限制账号数
                 </el-checkbox>
                 <el-input-number v-model="form.accountCount" data-testid="tenant-form-account-count" :disabled="form.unlimitedAccount" :min="1" :precision="0" controls-position="right" class="tenant-number-input tabular-nums" />
@@ -278,7 +277,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
 
             <el-form-item label="过期时间" prop="expireTime">
               <div class="flex w-full flex-col gap-1.5">
-                <el-checkbox v-model="form.permanentExpire" data-testid="tenant-form-permanent-expire" @change="handlePermanentChange">
+                <el-checkbox v-model="form.permanentExpire" name="permanentExpire" data-testid="tenant-form-permanent-expire" @change="handlePermanentChange">
                   永久有效
                 </el-checkbox>
                 <el-date-picker v-model="form.expireTime" data-testid="tenant-form-expire-time" type="datetime" :disabled="form.permanentExpire" value-format="YYYY-MM-DD HH:mm:ss" format="YYYY-MM-DD HH:mm:ss" class="tenant-date-picker" placeholder="选择授权到期时间" />
@@ -286,7 +285,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
             </el-form-item>
           </div>
 
-          <el-form-item label="租户状态" prop="status">
+          <el-form-item for="" label="租户状态" prop="status">
             <AtengDictRadio v-model="form.status" data-testid="tenant-form-status" dict-code="commonStatus" value-type="number" />
           </el-form-item>
         </template>

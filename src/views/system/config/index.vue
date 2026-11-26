@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { ElButton, ElFormItem, ElInput, ElTableColumn, ElTooltip } from 'element-plus';
 import { Delete, Edit, Plus } from '@element-plus/icons-vue';
 import {
@@ -12,6 +12,11 @@ import {
 import { usePagination } from '@atengk/vue';
 import { deleteConfigs, getConfigPage, type ConfigQuery, type ConfigVO } from '@/api/system/config';
 import { runConfirmedAction } from '@/composables/useConfirmAction';
+import {
+  QUERY_COLS_THREE_ITEMS,
+  useListTableLayout,
+} from '@/composables/useListTableLayout';
+import { useAuthStore } from '@/stores/auth';
 import ConfigFormDialog from '@/views/system/config/components/ConfigFormDialog.vue';
 
 /**
@@ -25,7 +30,13 @@ defineOptions({ name: 'SysConfig' });
 
 const STORAGE_KEY = 'solid:table:sys-config';
 
+const authStore = useAuthStore();
+const { tableAutoHeight, tableAutoHeightMode } = useListTableLayout();
 const tableRef = ref<AtengTableInstance<ConfigVO>>();
+
+const hasRowActions = computed<boolean>(() =>
+  authStore.hasPermission(['system:config:update', 'system:config:delete']),
+);
 
 const pagination = usePagination<ConfigVO, ConfigQuery>(getConfigPage, {
   defaultSize: 10,
@@ -121,11 +132,18 @@ async function handleDialogSaved(): Promise<void> {
       row-key="id"
       :storage-key="STORAGE_KEY"
       :show-batch-bar="false"
+      :auto-height="tableAutoHeight"
+      :auto-height-mode="tableAutoHeightMode"
       empty-description="暂无系统参数配置"
       search-empty-description="未检索到匹配的系统参数"
     >
       <template #query>
-        <AtengQueryForm :model="pagination.query" :default-collapsed="false" :collapsed-rows="1">
+        <AtengQueryForm
+          :model="pagination.query"
+          :cols="QUERY_COLS_THREE_ITEMS"
+          :default-collapsed="false"
+          :show-collapse="false"
+        >
           <el-form-item label="参数名称" prop="configName">
             <el-input
               v-model="pagination.query.configName"
@@ -212,7 +230,7 @@ async function handleDialogSaved(): Promise<void> {
         </template>
       </el-table-column>
 
-      <el-table-column label="操作" width="140" fixed="right" align="center">
+      <el-table-column v-if="hasRowActions" label="操作" width="140" fixed="right" align="center">
         <template #default="{ row }">
           <div class="inline-flex items-center justify-center gap-1">
             <el-button

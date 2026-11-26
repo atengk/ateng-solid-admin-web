@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import {
   ElButton,
   ElFormItem,
@@ -19,6 +19,11 @@ import {
   type OnlineSessionQuery,
   type OnlineSessionVO,
 } from '@/api/auth';
+import {
+  QUERY_COLS_TWO_ITEMS,
+  useListTableLayout,
+} from '@/composables/useListTableLayout';
+import { useAuthStore } from '@/stores/auth';
 
 /**
  * 管理端在线会话治理视图（/system/online）：
@@ -39,6 +44,9 @@ const pagination = usePagination<OnlineSessionVO, OnlineSessionQuery>(getOnlineS
   defaultSize: 10,
 });
 
+const authStore = useAuthStore();
+const { tableAutoHeight, tableAutoHeightMode } = useListTableLayout();
+const hasRowActions = computed<boolean>(() => authStore.hasPermission('auth:online:kickout'));
 const kickoutDialogVisible = ref<boolean>(false);
 const pendingSession = ref<OnlineSessionVO | null>(null);
 
@@ -87,12 +95,6 @@ function isGlobalHandledError(error: unknown): boolean {
   return GLOBAL_HANDLED_HTTP_CODES.has(error.code) || error.code >= 500 || error.code <= 0;
 }
 
-watch(kickoutDialogVisible, visible => {
-  if (!visible) {
-    pendingSession.value = null;
-  }
-});
-
 function openKickoutDialog(row: OnlineSessionVO): void {
   if (row.currentSession) {
     return;
@@ -136,11 +138,18 @@ async function handleConfirmKickout(): Promise<boolean> {
       :pagination="pagination"
       row-key="sessionId"
       :storage-key="STORAGE_KEY"
+      :auto-height="tableAutoHeight"
+      :auto-height-mode="tableAutoHeightMode"
       empty-description="当前工作租户暂无其他活跃会话"
       search-empty-description="未检索到匹配的在线会话"
     >
       <template #query>
-        <AtengQueryForm :model="pagination.query" :default-collapsed="true" :collapsed-rows="1">
+        <AtengQueryForm
+          :model="pagination.query"
+          :cols="QUERY_COLS_TWO_ITEMS"
+          :default-collapsed="false"
+          :show-collapse="false"
+        >
           <el-form-item label="登录账号" prop="username">
             <el-input
               v-model="pagination.query.username"
@@ -223,7 +232,7 @@ async function handleConfirmKickout(): Promise<boolean> {
         </template>
       </el-table-column>
 
-      <el-table-column label="操作" width="100" fixed="right" align="center">
+      <el-table-column v-if="hasRowActions" label="操作" width="100" fixed="right" align="center">
         <template #default="{ row }">
           <span
             v-permission="'auth:online:kickout'"
@@ -271,6 +280,7 @@ async function handleConfirmKickout(): Promise<boolean> {
       width="480px"
       confirm-text="确认强退"
       :before-confirm="handleConfirmKickout"
+      @closed="pendingSession = null"
     >
       <p v-if="pendingSession" class="m-0 text-sm leading-relaxed text-ink-regular">
         确认将账号【<span class="font-mono-data font-medium text-ink">{{

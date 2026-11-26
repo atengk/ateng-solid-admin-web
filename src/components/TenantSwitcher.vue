@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElIcon, ElInput, ElMessage, ElPopover } from 'element-plus';
+import { ElIcon, ElInput, ElMessage, ElPopover, type PopoverInstance } from 'element-plus';
 import { ArrowDown, Check, OfficeBuilding, Search } from '@element-plus/icons-vue';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
@@ -26,7 +26,8 @@ const router = useRouter();
 const authStore = useAuthStore();
 const tenantStore = useTenantStore();
 
-const popoverVisible = ref<boolean>(false);
+const popoverRef = ref<PopoverInstance>();
+const popoverOpen = ref<boolean>(false);
 const keyword = ref<string>('');
 const loadingOptions = ref<boolean>(false);
 
@@ -74,18 +75,31 @@ onMounted(() => {
 });
 
 function handlePopoverShow(): void {
+  popoverOpen.value = true;
   keyword.value = '';
-  if (tenantStore.tenantOptions.length === 0) {
-    void ensureTenantOptionsLoaded();
+  // 每次打开切换浮层均静默刷新可切换租户列表，确保新建/改名/停删租户即时同步
+  void ensureTenantOptionsLoaded();
+}
+
+function handlePopoverLeave(): void {
+  popoverOpen.value = false;
+}
+
+function handleTriggerClick(): void {
+  if (!popoverOpen.value) {
+    handlePopoverShow();
+  } else {
+    popoverOpen.value = false;
   }
 }
 
 async function handleSelectTenant(targetTenantId: string): Promise<void> {
+  popoverOpen.value = false;
   if (targetTenantId === tenantStore.activeTenantId || tenantStore.switching) {
-    popoverVisible.value = false;
+    popoverRef.value?.hide();
     return;
   }
-  popoverVisible.value = false;
+  popoverRef.value?.hide();
   const switched = await tenantStore.switchTenant(targetTenantId, router);
   if (switched) {
     ElMessage.success(`已切换工作租户为 ${tenantStore.activeTenantName}`);
@@ -97,12 +111,13 @@ async function handleSelectTenant(targetTenantId: string): Promise<void> {
   <template v-if="authStore.tenantEnabled">
     <el-popover
       v-if="tenantStore.isSuperAdminTenantSwitchAllowed"
-      v-model:visible="popoverVisible"
+      ref="popoverRef"
       trigger="click"
       placement="bottom-end"
       :width="260"
       :teleported="false"
-      @show="handlePopoverShow"
+      @before-enter="handlePopoverShow"
+      @before-leave="handlePopoverLeave"
     >
       <template #reference>
         <button
@@ -115,6 +130,7 @@ async function handleSelectTenant(targetTenantId: string): Promise<void> {
               ? 'solid-tenant-pill--observing font-semibold'
               : 'border-border bg-surface-subtle text-ink hover:border-primary',
           ]"
+          @click="handleTriggerClick"
         >
           <el-icon :size="13"><OfficeBuilding /></el-icon>
           <span class="max-w-[120px] truncate">{{ tenantStore.activeTenantName }}</span>

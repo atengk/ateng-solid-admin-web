@@ -157,6 +157,29 @@ function triggerSessionExpired(reason: '401' | '101005', message: string): void 
 }
 
 /**
+ * 默认请求超时时长（毫秒）
+ */
+export const DEFAULT_API_TIMEOUT_MS = 15_000;
+
+/**
+ * 解析全局接口超时时长，非法值自动回退至 15_000ms。
+ *
+ * @param raw 原始环境变量字符串
+ * @returns 合法的正整数超时毫秒数
+ */
+export function resolveApiTimeoutMs(raw?: string): number {
+  const trimmed = raw?.trim();
+  if (!trimmed) {
+    return DEFAULT_API_TIMEOUT_MS;
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_API_TIMEOUT_MS;
+  }
+  return Math.trunc(parsed);
+}
+
+/**
  * 管理端唯一 HTTP 客户端单例。
  *
  * @author Ateng
@@ -164,7 +187,7 @@ function triggerSessionExpired(reason: '401' | '101005', message: string): void 
  */
 export const adminHttpClient = createHttpClient({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
-  timeout: 15_000,
+  timeout: resolveApiTimeoutMs(import.meta.env.VITE_API_TIMEOUT),
   authManager: adminAuthManager,
   tenantManager: adminTenantManager,
   unwrap: true,

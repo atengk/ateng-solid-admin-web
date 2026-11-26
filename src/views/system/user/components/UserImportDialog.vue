@@ -55,8 +55,10 @@ const feedbackTitle = computed<string>(
 
 watch(
   () => props.modelValue,
-  () => {
-    uploadError.value = '';
+  opened => {
+    if (opened) {
+      uploadError.value = '';
+    }
   },
 );
 
@@ -65,12 +67,6 @@ function clearFeedbackState(): void {
   feedbackErrors.value = [];
   feedbackToken.value = '';
 }
-
-watch(feedbackVisible, opened => {
-  if (!opened) {
-    clearFeedbackState();
-  }
-});
 
 async function handleDownloadTemplate(): Promise<void> {
   if (templateDownloading.value) {
@@ -148,6 +144,7 @@ function handleFeedbackDownloadError(error: unknown): void {
     width="560px"
     :show-confirm="false"
     cancel-text="关闭"
+    @closed="uploadError = ''"
   >
     <div class="flex flex-col gap-3">
       <div
@@ -208,6 +205,7 @@ function handleFeedbackDownloadError(error: unknown): void {
     :page-size="10"
     :allow-csv-fallback="true"
     @download-error="handleFeedbackDownloadError"
+    @closed="clearFeedbackState"
   />
 </template>
 

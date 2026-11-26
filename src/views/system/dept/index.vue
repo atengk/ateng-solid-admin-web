@@ -22,6 +22,10 @@ import {
   type DeptTreeVO,
 } from '@/api/system/dept';
 import type { CommonStatus } from '@/api/types';
+import {
+  QUERY_COLS_TWO_ITEMS,
+  useListTableLayout,
+} from '@/composables/useListTableLayout';
 import { useTreeTableControls } from '@/composables/useTreeTableControls';
 import { useAuthStore } from '@/stores/auth';
 import { isGlobalHandledHttpError, resolveErrorMessage } from '@/utils/http';
@@ -40,6 +44,7 @@ defineOptions({ name: 'SysDept' });
 const STORAGE_KEY = 'solid:table:sys-dept';
 
 const authStore = useAuthStore();
+const { tableAutoHeight, tableAutoHeightMode } = useListTableLayout();
 
 const query = reactive<DeptQuery>({
   deptName: '',
@@ -57,6 +62,9 @@ const editingDeptId = ref<string | undefined>(undefined);
 const initialParentId = ref<string>(ROOT_DEPT_ID);
 
 const canUpdateDept = computed<boolean>(() => authStore.hasPermission('system:dept:update'));
+const hasRowActions = computed<boolean>(() =>
+  authStore.hasPermission(['system:dept:create', 'system:dept:update', 'system:dept:delete']),
+);
 
 function asDeptRow(row: unknown): DeptTreeVO {
   return row as DeptTreeVO;
@@ -195,6 +203,8 @@ onMounted(() => {
       row-key="id"
       :storage-key="STORAGE_KEY"
       :show-pagination="false"
+      :auto-height="tableAutoHeight"
+      :auto-height-mode="tableAutoHeightMode"
       :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
       :default-expand-all="true"
       empty-description="暂无部门数据"
@@ -204,8 +214,9 @@ onMounted(() => {
       <template #query>
         <AtengQueryForm
           :model="query"
-          :default-collapsed="true"
-          :collapsed-rows="1"
+          :cols="QUERY_COLS_TWO_ITEMS"
+          :default-collapsed="false"
+          :show-collapse="false"
           @search="handleQuerySearch"
           @reset="handleQueryReset"
         >
@@ -302,7 +313,7 @@ onMounted(() => {
         </template>
       </el-table-column>
 
-      <el-table-column label="操作" width="210" fixed="right" align="center">
+      <el-table-column v-if="hasRowActions" label="操作" width="210" fixed="right" align="center">
         <template #default="{ row }">
           <div class="inline-flex items-center justify-center gap-1">
             <span v-permission="'system:dept:create'" class="inline-flex">

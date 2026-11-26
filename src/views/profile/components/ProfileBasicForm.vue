@@ -216,7 +216,7 @@ async function handleSave(): Promise<void> {
         />
       </el-form-item>
 
-      <el-form-item label="用户性别" prop="gender">
+      <el-form-item for="" label="用户性别" prop="gender">
         <AtengDictRadio v-model="form.gender" dict-code="sys_user_gender" />
       </el-form-item>
 

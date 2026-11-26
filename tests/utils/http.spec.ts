@@ -4,11 +4,13 @@ import { ElMessage } from 'element-plus';
 import { DictManager } from '@atengk/element-plus';
 import { BusinessException, type HttpRequestConfig, type Result } from '@atengk/core';
 import {
+  DEFAULT_API_TIMEOUT_MS,
   adminAuthManager,
   adminHttpClient,
   adminTenantManager,
   isGlobalHandledHttpError,
   registerHttpErrorHandlers,
+  resolveApiTimeoutMs,
 } from '@/utils/http';
 
 /**
@@ -361,5 +363,16 @@ describe('http client & global error dispatcher', () => {
     expect(isGlobalHandledHttpError(new BusinessException(102005, '占用'))).toBe(false);
     expect(isGlobalHandledHttpError(new BusinessException(503, '网关异常'))).toBe(true);
     expect(isGlobalHandledHttpError(new BusinessException(403, '无权限'))).toBe(true);
+  });
+
+  it('parses VITE_API_TIMEOUT with safe positive-integer fallback to 15_000ms', () => {
+    expect(resolveApiTimeoutMs(undefined)).toBe(DEFAULT_API_TIMEOUT_MS);
+    expect(resolveApiTimeoutMs('')).toBe(DEFAULT_API_TIMEOUT_MS);
+    expect(resolveApiTimeoutMs('   ')).toBe(DEFAULT_API_TIMEOUT_MS);
+    expect(resolveApiTimeoutMs('invalid')).toBe(DEFAULT_API_TIMEOUT_MS);
+    expect(resolveApiTimeoutMs('0')).toBe(DEFAULT_API_TIMEOUT_MS);
+    expect(resolveApiTimeoutMs('-500')).toBe(DEFAULT_API_TIMEOUT_MS);
+    expect(resolveApiTimeoutMs('30000')).toBe(30_000);
+    expect(resolveApiTimeoutMs(' 20000.8 ')).toBe(20_000);
   });
 });

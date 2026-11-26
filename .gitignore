@@ -17,6 +17,8 @@ dist-ssr/
 .env
 .env.*
 !.env.example
+!.env.development
+!.env.production
 .yalc/
 yalc.lock
 

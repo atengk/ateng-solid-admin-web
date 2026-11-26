@@ -307,6 +307,17 @@ describe('Audit log views (/system/oper-log & /system/login-log)', () => {
     const extraPre =
       document.body.querySelector('[data-testid="oper-log-extra-json"]')?.textContent ?? '';
     expect(extraPre).toContain('\n  "source": "cron"');
+
+    // 关闭动画期间（仅 modelValue=false）应保留详情报文，待 @closed 触发后再清空，防止内容闪为 --（#50）
+    const detailDrawer = wrapper.findComponent({ name: 'AtengDrawer' });
+    expect(detailDrawer.exists()).toBe(true);
+    await detailDrawer.vm.$emit('update:modelValue', false);
+    await flushPromises();
+    expect(document.body.querySelector('[data-testid="oper-log-extra-json"]')?.textContent).toContain('"source": "cron"');
+
+    await detailDrawer.vm.$emit('closed');
+    await flushPromises();
+    expect(document.body.querySelector('[data-testid="oper-log-extra-json"]')).toBeNull();
   });
 
   it('renders strictly read-only LoginLogView with null-safe loginLocation and traceId copy', async () => {

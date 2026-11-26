@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import {
   ElAvatar,
   ElButton,
   ElIcon,
   ElMessage,
+  ElSkeleton,
   ElTabPane,
   ElTabs,
   ElTag,
@@ -34,17 +35,32 @@ type ProfileTabKey = 'basic' | 'password';
 const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 const AVATAR_ACCEPT = '.jpg,.jpeg,.png,.webp';
 const AVATAR_LIMIT_HINT = '仅支持 JPG、PNG、WEBP 格式且大小不超过 2MB 的图片';
+const SKELETON_DELAY_MS = 120;
 
 const route = useRoute();
 const authStore = useAuthStore();
 
 const profile = ref<PersonalProfileVO | null>(null);
 const loading = ref<boolean>(false);
+const initialLoadDone = ref<boolean>(false);
+const showSkeleton = ref<boolean>(false);
 const profileError = ref<string>('');
 const avatarUploading = ref<boolean>(false);
 const avatarFailed = ref<boolean>(false);
 const avatarError = ref<string>('');
 const activeTab = ref<ProfileTabKey>('basic');
+let skeletonTimer: ReturnType<typeof setTimeout> | null = null;
+
+const isInitialLoading = computed<boolean>(
+  () => profile.value === null && (!initialLoadDone.value || loading.value),
+);
+
+function clearSkeletonTimer(): void {
+  if (skeletonTimer !== null) {
+    clearTimeout(skeletonTimer);
+    skeletonTimer = null;
+  }
+}
 
 watch(
   () => route.query.tab,
@@ -106,6 +122,14 @@ async function loadProfile(): Promise<void> {
   }
   loading.value = true;
   profileError.value = '';
+  clearSkeletonTimer();
+  if (profile.value === null) {
+    skeletonTimer = setTimeout(() => {
+      if (loading.value && profile.value === null) {
+        showSkeleton.value = true;
+      }
+    }, SKELETON_DELAY_MS);
+  }
   try {
     const loaded = await getPersonalProfile();
     profile.value = loaded;
@@ -120,6 +144,9 @@ async function loadProfile(): Promise<void> {
         ? error.msg
         : '获取个人资料失败，请检查网络连接后重试';
   } finally {
+    initialLoadDone.value = true;
+    clearSkeletonTimer();
+    showSkeleton.value = false;
     loading.value = false;
   }
 }
@@ -158,6 +185,10 @@ async function uploadAvatarRequest(options: UploadRequestOptions): Promise<unkno
 onMounted(() => {
   void loadProfile();
 });
+
+onBeforeUnmount(() => {
+  clearSkeletonTimer();
+});
 </script>
 
 <template>
@@ -174,6 +205,7 @@ onMounted(() => {
         <el-avatar
           :size="72"
           :src="resolvedAvatarSrc"
+          :alt="`${displayName}头像`"
           class="solid-profile-avatar"
           @error="handleAvatarLoadError"
         >
@@ -187,9 +219,9 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="flex flex-wrap items-center justify-center gap-1.5">
+        <div class="flex min-h-[24px] flex-wrap items-center justify-center gap-1.5">
           <el-tag
-            v-for="role in profile?.roles ?? authStore.roles"
+            v-for="role in profile?.roles ?? []"
             :key="role"
             size="small"
             :type="role === 'super_admin' ? 'primary' : 'info'"
@@ -235,7 +267,12 @@ onMounted(() => {
         </div>
       </div>
 
+      <div v-if="isInitialLoading" data-testid="profile-overview-loading" class="min-h-[238px]">
+        <el-skeleton v-if="showSkeleton" :rows="6" animated />
+      </div>
+
       <AtengDescriptions
+        v-else
         :data="overviewData"
         :column="1"
         :border="true"
@@ -266,6 +303,7 @@ onMounted(() => {
 
     <!-- 右栏：基本资料维护与修改密码双页签 -->
     <div
+      v-loading="showSkeleton"
       class="min-w-0 flex-1 rounded-[var(--solid-radius-lg)] border border-border bg-surface p-5"
     >
       <div
@@ -291,7 +329,10 @@ onMounted(() => {
         </el-button>
       </div>
 
-      <el-tabs v-model="activeTab">
+      <el-tabs
+        v-model="activeTab"
+        :class="isInitialLoading ? 'pointer-events-none opacity-0' : 'opacity-100 transition-opacity duration-150'"
+      >
         <el-tab-pane label="基本资料" name="basic">
           <ProfileBasicForm :profile="profile" :loading="loading" @saved="loadProfile" />
         </el-tab-pane>

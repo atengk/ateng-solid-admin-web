@@ -155,7 +155,9 @@ describe('Shell Controls & Error Views', () => {
     await router.isReady();
 
     const authStore = useAuthStore();
-    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue(createProfile());
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue(
+      createProfile({ avatar: 'https://cdn.example.com/avatar.png' }),
+    );
     await authStore.fetchUserInfo();
 
     const headerWrapper = trackWrapper(
@@ -164,6 +166,11 @@ describe('Shell Controls & Error Views', () => {
       }),
     );
     await flushPromises();
+
+    // #54: 搜索按钮 aria-label 须含可见文案 "搜索菜单"，且头像 img 具非空 alt
+    const commandBtn = headerWrapper.find('[data-testid="header-command-trigger"]');
+    expect(commandBtn.attributes('aria-label')).toContain('搜索菜单');
+    expect(headerWrapper.find('img').attributes('alt')).toBe('超级管理员头像');
 
     // /dashboard 面包屑渲染 "首页 / 工作台"
     const breadcrumb = headerWrapper.find('[data-testid="header-breadcrumb"]');
@@ -263,6 +270,19 @@ describe('Shell Controls & Error Views', () => {
 
     expect(tenantStore.isSuperAdminTenantSwitchAllowed).toBe(true);
     expect(wrapper.find('[data-testid="tenant-switch-trigger"]').exists()).toBe(true);
+
+    // #46: 已有非空列表后每次打开浮层仍刷新 getTenantOptions，同步最新租户列表
+    await flushPromises();
+    const spy = vi.spyOn(tenantApi, 'getTenantOptions').mockResolvedValue([
+      { id: '10002', tenantCode: '100002', tenantName: '星辰智能科技', status: 0 },
+      { id: '10099', tenantCode: '100099', tenantName: '新建未来科技', status: 0 },
+    ]);
+    const triggerEl = wrapper.find('[data-testid="tenant-switch-trigger"]').element as HTMLButtonElement;
+    triggerEl.click();
+    await new Promise(resolve => setTimeout(resolve, 30));
+    await flushPromises();
+    expect(spy).toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="tenant-option-10099"]').text()).toContain('新建未来科技');
   });
 
   it('renders anti-deadlock logout button on 403 for zero-menu logged-in users and supports 404 recovery actions', async () => {

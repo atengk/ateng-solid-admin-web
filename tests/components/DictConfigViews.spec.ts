@@ -503,4 +503,105 @@ describe('DictView (/system/dict) and ConfigView (/system/config)', () => {
       }),
     );
   });
+
+  it('aligns dual-card surface and adaptive pagination across DictView and ConfigView (0=hidden, 1 page=no jumper, >=2 pages=full) (#379 / ADR-0004)', async () => {
+    const router = createDictConfigRouter();
+    await router.push('/system/dict');
+    await router.isReady();
+
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue(createProfile());
+    await useAuthStore().fetchUserInfo();
+
+    // 1. DictView 左右两表不再硬写局部 pagination-layout，统一走 AtengTable 默认自适应双卡契约
+    vi.spyOn(dictApi, 'getDictTypePage').mockResolvedValue({
+      records: [
+        {
+          id: 'DT1',
+          dictName: '用户性别',
+          dictType: 'sys_user_gender',
+          status: 0,
+          createTime: '2026-11-25 10:00:00',
+        },
+      ],
+      total: 1,
+      size: 10,
+      current: 1,
+      pages: 1,
+    });
+    vi.spyOn(dictApi, 'getDictDataPage').mockResolvedValue({
+      records: [
+        {
+          id: 'DD1',
+          dictType: 'sys_user_gender',
+          dictLabel: '男',
+          dictValue: '0',
+          tagType: 'primary',
+          sort: 1,
+          isDefault: 1,
+          status: 0,
+          createTime: '2026-11-25 10:00:00',
+        },
+      ],
+      total: 1,
+      size: 10,
+      current: 1,
+      pages: 1,
+    });
+
+    const dictWrapper = trackWrapper(
+      mount(DictView, { global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] } }),
+    );
+    await flushPromises();
+
+    const dictTables = dictWrapper.findAllComponents({ name: 'AtengTable' });
+    expect(dictTables).toHaveLength(2);
+    for (const tbl of dictTables) {
+      expect(tbl.props('surface')).toBe('card');
+      expect(tbl.props('paginationAlign')).toBe('between');
+      expect(tbl.props('paginationLayout')).toBe('total, sizes, prev, pager, next, jumper');
+      expect(tbl.find('.at-table--surface-card > .at-table__surface').exists()).toBe(true);
+      expect(tbl.find('.at-table__pagination--between').exists()).toBe(true);
+      expect(tbl.find('.el-pagination__jump').exists()).toBe(false);
+    }
+
+    // 2. ConfigView 验证 0 条自动隐藏、单页收敛 jumper、多页完整展示跳转控件
+    await router.push('/system/config');
+    await router.isReady();
+    const configPageSpy = vi
+      .spyOn(configApi, 'getConfigPage')
+      .mockResolvedValueOnce({
+        records: [],
+        total: 0,
+        size: 10,
+        current: 1,
+        pages: 0,
+      })
+      .mockResolvedValueOnce({
+        records: Array.from({ length: 10 }, (_, idx) => ({
+          id: `CFG_${idx}`,
+          configName: `参数${idx}`,
+          configKey: `cfg.${idx}`,
+          configValue: '1',
+          configType: 'N',
+          createTime: '2026-11-25 10:00:00',
+        })),
+        total: 25,
+        size: 10,
+        current: 1,
+        pages: 3,
+      });
+
+    const cfgWrapper = trackWrapper(
+      mount(ConfigView, { global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] } }),
+    );
+    await flushPromises();
+    expect(cfgWrapper.find('.at-table__pagination').exists()).toBe(false);
+
+    const refreshBtn = cfgWrapper.find('.at-table__tool-btn[aria-label="刷新"]');
+    await refreshBtn.trigger('click');
+    await flushPromises();
+    expect(configPageSpy).toHaveBeenCalledTimes(2);
+    expect(cfgWrapper.find('.at-table__pagination--between').exists()).toBe(true);
+    expect(cfgWrapper.find('.el-pagination__jump').exists()).toBe(true);
+  });
 });

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onActivated, ref } from 'vue';
 import { ElButton, ElFormItem, ElInput, ElSwitch, ElTableColumn, ElTag } from 'element-plus';
 import { Delete, Edit, Plus } from '@element-plus/icons-vue';
 import {
@@ -18,6 +18,10 @@ import {
 } from '@/api/system/tenant-package';
 import type { CommonStatus } from '@/api/types';
 import { runConfirmedAction } from '@/composables/useConfirmAction';
+import {
+  QUERY_COLS_TWO_ITEMS,
+  useListTableLayout,
+} from '@/composables/useListTableLayout';
 import { useAuthStore } from '@/stores/auth';
 import PackageFormDrawer from '@/views/system/tenant-package/components/PackageFormDrawer.vue';
 
@@ -33,6 +37,7 @@ defineOptions({ name: 'SysTenantPackage' });
 const STORAGE_KEY = 'solid:table:sys-tenant-package';
 
 const authStore = useAuthStore();
+const { tableAutoHeight, tableAutoHeightMode } = useListTableLayout();
 const tableRef = ref<AtengTableInstance<TenantPackageVO>>();
 const pagination = usePagination<TenantPackageVO, TenantPackageQuery>(getTenantPackagePage, {
   defaultSize: 10,
@@ -46,6 +51,9 @@ const editingPackageId = ref<string | undefined>(undefined);
 
 const canUpdatePackage = computed<boolean>(() =>
   authStore.hasPermission('system:tenant-package:update'),
+);
+const hasRowActions = computed<boolean>(() =>
+  authStore.hasPermission(['system:tenant-package:update', 'system:tenant-package:delete']),
 );
 const asPackageRow = (row: unknown): TenantPackageVO => row as TenantPackageVO;
 
@@ -138,6 +146,18 @@ async function handleSaved(): Promise<void> {
   clearTableSelection();
   await pagination.refresh();
 }
+
+let hasActivatedOnce = false;
+
+onActivated(() => {
+  if (!hasActivatedOnce) {
+    hasActivatedOnce = true;
+    return;
+  }
+  // KeepAlive 切回套餐页时静默重拉列表，确保跨租户模块 CRUD 后的「绑定租户数」统计一致
+  clearTableSelection();
+  void pagination.refresh();
+});
 </script>
 
 <template>
@@ -149,11 +169,18 @@ async function handleSaved(): Promise<void> {
       row-key="id"
       :storage-key="STORAGE_KEY"
       :show-batch-bar="false"
+      :auto-height="tableAutoHeight"
+      :auto-height-mode="tableAutoHeightMode"
       empty-description="暂无租户套餐数据，可点击上方“新增套餐”配置"
       search-empty-description="未检索到匹配的租户套餐"
     >
       <template #query>
-        <AtengQueryForm :model="pagination.query" :default-collapsed="false" :collapsed-rows="1">
+        <AtengQueryForm
+          :model="pagination.query"
+          :cols="QUERY_COLS_TWO_ITEMS"
+          :default-collapsed="false"
+          :show-collapse="false"
+        >
           <el-form-item label="套餐名称" prop="packageName">
             <el-input
               v-model="pagination.query.packageName"
@@ -248,7 +275,7 @@ async function handleSaved(): Promise<void> {
         </template>
       </el-table-column>
 
-      <el-table-column label="操作" width="140" fixed="right" align="center">
+      <el-table-column v-if="hasRowActions" label="操作" width="140" fixed="right" align="center">
         <template #default="{ row }">
           <div class="inline-flex items-center justify-center gap-1">
             <el-button

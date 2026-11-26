@@ -65,3 +65,32 @@ body {
   font-variant-numeric: tabular-nums;
   font-variant-ligatures: none;
 }
+
+/* 补齐剥离 theme-pro.css 后 Element Plus 分页栏轻量视觉与等宽焦环（零 !important） */
+.el-pagination {
+  --el-pagination-font-size: 13px;
+  --el-pagination-border-radius: var(--solid-radius-md);
+  --el-pagination-text-color: var(--solid-text-secondary);
+  --el-pagination-button-color: var(--solid-text-regular);
+  --el-pagination-button-bg-color: var(--solid-bg-subtle);
+  --el-pagination-hover-color: var(--solid-primary);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+.el-pagination .el-pagination__total,
+.el-pagination .el-pagination__jump {
+  font-size: 13px;
+  color: var(--solid-text-secondary);
+}
+
+.el-pagination .el-pager li:focus-visible,
+.el-pagination .btn-prev:focus-visible,
+.el-pagination .btn-next:focus-visible {
+  outline: none;
+  box-shadow: var(--solid-shadow-focus);
+}
+
+.el-pagination.is-background .el-pager li.is-active {
+  font-weight: 600;
+}

@@ -25,6 +25,10 @@ import {
   type PostVO,
 } from '@/api/system/post';
 import type { CommonStatus } from '@/api/types';
+import {
+  QUERY_COLS_THREE_ITEMS,
+  useListTableLayout,
+} from '@/composables/useListTableLayout';
 import { useAuthStore } from '@/stores/auth';
 import { isGlobalHandledHttpError, resolveErrorMessage } from '@/utils/http';
 import PostFormDialog from '@/views/system/post/components/PostFormDialog.vue';
@@ -41,6 +45,7 @@ defineOptions({ name: 'SysPost' });
 const STORAGE_KEY = 'solid:table:sys-post';
 
 const authStore = useAuthStore();
+const { tableAutoHeight, tableAutoHeightMode } = useListTableLayout();
 const tableRef = ref<AtengTableInstance<PostVO>>();
 
 const pagination = usePagination<PostVO, PostQuery>(getPostPage, {
@@ -55,6 +60,9 @@ const dialogMode = ref<'create' | 'edit'>('create');
 const editingPostId = ref<string | undefined>(undefined);
 
 const canUpdatePost = computed<boolean>(() => authStore.hasPermission('system:post:update'));
+const hasRowActions = computed<boolean>(() =>
+  authStore.hasPermission(['system:post:update', 'system:post:delete']),
+);
 
 function asPostRow(row: unknown): PostVO {
   return row as PostVO;
@@ -177,11 +185,18 @@ async function handleDialogSaved(): Promise<void> {
       row-key="id"
       :storage-key="STORAGE_KEY"
       :show-batch-bar="false"
+      :auto-height="tableAutoHeight"
+      :auto-height-mode="tableAutoHeightMode"
       empty-description="暂无岗位数据，可点击上方“新增岗位”创建"
       search-empty-description="未检索到匹配的岗位信息"
     >
       <template #query>
-        <AtengQueryForm :model="pagination.query" :default-collapsed="false" :collapsed-rows="1">
+        <AtengQueryForm
+          :model="pagination.query"
+          :cols="QUERY_COLS_THREE_ITEMS"
+          :default-collapsed="false"
+          :show-collapse="false"
+        >
           <el-form-item label="岗位编码" prop="postCode">
             <el-input
               v-model="pagination.query.postCode"
@@ -277,7 +292,7 @@ async function handleDialogSaved(): Promise<void> {
         </template>
       </el-table-column>
 
-      <el-table-column label="操作" width="140" fixed="right" align="center">
+      <el-table-column v-if="hasRowActions" label="操作" width="140" fixed="right" align="center">
         <template #default="{ row }">
           <div class="inline-flex items-center justify-center gap-1">
             <el-button

@@ -441,4 +441,161 @@ describe('AdminLayout Core Shell', () => {
     await flushPromises();
     expect(router.currentRoute.value.path).toBe('/dashboard');
   });
+
+  it('remounts shared route and KeepAlive views across cross-tenant switches and platform reset (#43)', async () => {
+    const router = createLayoutTestRouter();
+    await router.push('/login');
+    await router.isReady();
+
+    let dashboardMountCount = 0;
+    let userMountCount = 0;
+    const TrackedDashboard = defineComponent({
+      name: 'Dashboard',
+      setup() {
+        const tenantStore = useTenantStore();
+        return { tenantStore };
+      },
+      mounted() {
+        dashboardMountCount += 1;
+      },
+      template: '<div data-testid="tracked-dashboard">dash:{{ tenantStore.activeTenantId }}</div>',
+    });
+    const TrackedUser = defineComponent({
+      name: 'SysUser',
+      setup() {
+        const tenantStore = useTenantStore();
+        return { tenantStore };
+      },
+      mounted() {
+        userMountCount += 1;
+      },
+      template: '<div data-testid="tracked-user">user:{{ tenantStore.activeTenantId }}</div>',
+    });
+    const registerTrackedRoutes = (targetRouter: Router) => {
+      if (targetRouter.hasRoute('Dashboard')) {
+        targetRouter.removeRoute('Dashboard');
+      }
+      if (targetRouter.hasRoute('SysUser')) {
+        targetRouter.removeRoute('SysUser');
+      }
+      targetRouter.addRoute('RootLayout', {
+        path: '/dashboard',
+        name: 'Dashboard',
+        component: TrackedDashboard,
+        meta: { title: '工作台', affix: true, keepAlive: true, requiresAuth: true },
+      });
+      targetRouter.addRoute('RootLayout', {
+        path: '/system/user',
+        name: 'SysUser',
+        component: TrackedUser,
+        meta: { title: '用户管理', icon: 'User', keepAlive: true, groupTitle: '组织权限', requiresAuth: true },
+      });
+    };
+    registerTrackedRoutes(router);
+
+    const authStore = useAuthStore();
+    const permissionStore = usePermissionStore();
+    const tenantStore = useTenantStore();
+    authStore.setTenantEnabled(true);
+    vi.spyOn(tenantApi, 'getTenantOptions').mockResolvedValue([
+      { id: '10002', tenantCode: '100002', tenantName: '星辰智能科技', status: 0 },
+    ]);
+    vi.spyOn(authApi, 'getAuthInfo').mockImplementation(async () => {
+      const tid = adminTenantManager.getTenantId() || '0';
+      return {
+        ...createSuperAdminProfile(),
+        tenantId: tid,
+        tenantName: tid === '10002' ? '星辰智能科技' : '平台默认租户',
+        tenantEnabled: true,
+      };
+    });
+    vi.spyOn(authApi, 'getAuthRoutes').mockResolvedValue(buildSampleMenus());
+    await authStore.fetchUserInfo();
+    const origBuildRoutes = permissionStore.buildRoutes.bind(permissionStore);
+    vi.spyOn(permissionStore, 'buildRoutes').mockImplementation(async targetRouter => {
+      const routes = await origBuildRoutes(targetRouter);
+      if (targetRouter) {
+        registerTrackedRoutes(targetRouter);
+      }
+      return routes;
+    });
+    await permissionStore.buildRoutes(router);
+
+    const RootOutlet = defineComponent({ name: 'RootOutletStub', template: '<router-view />' });
+    const wrapper = trackWrapper(
+      mount(RootOutlet, {
+        global: { plugins: [pinia, router, ElementPlus, AtengElementPlus] },
+      }),
+    );
+    await flushPromises();
+
+    // 先激活并缓存 Dashboard，再切回 /system/user
+    await router.push('/dashboard');
+    await flushPromises();
+    expect(dashboardMountCount).toBe(1);
+    await router.push('/system/user');
+    await flushPromises();
+    expect(userMountCount).toBe(1);
+    expect(wrapper.find('[data-testid="tracked-user"]').text()).toBe('user:0');
+
+    // 从 '0' 切换至 '10002'（停留在同一共享路由 /system/user）：必须干净重建组件，禁止残留 '0' 视图
+    expect(await tenantStore.switchTenant('10002', router)).toBe(true);
+    await flushPromises();
+    expect(router.currentRoute.value.path).toBe('/system/user');
+    expect(userMountCount).toBe(2);
+    expect(wrapper.find('[data-testid="tracked-user"]').text()).toBe('user:10002');
+
+    // 再从 '10002' 切回平台默认租户 '0'（停留在同一共享路由 /system/user）：禁止复用切出前缓存的 '0' 实例
+    expect(await tenantStore.resetToPlatform(router)).toBe(true);
+    await flushPromises();
+    expect(router.currentRoute.value.path).toBe('/system/user');
+    expect(userMountCount).toBe(3);
+    expect(wrapper.find('[data-testid="tracked-user"]').text()).toBe('user:0');
+
+    // 切到 KeepAlive 的 /dashboard：由于切换租户重建 KeepAlive 容器，Dashboard 也必须全新挂载而非回放旧租户缓存
+    await router.push('/dashboard');
+    await flushPromises();
+    expect(dashboardMountCount).toBe(2);
+    expect(wrapper.find('[data-testid="tracked-dashboard"]').text()).toBe('dash:0');
+  });
+
+  it('renders AdminSidebar as semantic <nav> without el-menu ARIA roles and preserves collapsed aria-label & active navigation (#53)', async () => {
+    const router = createLayoutTestRouter();
+    await router.push('/system/user');
+    await router.isReady();
+
+    const permissionStore = usePermissionStore();
+    vi.spyOn(authApi, 'getAuthRoutes').mockResolvedValue(buildSampleMenus());
+    await permissionStore.buildRoutes();
+
+    const RootOutlet = defineComponent({ name: 'RootOutletStub', template: '<router-view />' });
+    const wrapper = trackWrapper(
+      mount(RootOutlet, {
+        global: { plugins: [pinia, router, ElementPlus, AtengElementPlus] },
+      }),
+    );
+    await flushPromises();
+
+    const nav = wrapper.find('[data-testid="admin-sidebar-nav"]');
+    expect(nav.exists()).toBe(true);
+    expect(nav.element.tagName.toLowerCase()).toBe('nav');
+    expect(nav.attributes('aria-label')).toBe('主导航');
+    expect(nav.findAll('[role="menubar"], [role="menu"], [role="menuitem"]')).toHaveLength(0);
+
+    const activeUserBtn = nav.find('[data-testid="sidebar-item-/system/user"]');
+    expect(activeUserBtn.attributes('aria-current')).toBe('page');
+
+    // 折叠侧栏：隐藏可见文字，但为图标按钮补齐 aria-label 并支持点击导航
+    await wrapper.find('[data-testid="header-sidebar-toggle"]').trigger('click');
+    await nextTick();
+
+    const dashBtnCollapsed = nav.find('[data-testid="sidebar-item-/dashboard"]');
+    expect(dashBtnCollapsed.attributes('aria-label')).toBe('工作台');
+    expect(nav.find('[data-testid="sidebar-item-/system/user"]').attributes('aria-label')).toBe('用户管理');
+
+    await dashBtnCollapsed.trigger('click');
+    await flushPromises();
+    expect(router.currentRoute.value.path).toBe('/dashboard');
+    expect(dashBtnCollapsed.attributes('aria-current')).toBe('page');
+  });
 });

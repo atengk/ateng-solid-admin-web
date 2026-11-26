@@ -163,8 +163,6 @@ watch(
   opened => {
     if (opened) {
       void loadDialogData();
-    } else {
-      resetState();
     }
   },
 );
@@ -216,6 +214,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
     :show-confirm="!detailLoadFailed"
     :confirm-loading="detailLoading ? true : undefined"
     :before-confirm="handleBeforeConfirm"
+    @closed="resetState"
   >
     <div class="flex flex-col gap-3">
       <FormErrorBanner :message="submitError" test-id="role-data-scope-api-error" />

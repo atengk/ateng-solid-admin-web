@@ -18,7 +18,7 @@
 - [前端项目门面 README.md](./README.md): 技术栈基线、首期范围与本地自检入口
 - [前端工程规范 AGENTS.md](./AGENTS.md): Vue 3.5 / TS 硬约束、本地联调与按需触发导航
 - [前端领域词汇表 CONTEXT.md](./CONTEXT.md): 认证、多租户、权限路由与字典展示术语表
-- [前端架构决策看板](./docs/adr/README.md): TailwindCSS 无 Preflight + `Precision Slate & Cobalt` 自有令牌（ADR-0001）、手写强类型 API 与 `ateng-ui` 集成（ADR-0002）、方案 A 轻量 `AdminLayout` 与单源鉴权桥接（ADR-0003）
+- [前端架构决策看板](./docs/adr/README.md): TailwindCSS 无 Preflight + `Precision Slate & Cobalt` 自有令牌（ADR-0001）、手写强类型 API 与 `ateng-ui` 集成（ADR-0002）、方案 A 轻量 `AdminLayout` 与单源鉴权桥接（ADR-0003）、列表双卡分体与自适应分页（ADR-0004）、检索分级单行与表格弹性封顶滚动（ADR-0005）
 - [混合样式与 `ateng-ui` 守则](./docs/agents/styling-and-ateng-ui.md): TailwindCSS v4 禁 Preflight、`Precision Slate & Cobalt` 令牌与组件接入避坑
 - [跨端通信与数据契约](./docs/agents/contracts.md): 响应解包、分页 `current`/`size`/`records`/`total`、Blob 双态拦截与 Fesod 导入协议
 - [编码规范、架构拆解与注释准则](./docs/agents/coding-standards.md): 复用提取阶梯、复杂视图/Composable 拆分线、查找表与文档/逻辑注释规范
@@ -27,5 +27,5 @@
 
 ## 前端架构与视图规格 (Specs)
 
-- [前端工程结构与配置规范](./docs/specs/frontend-architecture-and-conventions.md): 目录拓扑、ESLint 9 / TS Strict 基线、`.env.example` 代理与可扩展模块约定
+- [前端工程结构与配置规范](./docs/specs/frontend-architecture-and-conventions.md): 目录拓扑、ESLint 9 / TS Strict 基线、多环境 `.env.*` + `vite-env.d.ts` 与可扩展模块约定
 - [页面视图、动态路由与 Store 规格](./docs/specs/views-and-routes-spec.md): 静态/动态路由表、Pinia Setup Stores 与 `src/api/*` 域映射

@@ -184,6 +184,7 @@ function resolveCardIcon(icon?: string | null): Component {
           <el-avatar
             :size="48"
             :src="authStore.user?.avatar || undefined"
+            :alt="`${displayName}头像`"
             class="solid-dashboard-avatar shrink-0"
           >
             {{ avatarInitial }}

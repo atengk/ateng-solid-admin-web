@@ -140,7 +140,7 @@ async function handleUserCommand(
       <button
         type="button"
         data-testid="header-command-trigger"
-        aria-label="打开快捷搜索"
+        aria-label="搜索菜单 (Ctrl+K)"
         title="快捷搜索菜单 (Ctrl+K)"
         class="hidden h-8 cursor-pointer items-center gap-2 rounded-[var(--solid-radius-md)] border border-border bg-surface-subtle px-2.5 text-xs text-ink-secondary transition-colors hover:text-ink sm:inline-flex"
         @click="appStore.toggleCommandPalette(true)"
@@ -166,6 +166,7 @@ async function handleUserCommand(
           <el-avatar
             :size="24"
             :src="authStore.user?.avatar || undefined"
+            :alt="`${displayName}头像`"
             class="solid-user-avatar"
           >
             {{ avatarInitial }}

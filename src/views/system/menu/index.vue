@@ -23,6 +23,10 @@ import {
   type MenuTreeVO,
 } from '@/api/system/menu';
 import type { CommonStatus, MenuType } from '@/api/types';
+import {
+  QUERY_COLS_THREE_ITEMS,
+  useListTableLayout,
+} from '@/composables/useListTableLayout';
 import { useTreeTableControls } from '@/composables/useTreeTableControls';
 import { useAuthStore } from '@/stores/auth';
 import { isGlobalHandledHttpError, resolveErrorMessage } from '@/utils/http';
@@ -47,6 +51,7 @@ defineOptions({ name: 'SysMenu' });
 const STORAGE_KEY = 'solid:table:sys-menu';
 
 const authStore = useAuthStore();
+const { tableAutoHeight, tableAutoHeightMode } = useListTableLayout();
 
 const query = reactive<MenuQuery>({
   title: '',
@@ -66,6 +71,9 @@ const initialParentId = ref<string>(ROOT_MENU_ID);
 const initialMenuType = ref<MenuType>('M');
 
 const canUpdateMenu = computed<boolean>(() => authStore.hasPermission('system:menu:update'));
+const hasRowActions = computed<boolean>(() =>
+  authStore.hasPermission(['system:menu:create', 'system:menu:update', 'system:menu:delete']),
+);
 
 function asMenuRow(row: unknown): MenuTreeVO {
   return row as MenuTreeVO;
@@ -199,6 +207,8 @@ onMounted(() => {
       row-key="id"
       :storage-key="STORAGE_KEY"
       :show-pagination="false"
+      :auto-height="tableAutoHeight"
+      :auto-height-mode="tableAutoHeightMode"
       :default-expand-all="true"
       :tree-props="{ children: 'children' }"
       empty-description="暂无菜单权限配置"
@@ -208,8 +218,9 @@ onMounted(() => {
       <template #query>
         <AtengQueryForm
           :model="query"
+          :cols="QUERY_COLS_THREE_ITEMS"
           :default-collapsed="false"
-          :collapsed-rows="1"
+          :show-collapse="false"
           @search="handleQuerySearch"
           @reset="handleQueryReset"
         >
@@ -348,7 +359,7 @@ onMounted(() => {
         </template>
       </el-table-column>
 
-      <el-table-column label="操作" width="200" fixed="right" align="center">
+      <el-table-column v-if="hasRowActions" label="操作" width="200" fixed="right" align="center">
         <template #default="{ row }">
           <div class="inline-flex items-center justify-center gap-1">
             <el-button

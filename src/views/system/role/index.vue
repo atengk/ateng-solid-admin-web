@@ -19,6 +19,10 @@ import {
 } from '@/api/system/role';
 import type { CommonStatus } from '@/api/types';
 import { runConfirmedAction } from '@/composables/useConfirmAction';
+import {
+  QUERY_COLS_THREE_ITEMS,
+  useListTableLayout,
+} from '@/composables/useListTableLayout';
 import { useAuthStore } from '@/stores/auth';
 import RoleDataScopeDialog from '@/views/system/role/components/RoleDataScopeDialog.vue';
 import RoleFormDrawer from '@/views/system/role/components/RoleFormDrawer.vue';
@@ -36,6 +40,7 @@ defineOptions({ name: 'SysRole' });
 const STORAGE_KEY = 'solid:table:sys-role';
 
 const authStore = useAuthStore();
+const { tableAutoHeight, tableAutoHeightMode } = useListTableLayout();
 const tableRef = ref<AtengTableInstance<RoleVO>>();
 const pagination = usePagination<RoleVO, RoleQuery>(getRolePage, { defaultSize: 10 });
 const selectedRows = ref<RoleVO[]>([]);
@@ -48,6 +53,9 @@ const dataScopeVisible = ref<boolean>(false);
 const dataScopeRoleId = ref<string | undefined>(undefined);
 
 const canUpdateRole = computed<boolean>(() => authStore.hasPermission('system:role:update'));
+const hasRowActions = computed<boolean>(() =>
+  authStore.hasPermission(['system:role:update', 'system:role:delete']),
+);
 const asRoleRow = (row: unknown): RoleVO => row as RoleVO;
 const isRowSelectable = (row: unknown): boolean => !isProtectedRole(asRoleRow(row));
 
@@ -149,11 +157,18 @@ async function handleSaved(): Promise<void> {
       row-key="id"
       :storage-key="STORAGE_KEY"
       :show-batch-bar="false"
+      :auto-height="tableAutoHeight"
+      :auto-height-mode="tableAutoHeightMode"
       empty-description="暂无角色数据，可点击上方“新增角色”创建"
       search-empty-description="未检索到匹配的角色信息"
     >
       <template #query>
-        <AtengQueryForm :model="pagination.query" :default-collapsed="false" :collapsed-rows="1">
+        <AtengQueryForm
+          :model="pagination.query"
+          :cols="QUERY_COLS_THREE_ITEMS"
+          :default-collapsed="false"
+          :show-collapse="false"
+        >
           <el-form-item label="角色名称" prop="roleName">
             <el-input v-model="pagination.query.roleName" data-testid="role-query-name" clearable placeholder="请输入角色名称" />
           </el-form-item>
@@ -233,7 +248,7 @@ async function handleSaved(): Promise<void> {
         </template>
       </el-table-column>
 
-      <el-table-column label="操作" width="210" fixed="right" align="center">
+      <el-table-column v-if="hasRowActions" label="操作" width="210" fixed="right" align="center">
         <template #default="{ row }">
           <el-tooltip :content="ROLE_PROTECTED_TOOLTIP" :disabled="!isProtectedRole(asRoleRow(row))" placement="top">
             <div class="inline-flex items-center justify-center gap-1">

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElIcon, ElMenu, ElMenuItem, ElMenuItemGroup } from 'element-plus';
+import { ElIcon, ElTooltip } from 'element-plus';
 import { HomeFilled, Menu as DefaultMenuIcon } from '@element-plus/icons-vue';
 import BrandLogo from '@/components/BrandLogo.vue';
 import { usePermissionStore } from '@/stores/permission';
@@ -49,6 +49,7 @@ const route = useRoute();
 const router = useRouter();
 const permissionStore = usePermissionStore();
 
+const ADMIN_HOME_TITLE = '工作台';
 const appTitle = import.meta.env.VITE_APP_TITLE || 'ateng-solid 管理后台';
 const isCollapsed = computed<boolean>(() => !props.mobileDrawer && props.collapsed);
 const activeMenuPath = computed<string>(() => route.path || ADMIN_HOME_PATH);
@@ -102,47 +103,67 @@ async function handleBrandClick(): Promise<void> {
       <BrandLogo :size="24" :show-wordmark="!isCollapsed" wordmark-size="sm" />
     </button>
 
-    <div class="flex-1 overflow-x-hidden overflow-y-auto py-1.5">
-      <el-menu
-        class="solid-sidebar-menu"
-        aria-orientation="vertical"
-        :default-active="activeMenuPath"
-        :collapse="isCollapsed"
-        :collapse-transition="false"
-        @select="handleMenuSelect"
-      >
-        <el-menu-item :index="ADMIN_HOME_PATH">
-          <el-icon><HomeFilled /></el-icon>
-          <template #title>工作台</template>
-        </el-menu-item>
+    <nav
+      aria-label="主导航"
+      data-testid="admin-sidebar-nav"
+      class="flex-1 overflow-x-hidden overflow-y-auto py-1.5"
+    >
+      <ul class="m-0 list-none p-0">
+        <li>
+          <el-tooltip :content="ADMIN_HOME_TITLE" placement="right" :disabled="!isCollapsed">
+            <button
+              type="button"
+              :data-testid="`sidebar-item-${ADMIN_HOME_PATH}`"
+              :aria-label="isCollapsed ? ADMIN_HOME_TITLE : undefined"
+              :aria-current="activeMenuPath === ADMIN_HOME_PATH ? 'page' : undefined"
+              :class="[
+                'solid-sidebar-item',
+                isCollapsed && 'solid-sidebar-item--collapsed',
+                activeMenuPath === ADMIN_HOME_PATH && 'is-active',
+              ]"
+              @click="handleMenuSelect(ADMIN_HOME_PATH)"
+            >
+              <el-icon :size="16" class="shrink-0" aria-hidden="true"><HomeFilled /></el-icon>
+              <span v-if="!isCollapsed" class="truncate">{{ ADMIN_HOME_TITLE }}</span>
+            </button>
+          </el-tooltip>
+        </li>
 
-        <template v-for="group in permissionStore.sidebarGroups" :key="group.id">
-          <el-menu-item-group :title="isCollapsed ? undefined : group.title">
-            <el-menu-item v-for="item in group.items" :key="item.id" :index="item.path">
-              <el-icon>
-                <component :is="resolveSidebarItemIcon(item.icon)" />
-              </el-icon>
-              <template #title>{{ item.title }}</template>
-            </el-menu-item>
-          </el-menu-item-group>
-        </template>
-      </el-menu>
-    </div>
+        <li v-for="group in permissionStore.sidebarGroups" :key="group.id" class="mt-0.5">
+          <div v-if="!isCollapsed" class="solid-sidebar-group-title">
+            {{ group.title }}
+          </div>
+          <ul class="m-0 list-none p-0" :aria-label="group.title">
+            <li v-for="item in group.items" :key="item.id">
+              <el-tooltip :content="item.title" placement="right" :disabled="!isCollapsed">
+                <button
+                  type="button"
+                  :data-testid="`sidebar-item-${item.path}`"
+                  :aria-label="isCollapsed ? item.title : undefined"
+                  :aria-current="activeMenuPath === item.path ? 'page' : undefined"
+                  :class="[
+                    'solid-sidebar-item',
+                    isCollapsed && 'solid-sidebar-item--collapsed',
+                    activeMenuPath === item.path && 'is-active',
+                  ]"
+                  @click="handleMenuSelect(item.path)"
+                >
+                  <el-icon :size="16" class="shrink-0" aria-hidden="true">
+                    <component :is="resolveSidebarItemIcon(item.icon)" />
+                  </el-icon>
+                  <span v-if="!isCollapsed" class="truncate">{{ item.title }}</span>
+                </button>
+              </el-tooltip>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </nav>
   </aside>
 </template>
 
 <style scoped>
-.solid-sidebar-menu {
-  border-right: none;
-  background-color: transparent;
-  --el-menu-bg-color: transparent;
-  --el-menu-hover-bg-color: var(--solid-bg-subtle);
-  --el-menu-active-color: var(--solid-primary);
-  --el-menu-text-color: var(--solid-text-regular);
-  --el-menu-item-height: 36px;
-}
-
-.solid-sidebar-menu :deep(.el-menu-item-group__title) {
+.solid-sidebar-group-title {
   padding: 10px 16px 4px;
   font-size: 12px;
   font-weight: 600;
@@ -150,23 +171,44 @@ async function handleBrandClick(): Promise<void> {
   line-height: 1.4;
 }
 
-.solid-sidebar-menu :deep(.el-menu-item) {
+.solid-sidebar-item {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 16px);
   height: 36px;
-  line-height: 36px;
   margin: 2px 8px;
   padding: 0 10px;
+  border: none;
   border-radius: var(--solid-radius-md);
+  background-color: transparent;
+  color: var(--solid-text-regular);
   font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
-.solid-sidebar-menu :deep(.el-menu-item.is-active) {
+.solid-sidebar-item:hover {
+  background-color: var(--solid-bg-subtle);
+  color: var(--solid-text-primary);
+}
+
+.solid-sidebar-item:focus-visible {
+  outline: none;
+  box-shadow: var(--solid-shadow-focus);
+}
+
+.solid-sidebar-item.is-active {
   background-color: var(--solid-primary-soft);
   color: var(--solid-primary);
   font-weight: 600;
 }
 
-.solid-sidebar-menu :deep(.el-menu-item.is-active)::before {
+.solid-sidebar-item.is-active::before {
   content: '';
   position: absolute;
   left: 0;
@@ -177,12 +219,10 @@ async function handleBrandClick(): Promise<void> {
   background-color: var(--solid-primary);
 }
 
-.solid-sidebar-menu.el-menu--collapse :deep(.el-menu-item) {
+.solid-sidebar-item--collapsed {
+  width: calc(100% - 12px);
   margin: 2px 6px;
+  padding: 0;
   justify-content: center;
-}
-
-.solid-sidebar-menu.el-menu--collapse :deep(.el-menu-item-group__title) {
-  display: none;
 }
 </style>

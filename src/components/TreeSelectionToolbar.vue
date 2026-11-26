@@ -76,6 +76,7 @@ function handleStrictlyChange(val: string | number | boolean): void {
     </div>
     <el-checkbox
       :model-value="strictly"
+      :name="`${testIdPrefix}-strictly`"
       :data-testid="`${testIdPrefix}-strictly`"
       @change="handleStrictlyChange"
     >

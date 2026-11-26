@@ -82,8 +82,6 @@ watch(
   opened => {
     if (opened) {
       void initDefaultPassword();
-    } else {
-      clearSensitiveForm();
     }
   },
 );
@@ -114,6 +112,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
     :form-ref="formRef"
     :confirm-loading="detailLoading ? true : undefined"
     :before-confirm="handleBeforeConfirm"
+    @closed="clearSensitiveForm"
   >
     <div class="flex flex-col gap-3">
       <FormErrorBanner :message="submitError" test-id="user-reset-pwd-error" />

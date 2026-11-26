@@ -32,8 +32,10 @@
 2. **多标签页 `AtengTabsNav` + `useTabsNav` + `<KeepAlive>` 单源契约**：
    - 用 `@atengk/vue` `useTabsNav()` 维护唯一数据源，`<router-view>` 外包裹 `<KeepAlive :include="cachedViews">` 并结合 `refreshingKey` 实现无整页刷新重载；
    - **后 `#376` 标准绑定**：固定配置 `style-type="line"`、`height="36px"`、`:emit-close-on-batch="false"`、`:icon-resolver="resolveMenuIcon"`、`:menu-icons="TAB_MENU_ICONS"`（注入 `@element-plus/icons-vue` 线性图标替换默认 emoji）；事件统一单源收口：`@tab-click` 跳转、`@tab-close` 调 `closeTab`、`@batch-close` 依据 `payload.command` 一次性调用 `closeOthers`/`closeLeft`/`closeRight`/`closeAll` 消除多次状态跳变、`@tab-refresh` 调 `refreshTab`。
-3. **分页表格与查询表单协同（后 `#375`）**：
+3. **分页表格、检索分层与弹性封顶滚动（对齐 `#375` / `#379` / `#380` 与 ADR-0004、ADR-0005）**：
    - 标准组合：`usePagination`（`@atengk/vue`）+ `AtengQueryForm` + `AtengTable`；
+   - **双卡与自适应分页约定（[ADR-0004](../adr/0004-dual-card-table-and-adaptive-pagination.md)）**：列表页统一采用“检索卡 + 表格分页卡”上下分体结构与“总条数置左、翻页控制组置右”两端分布；`total === 0` 自动收起分页、单页收起 `jumper`、窄容器自动折行；**各业务页统一消费 `AtengTable` 默认自适应分页策略，禁止手写互异的 `pagination-layout` 覆盖**，且严禁在上层用 `!important` 覆写 `.at-table__*`（通用容器与分页布局已于 [`ateng-ui#379`](https://github.com/atengk/ateng-ui/issues/379) 下沉并在 `tokens.css`/`main.css` 完成轻量视觉对齐，`dev` 可通过 `yalc` 联调提交，合入 `main` 与发版前须锁回 npm 正式版）；
+   - **检索复杂度分级与弹性封顶滚动（[ADR-0005](../adr/0005-tiered-query-collapse-and-max-auto-height-table.md)）**：全宽 ≤3 项检索统一 `:default-collapsed="false" :show-collapse="false"` 并配 `:cols` 单行收口（复用 `useListTableLayout.ts` 导出的 `QUERY_COLS_THREE_ITEMS` / `QUERY_COLS_TWO_ITEMS`）；仅窄分栏（`dict` 左栏）与 ≥4 项多条件页保留 `:default-collapsed="true"`；全站 12 个业务页已通过 `useListTableLayout` 在桌面横排态统一接入 `:auto-height="16"` + `auto-height-mode="max"`（已于 [`ateng-ui#380`](https://github.com/atengk/ateng-ui/issues/380) 下沉并在 `dev` 经本地 `yalc` 联调验证，合入 `main` 前锁回 npm 正式版；分栏外层配 `h-full min-h-0`），移动端/垂直堆叠态自动传 `false` 退回整页滚动；
    - 当 `AtengQueryForm` 嵌套在已传 `:pagination` 的 `<AtengTable #query>` 插槽内时，受益于 `#375` 修复可自动继承 `tableContext.loading` 且无双发查询/无效重置，仅需传 `:model="pagination.query"`，勿重复传 `:pagination`；
    - 树形表格直接向 `<AtengTable>` 透传 `:tree-props`、`row-key="id"`、`:show-pagination="false"`。
 4. **双轨字典与枚举加载（`src/utils/dict.ts`）**：
@@ -44,4 +46,4 @@
    - 上传组件：**强制传递 `:http-request="uploadWithAdminClient"`** 桥接 `adminHttpClient`（严禁使用默认 XHR `action`，否则绕过 `satoken-admin`、`X-Tenant-Id` 与全局异常拦截器）；用户导入写接口须覆盖请求级超时 `timeout: 120_000`；
    - 导入错误反馈：`<AtengExcelFeedback :download-action="downloadFeedbackBlob" />` 强制经 `adminHttpClient` 拉取二进制流（受益于 `#375` 自动优先解析 `Content-Disposition` 文件名）；导出使用 `AtengExcelExport` 或 `useExcel({ httpClient: adminHttpClient })`。
 
-> 若接入中发现 `@atengk/*` 通用能力缺失或缺陷，按 [`foundation-first-gate.md`](./foundation-first-gate.md) 停工提单；当前本地 `.yalc/@atengk/element-plus`（含 `#369`–`#376` 修复）仅限联调，正式合并入 `dev`/`main` 前必须还原为上游已发布的正式 npm 版本锁版。
+> 若接入中发现 `@atengk/*` 通用能力缺失或缺陷，按 [`foundation-first-gate.md`](./foundation-first-gate.md) 提单并先在 `ateng-ui` 本地改造；当前本地 `.yalc/@atengk/element-plus` 可在 `dev` 分支随本仓改动正常提交联调，合入 `main` 与发版前必须还原为上游已发布的正式 npm 版本锁版。

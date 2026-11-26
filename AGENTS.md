@@ -8,7 +8,7 @@
 
 - **依赖克制**：优先复用 `@atengk/core`（HTTP 解包、长整型正则防截断、`AuthManager`/`TenantManager`、Blob 双态嗅探、`formatMask*`）、`@atengk/vue`（`useRequest`/`usePagination`/`useAuth`/`useTenant`/`useTabsNav`/`useExcel`/`useUpload`）与 `@atengk/element-plus`（`AtengProLayout`/`AtengTabsNav`/`AtengTable`/`AtengQueryForm`/`AtengDialog`/`AtengDrawer`/`AtengDict*`/`AtengCaptcha`/`AtengUpload`/`AtengExcel*`/`v-permission`/`v-idempotent`）。
 - **禁止引入**：`lodash`、`moment`、`jquery`、Vuex、Options API、OpenAPI 代码生成工具、外部 Mock 服务；首期不预装 `@atengk/monitor`、L2 重型图表/编辑器与 `vue-i18n`，不提前建立空 `src/modules/` 目录。
-- **底层缺口即停工（Zero Workaround）**：遇 `@atengk/*` 能力缺失、设计不顺手或存在缺陷，立即暂停受阻编码并向 `atengk/ateng-ui` 提通用 Issue（严禁业务仓补丁绕过，严禁底座硬编码本项目约定）；正式提交前必须锁回 npm 正式版（`.githooks/pre-commit` 拦截 `file:.yalc`/`file:../`/`link:`）。
+- **底层零补丁与主干锁版门禁（Zero Workaround, Lock on `main`）**：遇 `@atengk/*` 能力缺失、设计不顺手或存在缺陷，严禁业务仓补丁绕过、严禁底座硬编码本项目约定，应先在 `ateng-ui` 本地改造并提交底座 `dev`；经 `pnpm pack + yalc` 刷新后可在 `dev` 继续开发、自测与提交（允许联调期远端 `dev` CI 暂红），**合入 `main` 与发版前必须锁回 npm 正式版**（由 `main` `pre-commit`、`pre-push`、`main` CI 与 `release.yml` 拦截 `file:.yalc`/`file:../`/`link:`/`.tgz`）。
 
 ---
 
@@ -30,7 +30,7 @@
 
 ## 3. 验证门禁、本地配置与交付底线
 
-- **四合一验证门禁**：交付前本地执行 `pnpm typecheck && pnpm lint && pnpm test && pnpm build` 全绿；Vitest 单测依赖 `vi.mock` 离线自洽，组件测试在 `afterEach` 调用 `wrapper.unmount()` 并重置 Pinia / Storage。
+- **四合一验证门禁**：交付前本地执行 `pnpm typecheck && pnpm lint && pnpm test && pnpm build` 全绿（`dev` 联调 `yalc` 期间允许远端 `dev` CI 暂红，以本地四合一全绿为准，合入 `main` 前须锁版并恢复远端 CI 全绿）；Vitest 单测依赖 `vi.mock` 离线自洽，组件测试在 `afterEach` 调用 `wrapper.unmount()` 并重置 Pinia / Storage。
 - **本地配置与 Git**：后端代理与私有配置仅存 `.gitignore` 忽略的 `.env.local`（仓库仅留 `.env.example`）；`dev` 分支开发，未获明确指令不提交/推送，暂存显式指定路径（禁 `git add .`/`-A`），Conventional Commits。
 
 ---

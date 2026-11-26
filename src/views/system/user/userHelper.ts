@@ -345,6 +345,7 @@ export function buildUserFormRules(isCreate: () => boolean): FormRules {
   return {
     username: [
       {
+        required: isCreate(),
         validator: (_rule, value: string, callback) => {
           if (!isCreate()) {
             callback();

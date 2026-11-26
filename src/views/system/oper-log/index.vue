@@ -11,6 +11,7 @@ import {
 } from '@atengk/element-plus';
 import { usePagination } from '@atengk/vue';
 import { getOperLogPage, type OperLogQuery, type OperLogVO } from '@/api/system/log';
+import { useListTableLayout } from '@/composables/useListTableLayout';
 import AuditTraceCell from '@/views/system/log/components/AuditTraceCell.vue';
 import OperLogDetailDrawer from '@/views/system/oper-log/components/OperLogDetailDrawer.vue';
 import {
@@ -32,6 +33,7 @@ defineOptions({ name: 'SysOperLog' });
 
 const STORAGE_KEY = 'solid:table:sys-oper-log';
 const QUERY_FORM_COLS = { xs: 1, sm: 2, md: 3, lg: 5, xl: 5 } as const;
+const { tableAutoHeight, tableAutoHeightMode } = useListTableLayout();
 
 const pagination = usePagination<OperLogVO, OperLogQuery>(getOperLogPage, {
   defaultSize: 10,
@@ -67,6 +69,8 @@ function handleQueryReset(): void {
       :pagination="pagination"
       row-key="id"
       :storage-key="STORAGE_KEY"
+      :auto-height="tableAutoHeight"
+      :auto-height-mode="tableAutoHeightMode"
       empty-description="暂无操作审计日志记录"
       search-empty-description="未检索到匹配的操作审计日志"
     >
@@ -124,6 +128,7 @@ function handleQueryReset(): void {
           <el-form-item label="操作时间" prop="beginTime">
             <AtengDateRange
               v-model="timeRange"
+              :name="['beginTime', 'endTime']"
               data-testid="oper-log-query-time"
               type="datetimerange"
               range-separator="至"

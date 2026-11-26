@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onActivated, onMounted, ref } from 'vue';
 import { ElAvatar, ElButton, ElFormItem, ElInput, ElSwitch, ElTableColumn, ElTag, ElTooltip } from 'element-plus';
 import { Delete, Plus, Upload } from '@element-plus/icons-vue';
 import { formatMaskEmail, formatMaskPhone } from '@atengk/core';
@@ -17,6 +17,7 @@ import { getDeptOptions, type DeptTreeVO } from '@/api/system/dept';
 import { deleteUsers, exportUsers, getUserPage, updateUserStatus, type UserQuery, type UserVO } from '@/api/system/user';
 import type { CommonStatus } from '@/api/types';
 import { runConfirmedAction } from '@/composables/useConfirmAction';
+import { useListTableLayout } from '@/composables/useListTableLayout';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
 import UserDeptSidebar from '@/views/system/user/components/UserDeptSidebar.vue';
@@ -54,7 +55,11 @@ const tenantStore = useTenantStore();
 const tableRef = ref<AtengTableInstance<UserVO>>();
 const deptSidebarRef = ref<InstanceType<typeof UserDeptSidebar>>();
 
-const isStackedLayout = ref<boolean>(typeof window !== 'undefined' ? window.innerWidth < STACKED_BREAKPOINT_PX : false);
+const {
+  isStacked: isStackedLayout,
+  tableAutoHeight,
+  tableAutoHeightMode,
+} = useListTableLayout({ stackedBreakpoint: STACKED_BREAKPOINT_PX });
 const deptTree = ref<DeptTreeVO[]>([]);
 const activeDeptFilter = ref<{ id: string; deptName: string } | null>(null);
 
@@ -75,6 +80,9 @@ const importDialogVisible = ref<boolean>(false);
 
 const currentUserId = computed<string | undefined>(() => authStore.user?.userId);
 const canUpdateUser = computed<boolean>(() => authStore.hasPermission('system:user:update'));
+const hasRowActions = computed<boolean>(() =>
+  authStore.hasPermission(['system:user:update', 'system:user:delete']),
+);
 const allowPlatformSuperEdit = computed<boolean>(() => tenantStore.activeTenantId === '0' && authStore.hasRole('super_admin'));
 const selectedUserIds = computed<string[]>(() => selectedRows.value.map(item => item.id));
 
@@ -83,27 +91,37 @@ const isRowSelectable = (row: unknown): boolean => canSelectUserRow(asUserRow(ro
 const rowDisableReason = (row: UserVO): string =>
   resolveUserRowProtection(row, currentUserId.value, allowPlatformSuperEdit.value).disableReason;
 
-function handleViewportResize(): void {
-  if (typeof window !== 'undefined') {
-    isStackedLayout.value = window.innerWidth < STACKED_BREAKPOINT_PX;
+function containsDeptNode(nodes: DeptTreeVO[], targetId: string): boolean {
+  return nodes.some(node => node.id === targetId || (node.children ? containsDeptNode(node.children, targetId) : false));
+}
+
+async function loadDeptTree(): Promise<void> {
+  try {
+    const tree = await getDeptOptions();
+    deptTree.value = tree;
+    if (activeDeptFilter.value && !containsDeptNode(tree, activeDeptFilter.value.id)) {
+      activeDeptFilter.value = null;
+      pagination.query.deptId = undefined;
+      deptSidebarRef.value?.clearSelection();
+    }
+  } catch {
+    deptTree.value = [];
   }
 }
 
+let hasActivatedOnce = false;
+
 onMounted(() => {
-  if (typeof window !== 'undefined') {
-    window.addEventListener('resize', handleViewportResize);
-  }
-  void getDeptOptions().then(tree => {
-    deptTree.value = tree;
-  }).catch(() => {
-    deptTree.value = [];
-  });
+  void loadDeptTree();
 });
 
-onBeforeUnmount(() => {
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('resize', handleViewportResize);
+onActivated(() => {
+  if (!hasActivatedOnce) {
+    hasActivatedOnce = true;
+    return;
   }
+  // KeepAlive 切回用户页时同步刷新部门树与分页列表，避免跨部门/角色/岗位维护后树或表格陈旧
+  void loadDeptTree().then(() => pagination.refresh());
 });
 
 function clearTableSelection(): void {
@@ -222,7 +240,10 @@ async function handleTableReload(): Promise<void> {
 </script>
 
 <template>
-  <section data-testid="sys-user-page" class="flex min-h-[580px] flex-col">
+  <section
+    data-testid="sys-user-page"
+    :class="['flex flex-col', isStackedLayout ? 'min-h-[580px]' : 'h-full min-h-0']"
+  >
     <AtengSplitLayout
       :storage-key="isStackedLayout ? '' : SPLIT_STORAGE_KEY"
       :direction="isStackedLayout ? 'vertical' : 'horizontal'"
@@ -244,6 +265,8 @@ async function handleTableReload(): Promise<void> {
             row-key="id"
             :storage-key="TABLE_STORAGE_KEY"
             :show-batch-bar="false"
+            :auto-height="tableAutoHeight"
+            :auto-height-mode="tableAutoHeightMode"
             empty-description="暂无用户数据，可点击上方“新增用户”或“导入”"
             search-empty-description="未检索到匹配的用户信息"
           >
@@ -261,6 +284,7 @@ async function handleTableReload(): Promise<void> {
                 <el-form-item label="创建时间" prop="beginTime">
                   <AtengDateRange
                     v-model="timeRange"
+                    :name="['beginTime', 'endTime']"
                     data-testid="user-query-time"
                     type="datetimerange"
                     range-separator="至"
@@ -311,7 +335,11 @@ async function handleTableReload(): Promise<void> {
             <el-table-column prop="nickname" label="用户昵称" min-width="115" show-overflow-tooltip />
             <el-table-column prop="avatar" label="头像" width="72" align="center">
               <template #default="{ row }">
-                <el-avatar :size="26" :src="asUserRow(row).avatar || undefined">
+                <el-avatar
+                  :size="26"
+                  :src="asUserRow(row).avatar || undefined"
+                  :alt="`${asUserRow(row).nickname || asUserRow(row).username}头像`"
+                >
                   {{ formatUserAvatarInitial(asUserRow(row).nickname, asUserRow(row).username) }}
                 </el-avatar>
               </template>
@@ -354,7 +382,7 @@ async function handleTableReload(): Promise<void> {
                 <span class="tabular-nums">{{ asUserRow(row).createTime || '--' }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="210" fixed="right" align="center">
+            <el-table-column v-if="hasRowActions" label="操作" width="210" fixed="right" align="center">
               <template #default="{ row }">
                 <UserRowActions :row="asUserRow(row)" :current-user-id="currentUserId" :allow-platform-super-edit="allowPlatformSuperEdit" @edit="openEditDrawer" @reset-password="openResetPwdDialog" @delete="handleDeleteSingle" />
               </template>

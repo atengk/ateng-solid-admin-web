@@ -12,11 +12,11 @@ ateng-solid-admin-web/
 │   ├── adr/                         # 前端架构决策记录
 │   ├── agents/                      # 按需规约与协作配置（同步的 contracts/foundation-first-gate/coding-standards/documentation-specification 与 styling-and-ateng-ui）
 │   └── specs/                       # 前端架构与约定规范
-├── public/                          # 静态公共资源
+├── public/                          # 静态公共资源（含自适应矢量 favicon.svg）
 ├── src/
 │   ├── api/                         # 12 个按域划分的手写强类型接口与 TS 类型（auth/index.ts + system/*）
 │   ├── assets/                      # 编译期处理的图标/图片资源
-│   ├── components/                  # 业务公共组件（租户切换器、主题切换、快捷命令搜索、表单报错横幅、强口令清单、树选择工具栏）
+│   ├── components/                  # 业务公共组件（品牌主标 BrandLogo、租户切换器、主题切换、快捷命令搜索、表单报错横幅、强口令清单、树选择工具栏）
 │   ├── composables/                 # 业务组合式函数（use*）
 │   ├── layouts/                     # 方案 A 轻量布局壳（AdminLayout/AdminSidebar/AdminHeader/TenantObserveBanner + AtengTabsNav + KeepAlive）
 │   ├── router/                      # 静态路由、动态路由加载器（import.meta.glob）与导航守卫（guards.ts）
@@ -26,9 +26,12 @@ ateng-solid-admin-web/
 │   ├── utils/                       # 三单例与拦截器（http.ts）、双轨字典（dict.ts）、图标解析（icon.ts）、强口令（password.ts）、时间区间（dateRange.ts）、通用树（tree.ts）
 │   ├── views/                       # 业务页面视图（login/dashboard/profile/error/system/*）
 │   ├── App.vue
-│   └── main.ts
+│   ├── main.ts
+│   └── vite-env.d.ts                # Vite 全局环境变量只读强类型声明 (ImportMetaEnv)
 ├── tests/                           # Vitest + happy-dom 三层离线自洽单测（setup.ts + utils/ + stores/ + router/ + components/）
-├── .env.example                     # 环境变量占位符模板（真实本地配置写于 .env.local）
+├── .env.development                 # 开发环境默认配置（受 Git 追踪，无任何敏感凭据）
+├── .env.example                     # 环境变量占位符模板
+├── .env.production                  # 生产构建配置（受 Git 追踪，无任何敏感凭据）
 ├── eslint.config.mjs                # ESLint 9 Flat Config（与 ateng-ui 对齐）
 ├── tsconfig.json                    # TypeScript Strict Mode（noImplicitAny / strictNullChecks / noUncheckedIndexedAccess）
 └── package.json                     # 锁定 Node >=22、pnpm 11+
@@ -52,25 +55,28 @@ ateng-solid-admin-web/
 
 ---
 
-## 3. 环境变量（`.env.example`）与 Vite Proxy 规范
+## 3. 多环境配置（`.env.*`）与 Vite Proxy 规范
 
-开发期禁止在代码中硬编码后端域名与端口，`.env.example` 仅暴露非敏感语义占位符：
+开发期与生产构建均禁止在代码中硬编码后端域名与端口。项目通过 `.gitignore` 精准放行无敏感信息的 **`.env.development`** 与 **`.env.production`** 入库，个人本地覆盖写于被忽略的 `.env.local`，所有 `VITE_*` 键在 [`src/vite-env.d.ts`](../../src/vite-env.d.ts) 中强制声明只读强类型契约：
 
 ```ini
 # 应用标题
 VITE_APP_TITLE=ateng-solid 管理后台
 
-# 本地开发端口
+# 本地开发端口（仅 .env.development / .env.local）
 VITE_PORT=5173
 
 # 接口请求基础地址（默认留空直通 /admin/**；生产独立网关域可配置完整基地址）
 VITE_API_BASE_URL=
 
-# 开发代理目标（本地联调可在 .env.local 覆盖为单体服务或网关地址）
+# 全局默认请求超时时长（毫秒，默认 15000；批量导入接口显式覆盖 120000）
+VITE_API_TIMEOUT=15000
+
+# 开发代理目标（仅 .env.development / .env.local，本地可在 .env.local 覆盖为单体服务或网关地址）
 VITE_PROXY_TARGET=http://127.0.0.1:8080
 ```
 
-- **直通 `/admin` 代理规则**：前端 `src/api/*` 统一使用 `/admin/<域>/<资源>` 路径，`VITE_API_BASE_URL` 默认留空；`vite.config.ts` 仅代理 `'/admin'` ➔ `VITE_PROXY_TARGET`（零路径重写），与后端单体及未来 `ateng-cloud-gateway` 路径 100% 对称。
+- **直通 `/admin` 代理与超时对齐**：前端 `src/api/*` 统一使用 `/admin/<域>/<资源>` 路径，`VITE_API_BASE_URL` 默认留空；`vite.config.ts` 仅代理 `'/admin'` ➔ `VITE_PROXY_TARGET`（零路径重写）并配置 `timeout: 120_000` / `proxyTimeout: 120_000`，`adminHttpClient` 通过 `resolveApiTimeoutMs(import.meta.env.VITE_API_TIMEOUT)` 绑定全局超时并在非法值时回落 `15_000ms`。
 
 ---
 
@@ -82,7 +88,7 @@ VITE_PROXY_TARGET=http://127.0.0.1:8080
 1. **`src/utils/http.ts` 集中导出三单例**：
    - `adminAuthManager = createAuthManager({ tokenKey: 'satoken-admin', headerName: 'satoken-admin' })`；
    - `adminTenantManager = createTenantManager({ tenantKey: 'solid-tenant-id', headerName: 'X-Tenant-Id' })`（若本地为空则初始化写入 `'0'`）；
-   - `adminHttpClient = createHttpClient({ baseURL: import.meta.env.VITE_API_BASE_URL || '', timeout: 15_000, authManager: adminAuthManager, tenantManager: adminTenantManager, unwrap: true, onUnauthorized: () => handleSessionExpired('401') })`。
+   - `adminHttpClient = createHttpClient({ baseURL: import.meta.env.VITE_API_BASE_URL || '', timeout: resolveApiTimeoutMs(import.meta.env.VITE_API_TIMEOUT), authManager: adminAuthManager, tenantManager: adminTenantManager, unwrap: true, onUnauthorized: () => handleSessionExpired('401') })`。
 2. **`src/main.ts` 严格 8 步启动顺序**：
    - `initTheme({ storageKey: 'solid-theme-mode', defaultMode: 'light', listenSystemPreference: true })`（**不传 `themeColor`**，配合 `index.html` 防 FOUC 脚本）
    - ➔ `setupDictManager()`（注册双轨单查 + 批查 Provider）

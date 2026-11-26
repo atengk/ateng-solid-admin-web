@@ -128,7 +128,7 @@ const assignableRoleOptions = computed<AssignableRoleOption[]>(() =>
   ),
 );
 
-const formRules: FormRules = buildUserFormRules(() => props.mode === 'create');
+const formRules = computed<FormRules>(() => buildUserFormRules(() => props.mode === 'create'));
 
 function resetFormState(): void {
   resetDialogState();
@@ -212,8 +212,6 @@ watch(
   opened => {
     if (opened) {
       void loadDrawerData();
-    } else {
-      resetFormState();
     }
   },
 );
@@ -250,6 +248,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
     :form-ref="formRef"
     :show-confirm="!detailLoadFailed && !detailLoading"
     :before-confirm="handleBeforeConfirm"
+    @closed="resetFormState"
   >
     <div class="flex flex-col gap-3">
       <FormErrorBanner :message="submitError" test-id="user-form-error" />
@@ -263,7 +262,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
         label-width="88px"
       >
         <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
-          <el-form-item label="登录账号" prop="username">
+          <el-form-item label="登录账号" prop="username" :required="mode === 'create'">
             <el-input v-model="form.username" data-testid="user-form-username" :disabled="mode === 'edit'" maxlength="30" clearable class="font-mono-data" placeholder="2~30 位字母、数字或下划线" />
           </el-form-item>
           <el-form-item label="用户昵称" prop="nickname">
@@ -333,10 +332,10 @@ async function handleBeforeConfirm(): Promise<boolean> {
         </el-form-item>
 
         <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
-          <el-form-item label="用户性别" prop="gender">
+          <el-form-item for="" label="用户性别" prop="gender">
             <AtengDictRadio v-model="form.gender" dict-code="sys_user_gender" />
           </el-form-item>
-          <el-form-item label="账号状态" prop="status">
+          <el-form-item for="" label="账号状态" prop="status">
             <AtengDictRadio v-model="form.status" dict-code="commonStatus" value-type="number" :disabled="isStatusLocked" />
           </el-form-item>
         </div>

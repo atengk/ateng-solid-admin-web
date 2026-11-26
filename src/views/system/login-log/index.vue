@@ -9,6 +9,7 @@ import {
 } from '@atengk/element-plus';
 import { usePagination } from '@atengk/vue';
 import { getLoginLogPage, type LoginLogQuery, type LoginLogVO } from '@/api/system/log';
+import { useListTableLayout } from '@/composables/useListTableLayout';
 import AuditTraceCell from '@/views/system/log/components/AuditTraceCell.vue';
 import {
   buildAuditTimeShortcuts,
@@ -28,6 +29,7 @@ defineOptions({ name: 'SysLoginLog' });
 
 const STORAGE_KEY = 'solid:table:sys-login-log';
 const QUERY_FORM_COLS = { xs: 1, sm: 2, md: 3, lg: 4, xl: 4 } as const;
+const { tableAutoHeight, tableAutoHeightMode } = useListTableLayout();
 
 const pagination = usePagination<LoginLogVO, LoginLogQuery>(getLoginLogPage, {
   defaultSize: 10,
@@ -55,6 +57,8 @@ function handleQueryReset(): void {
       :pagination="pagination"
       row-key="id"
       :storage-key="STORAGE_KEY"
+      :auto-height="tableAutoHeight"
+      :auto-height-mode="tableAutoHeightMode"
       empty-description="暂无登录审计日志记录"
       search-empty-description="未检索到匹配的登录审计日志"
     >
@@ -104,6 +108,7 @@ function handleQueryReset(): void {
           <el-form-item label="登录时间" prop="beginTime">
             <AtengDateRange
               v-model="timeRange"
+              :name="['beginTime', 'endTime']"
               data-testid="login-log-query-time"
               type="datetimerange"
               range-separator="至"

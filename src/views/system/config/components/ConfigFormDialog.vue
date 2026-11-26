@@ -203,8 +203,6 @@ watch(
   opened => {
     if (opened) {
       void loadDialogData();
-    } else {
-      resetDialogState();
     }
   },
 );
@@ -252,6 +250,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
     :show-confirm="!detailLoadFailed"
     :confirm-loading="detailLoading ? true : undefined"
     :before-confirm="handleBeforeConfirm"
+    @closed="resetFormState"
   >
     <div class="flex flex-col gap-3">
       <div

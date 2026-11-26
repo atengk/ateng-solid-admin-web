@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue';
+import { computed, defineComponent, h, KeepAlive, ref } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
@@ -16,6 +16,7 @@ import type { ImportResultVO, UserDetailVO, UserVO } from '@/api/system/user';
 import { setupDictManager } from '@/utils/dict';
 import { adminAuthManager, adminHttpClient, adminTenantManager } from '@/utils/http';
 import { useAuthStore } from '@/stores/auth';
+import UserFormDrawer from '@/views/system/user/components/UserFormDrawer.vue';
 import UserImportDialog from '@/views/system/user/components/UserImportDialog.vue';
 import UserView from '@/views/system/user/index.vue';
 import { buildAssignablePostOptions, buildUserDeptTreeOptions } from '@/views/system/user/userHelper';
@@ -176,6 +177,18 @@ describe('UserImportDialog & UserView', () => {
       '/admin/system/user/import/feedback/fb-token-34001',
       expect.objectContaining({ responseType: 'blob' }),
     );
+
+    // 关闭动画期保留失败行数与错误明细，直到 @closed 才清空（#50）
+    const feedbackCmp = wrapper.findComponent({ name: 'AtengExcelFeedback' });
+    expect(feedbackCmp.exists()).toBe(true);
+    await feedbackCmp.vm.$emit('update:modelValue', false);
+    await flushPromises();
+    expect(feedbackCmp.props('title')).toContain('共解析 3 行，校验失败 2 条');
+
+    await feedbackCmp.vm.$emit('closed');
+    await flushPromises();
+    expect(feedbackCmp.props('title')).toContain('共解析 0 行，校验失败 0 条');
+    expect(feedbackCmp.props('errors')).toEqual([]);
   });
 
   it('retains disabled bound dept/post fallbacks, protects super_admin and self rows, filters by real DOM dept click, and loads plaintext on edit', async () => {
@@ -275,5 +288,186 @@ describe('UserImportDialog & UserView', () => {
     expect(document.body.querySelector('[data-testid="user-self-role-lock-hint"]')?.textContent).toContain(
       '当前登录账号不可自行修改角色授权',
     );
+  });
+
+  it('refreshes deptTree and user list upon KeepAlive reactivation and clears stale removed dept filter (#48)', async () => {
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue({
+      userId: 'U_SELF',
+      tenantId: '10',
+      tenantName: '租户A',
+      username: 'tenant_admin',
+      nickname: '当前管理员',
+      avatar: null,
+      roles: ['tenant_admin'],
+      permissions: ['system:user:list'],
+      passwordNeedsChange: false,
+    });
+    await useAuthStore().fetchUserInfo();
+
+    const deptOptSpy = vi.spyOn(deptApi, 'getDeptOptions')
+      .mockResolvedValueOnce([
+        {
+          id: 'D1',
+          parentId: '0',
+          ancestors: '0',
+          deptName: '平台总部',
+          sort: 1,
+          status: 0,
+          createTime: '2026-11-25 09:00:00',
+          children: [{ id: 'D2', parentId: 'D1', ancestors: '0,D1', deptName: '旧研发部', sort: 2, status: 0, createTime: '2026-11-25 09:00:00', children: [] }],
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: 'D1',
+          parentId: '0',
+          ancestors: '0',
+          deptName: '平台总部',
+          sort: 1,
+          status: 0,
+          createTime: '2026-11-25 09:00:00',
+          children: [],
+        },
+      ]);
+    const userPageSpy = vi.spyOn(userApi, 'getUserPage').mockResolvedValue({
+      records: [],
+      total: 0,
+      size: 10,
+      current: 1,
+      pages: 0,
+    });
+
+    const active = ref<'user' | 'other'>('user');
+    const DummyOther = defineComponent({ name: 'DummyOther', template: '<div>other</div>' });
+    const Host = defineComponent({
+      setup() {
+        return { active };
+      },
+      render() {
+        return h(KeepAlive, null, {
+          default: () => (active.value === 'user' ? h(UserView) : h(DummyOther)),
+        });
+      },
+    });
+
+    const wrapper = trackWrapper(
+      mount(Host, { global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] } }),
+    );
+    await flushPromises();
+    expect(deptOptSpy).toHaveBeenCalledTimes(1);
+    expect(userPageSpy).toHaveBeenCalledTimes(1);
+
+    // 选中即将被其他页删除的部门 D2
+    const oldDeptNode = wrapper.findAll('.el-tree-node__content').find(node => node.text().includes('旧研发部'));
+    await oldDeptNode!.trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="user-active-dept-capsule"]').exists()).toBe(true);
+
+    // 切离后返回：应重新拉取部门树与用户分页，且清掉已不存在的 D2 部门筛选
+    active.value = 'other';
+    await flushPromises();
+    active.value = 'user';
+    await flushPromises();
+
+    expect(deptOptSpy).toHaveBeenCalledTimes(2);
+    expect(userPageSpy.mock.calls.length).toBeGreaterThanOrEqual(3);
+    expect(wrapper.find('[data-testid="user-active-dept-capsule"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('旧研发部');
+  });
+
+  it('marks username required only in create mode and hides 操作 column when lacking update/delete permissions (#51)', async () => {
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue({
+      userId: 'U_VIEWER',
+      tenantId: '10',
+      tenantName: '租户A',
+      username: 'viewer',
+      nickname: '只读审计员',
+      avatar: null,
+      roles: ['auditor'],
+      permissions: ['system:user:list'],
+      passwordNeedsChange: false,
+    });
+    await useAuthStore().fetchUserInfo();
+
+    vi.spyOn(deptApi, 'getDeptOptions').mockResolvedValue([]);
+    vi.spyOn(postApi, 'getPostOptions').mockResolvedValue([]);
+    vi.spyOn(roleApi, 'getRoleOptions').mockResolvedValue([]);
+    vi.spyOn(configApi, 'getConfigByKey').mockResolvedValue('Init@2026');
+    vi.spyOn(userApi, 'getUserDetail').mockResolvedValue({
+      id: 'U_1',
+      tenantId: '10',
+      deptId: null,
+      deptName: null,
+      username: 'zhangsan',
+      nickname: '张三',
+      email: 'z@example.com',
+      phone: '13800138000',
+      gender: '0',
+      avatar: null,
+      status: 0,
+      createTime: '2026-11-25 09:00:00',
+      builtinSuperAdmin: false,
+      roleIds: [],
+      postIds: [],
+    });
+    vi.spyOn(userApi, 'getUserPage').mockResolvedValue({
+      records: [
+        {
+          id: 'U_1',
+          tenantId: '10',
+          deptId: null,
+          deptName: null,
+          username: 'zhangsan',
+          nickname: '张三',
+          email: 'z@example.com',
+          phone: '13800138000',
+          gender: '0',
+          avatar: null,
+          status: 0,
+          createTime: '2026-11-25 09:00:00',
+          builtinSuperAdmin: false,
+        },
+      ],
+      total: 1,
+      size: 10,
+      current: 1,
+      pages: 1,
+    });
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/system/user', component: UserView }],
+    });
+    await router.push('/system/user');
+    await router.isReady();
+
+    // 1. 无 system:user:update / delete 权限时隐藏操作列
+    const viewWrapper = trackWrapper(
+      mount(UserView, { global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] } }),
+    );
+    await flushPromises();
+    expect(viewWrapper.findAll('th').some(th => th.text().includes('操作'))).toBe(false);
+
+    // 2. 新增态登录账号标 *，编辑态不标 * 且禁用
+    const drawerMode = ref<'create' | 'edit'>('create');
+    const drawerOpen = ref(true);
+    const drawerHost = defineComponent({
+      components: { UserFormDrawer },
+      setup() {
+        return { drawerMode, drawerOpen };
+      },
+      template: '<UserFormDrawer v-model="drawerOpen" :mode="drawerMode" user-id="U_1" />',
+    });
+    trackWrapper(
+      mount(drawerHost, { global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] } }),
+    );
+    await flushPromises();
+    const createUsernameItem = document.body.querySelector('[data-testid="user-form-username"]')?.closest('.el-form-item');
+    expect(createUsernameItem?.classList.contains('is-required')).toBe(true);
+
+    drawerMode.value = 'edit';
+    await flushPromises();
+    const editUsernameItem = document.body.querySelector('[data-testid="user-form-username"]')?.closest('.el-form-item');
+    expect(editUsernameItem?.classList.contains('is-required')).toBe(false);
   });
 });

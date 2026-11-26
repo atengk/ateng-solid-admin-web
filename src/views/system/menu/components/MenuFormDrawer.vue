@@ -232,8 +232,6 @@ watch(
   opened => {
     if (opened) {
       void loadDrawerData();
-    } else {
-      submitError.value = '';
     }
   },
 );
@@ -345,6 +343,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
     :form-ref="formRef"
     :confirm-loading="detailLoading ? true : undefined"
     :before-confirm="handleBeforeConfirm"
+    @closed="submitError = ''"
   >
     <div class="flex flex-col gap-3">
       <div
@@ -365,7 +364,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
         :validate-on-rule-change="false"
         label-width="96px"
       >
-        <el-form-item label="节点类型" prop="menuType">
+        <el-form-item for="" label="节点类型" prop="menuType">
           <el-radio-group v-model="form.menuType" data-testid="menu-form-type">
             <el-radio
               v-for="item in MENU_TYPE_OPTIONS"
@@ -526,7 +525,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
           />
         </el-form-item>
 
-        <el-form-item v-if="form.menuType !== 'F'" label="侧栏显隐" prop="visible">
+        <el-form-item v-if="form.menuType !== 'F'" for="" label="侧栏显隐" prop="visible">
           <AtengDictRadio v-model="form.visible" dict-code="visibleStatus" value-type="number" />
         </el-form-item>
 
@@ -544,7 +543,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
           />
         </el-form-item>
 
-        <el-form-item label="菜单状态" prop="status">
+        <el-form-item for="" label="菜单状态" prop="status">
           <AtengDictRadio v-model="form.status" dict-code="commonStatus" value-type="number" />
         </el-form-item>
 

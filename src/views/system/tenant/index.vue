@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onActivated, onMounted, ref } from 'vue';
 import { ElButton, ElFormItem, ElInput, ElOption, ElSelect, ElSwitch, ElTableColumn, ElTag, ElTooltip } from 'element-plus';
 import { Delete, Edit, Plus } from '@element-plus/icons-vue';
 import { AtengDictSelect, AtengQueryForm, AtengTable, type AtengTableInstance } from '@atengk/element-plus';
@@ -15,7 +15,9 @@ import {
 import { getTenantPackageOptions, type TenantPackageOptionVO } from '@/api/system/tenant-package';
 import type { CommonStatus } from '@/api/types';
 import { runConfirmedAction } from '@/composables/useConfirmAction';
+import { useListTableLayout } from '@/composables/useListTableLayout';
 import { useAuthStore } from '@/stores/auth';
+import { useTenantStore } from '@/stores/tenant';
 import TenantFormDrawer from '@/views/system/tenant/components/TenantFormDrawer.vue';
 import TenantInitCredentialDialog from '@/views/system/tenant/components/TenantInitCredentialDialog.vue';
 import {
@@ -39,6 +41,8 @@ defineOptions({ name: 'SysTenant' });
 const STORAGE_KEY = 'solid:table:sys-tenant';
 
 const authStore = useAuthStore();
+const tenantStore = useTenantStore();
+const { tableAutoHeight, tableAutoHeightMode } = useListTableLayout();
 const tableRef = ref<AtengTableInstance<TenantVO>>();
 const pagination = usePagination<TenantVO, TenantQuery>(getTenantPage, { defaultSize: 10 });
 const selectedRows = ref<TenantVO[]>([]);
@@ -52,6 +56,9 @@ const initCredentialVisible = ref<boolean>(false);
 const createdCredential = ref<CreateTenantVO | null>(null);
 
 const canUpdateTenant = computed<boolean>(() => authStore.hasPermission('system:tenant:update'));
+const hasRowActions = computed<boolean>(() =>
+  authStore.hasPermission(['system:tenant:update', 'system:tenant:delete']),
+);
 const asTenantRow = (row: unknown): TenantVO => row as TenantVO;
 const isRowSelectable = (row: unknown): boolean => !isProtectedPlatformTenant(asTenantRow(row));
 const getQuotaCell = (row: unknown): TenantQuotaSummary => {
@@ -63,14 +70,35 @@ const getExpireStatus = (row: unknown): TenantExpireStatus => {
   return resolveTenantExpireStatus(tenant.expireTime, undefined, tenant.expired);
 };
 
+async function loadPackageOptions(): Promise<void> {
+  try {
+    packageOptions.value = await getTenantPackageOptions();
+  } catch {
+    packageOptions.value = [];
+  }
+}
+
+function syncTenantSwitcherOptions(): void {
+  if (!tenantStore.isSuperAdminTenantSwitchAllowed) {
+    return;
+  }
+  void tenantStore.loadTenantOptions().catch(() => undefined);
+}
+
+let hasActivatedOnce = false;
+
 onMounted(() => {
-  void getTenantPackageOptions()
-    .then(options => {
-      packageOptions.value = options;
-    })
-    .catch(() => {
-      packageOptions.value = [];
-    });
+  void loadPackageOptions();
+});
+
+onActivated(() => {
+  if (!hasActivatedOnce) {
+    hasActivatedOnce = true;
+    return;
+  }
+  // KeepAlive 切回租户页时同步重拉套餐下拉与列表，避免跨页编辑套餐/用户后配额或套餐展示过期
+  void loadPackageOptions();
+  void pagination.refresh();
 });
 
 function clearTableSelection(): void {
@@ -112,6 +140,7 @@ async function handleToggleStatus(row: TenantVO): Promise<void> {
       execute: () => updateTenantStatus(row.id, nextStatus),
       onSuccess: async () => {
         await pagination.refresh();
+        syncTenantSwitcherOptions();
       },
     });
   } finally {
@@ -130,6 +159,7 @@ function confirmAndDelete(targetIds: string | string[], confirmMessage: string, 
     onSuccess: async () => {
       clearTableSelection();
       await pagination.refresh();
+      syncTenantSwitcherOptions();
     },
   });
 }
@@ -160,6 +190,7 @@ function handleBatchDelete(): void {
 async function handleDrawerSaved(): Promise<void> {
   clearTableSelection();
   await pagination.refresh();
+  syncTenantSwitcherOptions();
 }
 
 async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
@@ -167,6 +198,7 @@ async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
   initCredentialVisible.value = true;
   clearTableSelection();
   await pagination.refresh();
+  syncTenantSwitcherOptions();
 }
 </script>
 
@@ -179,6 +211,8 @@ async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
       row-key="id"
       :storage-key="STORAGE_KEY"
       :show-batch-bar="false"
+      :auto-height="tableAutoHeight"
+      :auto-height-mode="tableAutoHeightMode"
       empty-description="暂无租户数据，可点击上方“新增租户”初始化"
       search-empty-description="未检索到匹配的租户信息"
     >
@@ -284,7 +318,7 @@ async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
         </template>
       </el-table-column>
 
-      <el-table-column label="操作" width="140" fixed="right" align="center">
+      <el-table-column v-if="hasRowActions" label="操作" width="140" fixed="right" align="center">
         <template #default="{ row }">
           <div class="inline-flex items-center justify-center gap-1">
             <el-button v-permission="'system:tenant:update'" :data-testid="`tenant-edit-btn-${asTenantRow(row).id}`" type="primary" link size="small" :icon="Edit" @click="openEditDrawer(asTenantRow(row))">

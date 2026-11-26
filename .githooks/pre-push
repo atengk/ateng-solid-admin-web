@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Git 推送前主干底座版本守门钩子 (Pre-push Hook)
+#
+# 拦截将仍包含 file:.yalc / file:../ / link: / .tgz 的提交推送至 main /
+# release/* 分支或任意版本标签，弥补 merge dev -> main 跳过 pre-commit 的场景。
+#
+# @author Ateng
+# @since 2026-11-26
+# ==============================================================================
+
+set -eo pipefail
+
+ZERO_SHA="0000000000000000000000000000000000000000"
+
+check_commit_manifests() {
+  local commit_sha="$1"
+  local target_ref="$2"
+  local manifests
+  manifests=$(git ls-tree -r --name-only "$commit_sha" | grep -E '(^|/)(package\.json|pnpm-lock\.yaml)$' || true)
+  [ -n "$manifests" ] || return 0
+
+  while IFS= read -r manifest; do
+    [ -n "$manifest" ] || continue
+    if git show "$commit_sha:$manifest" | grep -Eq 'file:\.yalc/|file:\.\./|link:|yalc:|file:.*\.tgz'; then
+      printf "\n[ERROR] 禁止向 %s 推送未清理本地联调依赖（yalc / link / file:../ / .tgz）的提交 (%s -> %s)！\n" "$target_ref" "$commit_sha" "$manifest" >&2
+      printf "请先待底座发布 npm 正式版后执行还原：yalc remove --all && pnpm up @atengk/*\n\n" >&2
+      exit 1
+    fi
+  done <<< "$manifests"
+}
+
+while IFS=' ' read -r _local_ref local_sha remote_ref _remote_sha; do
+  [ -n "${local_sha:-}" ] || continue
+  [ "$local_sha" = "$ZERO_SHA" ] && continue
+
+  case "${remote_ref:-}" in
+    refs/heads/main|refs/heads/release/*|refs/tags/*)
+      check_commit_manifests "$local_sha" "$remote_ref"
+      ;;
+    *)
+      ;;
+  esac
+done
+
+exit 0

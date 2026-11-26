@@ -58,9 +58,9 @@
   --solid-success: #047857;
   --solid-success-soft: rgba(4, 120, 87, 0.08);
   --solid-success-border: rgba(4, 120, 87, 0.28);
-  --solid-warning: #b45309;
-  --solid-warning-soft: rgba(180, 83, 9, 0.08);
-  --solid-warning-border: rgba(180, 83, 9, 0.28);
+  --solid-warning: #92400e;
+  --solid-warning-soft: rgba(146, 64, 14, 0.08);
+  --solid-warning-border: rgba(146, 64, 14, 0.28);
   --solid-danger: #dc2626;
   --solid-danger-soft: rgba(220, 38, 38, 0.08);
   --solid-danger-border: rgba(220, 38, 38, 0.28);
@@ -191,4 +191,14 @@ html.dark {
   --at-font-mono: var(--solid-font-mono);
   --at-radius-card: var(--solid-radius-lg);
   --at-radius-dialog: var(--solid-radius-lg);
+
+  /* 列表双卡分体容器与检索表单外观令牌（对齐 #379 与 ADR-0004） */
+  --at-table-card-border: 1px solid var(--solid-border);
+  --at-table-card-radius: var(--solid-radius-lg);
+  --at-table-surface-padding: 16px;
+  --at-table-query-gap: 12px;
+  --at-query-form-border: 1px solid var(--solid-border);
+  --at-query-form-radius: var(--solid-radius-lg);
+  --at-query-form-padding: 16px 16px 0;
+  --at-query-form-margin-bottom: 12px;
 }

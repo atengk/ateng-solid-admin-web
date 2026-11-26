@@ -144,8 +144,6 @@ watch(
   ([opened]) => {
     if (opened) {
       void loadOperLogDetail();
-    } else {
-      clearDetailState();
     }
   },
 );
@@ -158,6 +156,7 @@ watch(
     size="720px"
     :show-confirm="false"
     cancel-text="关闭"
+    @closed="clearDetailState"
   >
     <div v-loading="detailLoading" data-testid="oper-log-detail-body" class="flex flex-col gap-4">
       <div
