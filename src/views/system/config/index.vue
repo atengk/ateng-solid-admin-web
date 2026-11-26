@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { ElButton, ElFormItem, ElInput, ElTableColumn, ElTag, ElTooltip } from 'element-plus';
+import { ElButton, ElFormItem, ElInput, ElTableColumn, ElTooltip } from 'element-plus';
 import { Delete, Edit, Plus } from '@element-plus/icons-vue';
 import {
   AtengDictSelect,
@@ -184,12 +184,7 @@ async function handleDialogSaved(): Promise<void> {
 
       <el-table-column prop="configKey" label="参数键名" min-width="210" show-overflow-tooltip>
         <template #default="{ row }">
-          <span class="inline-flex items-center gap-1.5">
-            <span class="font-mono-data text-ink">{{ asConfigRow(row).configKey }}</span>
-            <el-tag v-if="asConfigRow(row).configType === 'Y'" size="small" type="warning">
-              系统内置
-            </el-tag>
-          </span>
+          <span class="font-mono-data text-ink">{{ asConfigRow(row).configKey }}</span>
         </template>
       </el-table-column>
 

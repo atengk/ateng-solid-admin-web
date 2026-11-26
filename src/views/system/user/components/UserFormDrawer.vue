@@ -53,6 +53,8 @@ const props = defineProps<{
   userId?: string;
   /** 新增模式下按左部门树预填的归属部门主键。 */
   initialDeptId?: string;
+  /** 父视图已加载的部门树选项（非空时免重复拉取）。 */
+  deptOptions?: DeptTreeVO[];
 }>();
 
 const emit = defineEmits<{
@@ -159,8 +161,9 @@ async function loadDrawerData(): Promise<void> {
 
   await runDetailLoad({
     loader: async () => {
+      const preloadedDepts = props.deptOptions?.length ? props.deptOptions : null;
       const [depts, posts, roles] = await Promise.all([
-        getDeptOptions().catch(() => [] as DeptTreeVO[]),
+        preloadedDepts ? Promise.resolve(preloadedDepts) : getDeptOptions().catch(() => [] as DeptTreeVO[]),
         getPostOptions().catch(() => [] as PostOptionVO[]),
         getRoleOptions().catch(() => [] as RoleOptionVO[]),
       ]);
@@ -245,8 +248,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
     size="500px"
     confirm-text="保存用户"
     :form-ref="formRef"
-    :show-confirm="!detailLoadFailed"
-    :confirm-loading="detailLoading ? true : undefined"
+    :show-confirm="!detailLoadFailed && !detailLoading"
     :before-confirm="handleBeforeConfirm"
   >
     <div class="flex flex-col gap-3">

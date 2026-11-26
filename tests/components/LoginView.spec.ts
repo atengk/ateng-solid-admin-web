@@ -116,6 +116,24 @@ describe('LoginView (/login)', () => {
     );
     await flushPromises();
 
+    // 校验桌面深岩面板与窄屏头均使用统一 BrandLogo 组合标（无占位 'S' 方块）
+    const logoMarks = singleWrapper.findAll('[data-testid="brand-logo-mark"]');
+    const wordmarks = singleWrapper.findAll('[data-testid="brand-logo-wordmark"]');
+    expect(logoMarks).toHaveLength(2);
+    expect(wordmarks.map(w => w.text())).toEqual(['ateng-solid', 'ateng-solid']);
+    expect(logoMarks.some(m => m.classes().includes('brand-mark-dark-panel'))).toBe(true);
+    expect(logoMarks.some(m => m.classes().includes('brand-mark-primary'))).toBe(true);
+
+    // 校验方案 C 建筑双栏结构与信息降噪规范：单一 ThemeToggle、无必填星号与技术行话、卡外页脚呈单租户态
+    expect(singleWrapper.find('[data-testid="login-brand-panel"]').exists()).toBe(true);
+    expect(singleWrapper.findAll('[data-testid="theme-toggle-btn"]')).toHaveLength(1);
+    expect(singleWrapper.find('[data-testid="login-footer"]').text()).toContain(
+      '单租户默认态 (000000)',
+    );
+    expect(singleWrapper.text()).toContain('请输入账号凭据以进入控制台');
+    expect(singleWrapper.text()).not.toContain('会话令牌严格按租户作用域隔离');
+    expect(singleWrapper.findAll('.el-form-item.is-no-asterisk').length).toBeGreaterThanOrEqual(2);
+
     expect(singleWrapper.find('[data-testid="login-tenant-input"]').exists()).toBe(false);
     expect(singleWrapper.find('[data-testid="login-captcha-input"]').exists()).toBe(false);
 
@@ -164,6 +182,8 @@ describe('LoginView (/login)', () => {
     const tenantInput = multiWrapper.find('[data-testid="login-tenant-input"]');
     expect(tenantInput.exists()).toBe(true);
     expect((tenantInput.element as HTMLInputElement).value).toBe('000000');
+    expect(multiWrapper.find('[data-testid="login-footer"]').text()).toContain('SaaS 多租户模式');
+    expect(multiWrapper.text()).toContain('请输入租户编码与账号凭据以进入控制台');
 
     // 仅空格的验证码不可绕过客户端必填校验
     await multiWrapper.find('[data-testid="login-username-input"]').setValue('superadmin');

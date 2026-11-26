@@ -349,7 +349,7 @@ async function handleTableReload(): Promise<void> {
                 </el-tooltip>
               </template>
             </el-table-column>
-            <el-table-column prop="createTime" label="创建时间" width="170">
+            <el-table-column prop="createTime" label="创建时间" width="184">
               <template #default="{ row }">
                 <span class="tabular-nums">{{ asUserRow(row).createTime || '--' }}</span>
               </template>
@@ -364,7 +364,7 @@ async function handleTableReload(): Promise<void> {
       </template>
     </AtengSplitLayout>
 
-    <UserFormDrawer v-model="formDrawerVisible" :mode="formDrawerMode" :user-id="editingUserId" :initial-dept-id="activeDeptFilter?.id" @saved="handleTableReload" />
+    <UserFormDrawer v-model="formDrawerVisible" :mode="formDrawerMode" :user-id="editingUserId" :initial-dept-id="activeDeptFilter?.id" :dept-options="deptTree" @saved="handleTableReload" />
     <UserResetPwdDialog v-model="resetPwdVisible" :user="resetPwdTarget" @saved="handleTableReload" />
     <UserImportDialog v-model="importDialogVisible" @imported="handleTableReload" />
   </section>

@@ -145,7 +145,7 @@ function handleQueryReset(): void {
         </template>
       </el-table-column>
 
-      <el-table-column prop="traceId" label="TraceId" min-width="180" show-overflow-tooltip>
+      <el-table-column prop="traceId" label="TraceId" min-width="210">
         <template #default="{ row }">
           <AuditTraceCell
             :trace-id="asOperLogRow(row).traceId"

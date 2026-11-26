@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElIcon, ElMenu, ElMenuItem, ElMenuItemGroup } from 'element-plus';
 import { HomeFilled, Menu as DefaultMenuIcon } from '@element-plus/icons-vue';
+import BrandLogo from '@/components/BrandLogo.vue';
 import { usePermissionStore } from '@/stores/permission';
 import { resolveMenuIcon } from '@/utils/icon';
 import {
@@ -48,9 +49,10 @@ const route = useRoute();
 const router = useRouter();
 const permissionStore = usePermissionStore();
 
-const appTitle = import.meta.env.VITE_APP_TITLE || 'ateng-solid';
+const appTitle = import.meta.env.VITE_APP_TITLE || 'ateng-solid 管理后台';
 const isCollapsed = computed<boolean>(() => !props.mobileDrawer && props.collapsed);
 const activeMenuPath = computed<string>(() => route.path || ADMIN_HOME_PATH);
+const brandTooltip = computed<string>(() => `${appTitle} · 点击返回工作台`);
 
 const flattenedMenuMap = computed<Map<string, FlattenedMenuNavigationItem>>(() => {
   const map = new Map<string, FlattenedMenuNavigationItem>();
@@ -69,6 +71,13 @@ async function handleMenuSelect(index: string): Promise<void> {
   await navigateMenuTarget(router, target?.path ?? index, Boolean(target?.isExternal));
   emit('select', index);
 }
+
+async function handleBrandClick(): Promise<void> {
+  if (route.path !== ADMIN_HOME_PATH) {
+    await router.push(ADMIN_HOME_PATH);
+  }
+  emit('select', ADMIN_HOME_PATH);
+}
 </script>
 
 <template>
@@ -79,23 +88,24 @@ async function handleMenuSelect(index: string): Promise<void> {
       isCollapsed ? 'w-[60px]' : 'w-[228px]',
     ]"
   >
-    <div
-      class="flex h-12 shrink-0 items-center gap-2.5 overflow-hidden border-b border-border-subtle px-3.5"
+    <button
+      type="button"
+      data-testid="sidebar-brand-trigger"
+      :title="brandTooltip"
+      :aria-label="brandTooltip"
+      :class="[
+        'flex h-12 w-full shrink-0 cursor-pointer items-center overflow-hidden border-0 border-b border-solid border-border-subtle bg-transparent text-left transition-colors hover:bg-surface-subtle',
+        isCollapsed ? 'justify-center px-0' : 'px-3.5',
+      ]"
+      @click="handleBrandClick"
     >
-      <span
-        class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--solid-radius-md)] bg-primary text-[13px] font-bold text-surface"
-      >
-        S
-      </span>
-      <div v-if="!isCollapsed" class="flex min-w-0 items-baseline gap-1 truncate">
-        <span class="truncate text-sm font-semibold text-ink">{{ appTitle }}</span>
-        <span class="text-[11px] font-medium text-ink-muted">Admin</span>
-      </div>
-    </div>
+      <BrandLogo :size="24" :show-wordmark="!isCollapsed" wordmark-size="sm" />
+    </button>
 
     <div class="flex-1 overflow-x-hidden overflow-y-auto py-1.5">
       <el-menu
         class="solid-sidebar-menu"
+        aria-orientation="vertical"
         :default-active="activeMenuPath"
         :collapse="isCollapsed"
         :collapse-transition="false"

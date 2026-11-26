@@ -19,6 +19,7 @@ import TenantObserveBanner from '@/layouts/TenantObserveBanner.vue';
 import TenantSwitcher from '@/components/TenantSwitcher.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import CommandPalette from '@/components/CommandPalette.vue';
+import BrandLogo from '@/components/BrandLogo.vue';
 import Forbidden from '@/views/error/403.vue';
 import NotFound from '@/views/error/404.vue';
 
@@ -351,5 +352,41 @@ describe('Shell Controls & Error Views', () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
     await nextTick();
     expect(appStore.commandPaletteVisible).toBe(false);
+  });
+
+  it('renders BrandLogo semantic tones, sizes, and wordmark visibility cleanly', () => {
+    const defaultLogo = trackWrapper(mount(BrandLogo));
+    expect(defaultLogo.find('[data-testid="brand-logo-mark"]').attributes('width')).toBe('24');
+    expect(defaultLogo.find('[data-testid="brand-logo-mark"]').classes()).toContain(
+      'brand-mark-primary',
+    );
+    expect(defaultLogo.findAll('[data-testid="brand-logo-mark"] path')).toHaveLength(3);
+    expect(defaultLogo.find('[data-testid="brand-logo-wordmark"]').text()).toBe('ateng-solid');
+
+    const darkPanelLogo = trackWrapper(
+      mount(BrandLogo, {
+        props: {
+          size: 26,
+          tone: 'dark-panel',
+          showWordmark: false,
+          wordmark: 'custom-brand',
+        },
+      }),
+    );
+    expect(darkPanelLogo.find('[data-testid="brand-logo-mark"]').attributes('width')).toBe('26');
+    expect(darkPanelLogo.find('[data-testid="brand-logo-mark"]').classes()).toContain(
+      'brand-mark-dark-panel',
+    );
+    expect(darkPanelLogo.find('[data-testid="brand-logo-wordmark"]').exists()).toBe(false);
+
+    const inverseLogo = trackWrapper(
+      mount(BrandLogo, {
+        props: { tone: 'inverse', wordmarkSize: 'lg', wordmark: 'solid-portal' },
+      }),
+    );
+    expect(inverseLogo.find('[data-testid="brand-logo-mark"]').classes()).toContain(
+      'brand-mark-inverse',
+    );
+    expect(inverseLogo.find('[data-testid="brand-logo-wordmark"]').text()).toBe('solid-portal');
   });
 });

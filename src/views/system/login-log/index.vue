@@ -125,7 +125,7 @@ function handleQueryReset(): void {
         </template>
       </el-table-column>
 
-      <el-table-column prop="traceId" label="TraceId" min-width="180" show-overflow-tooltip>
+      <el-table-column prop="traceId" label="TraceId" min-width="210">
         <template #default="{ row }">
           <AuditTraceCell
             :trace-id="asLoginLogRow(row).traceId"
@@ -158,7 +158,7 @@ function handleQueryReset(): void {
         </template>
       </el-table-column>
 
-      <el-table-column prop="browser" label="浏览器" min-width="120" show-overflow-tooltip>
+      <el-table-column prop="browser" label="浏览器" min-width="140" show-overflow-tooltip>
         <template #default="{ row }">
           <span>{{ asLoginLogRow(row).browser || '--' }}</span>
         </template>

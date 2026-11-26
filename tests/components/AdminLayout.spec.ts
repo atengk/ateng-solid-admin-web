@@ -396,4 +396,49 @@ describe('AdminLayout Core Shell', () => {
       '/dashboard',
     ]);
   });
+
+  it('renders BrandLogo in AdminSidebar, hides wordmark on collapse, navigates home on click, and preserves Instance Brand during tenant observation', async () => {
+    const router = createLayoutTestRouter();
+    await router.push('/system/user');
+    await router.isReady();
+
+    const authStore = useAuthStore();
+    const tenantStore = useTenantStore();
+    authStore.setTenantEnabled(true);
+    vi.spyOn(tenantApi, 'getTenantOptions').mockResolvedValue([]);
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue(createSuperAdminProfile());
+    await authStore.fetchUserInfo();
+
+    const RootOutlet = defineComponent({ name: 'RootOutletStub', template: '<router-view />' });
+    const wrapper = trackWrapper(
+      mount(RootOutlet, {
+        global: { plugins: [pinia, router, ElementPlus, AtengElementPlus] },
+      }),
+    );
+    await flushPromises();
+
+    const brandTrigger = wrapper.find('[data-testid="sidebar-brand-trigger"]');
+    expect(brandTrigger.exists()).toBe(true);
+    expect(brandTrigger.attributes('title')).toContain('点击返回工作台');
+    expect(brandTrigger.findAll('[data-testid="brand-logo-mark"] path')).toHaveLength(3);
+    expect(brandTrigger.find('[data-testid="brand-logo-wordmark"]').text()).toBe('ateng-solid');
+
+    // 超管切换租户观察态：品牌组合标保持实例不变（不随工作租户切换）
+    adminTenantManager.setTenantId('10002');
+    tenantStore.activeTenantName = '星辰智能科技';
+    await nextTick();
+    expect(wrapper.find('[data-testid="tenant-observe-banner"]').exists()).toBe(true);
+    expect(brandTrigger.find('[data-testid="brand-logo-wordmark"]').text()).toBe('ateng-solid');
+
+    // 折叠侧栏：隐藏品牌字标，保留居中的三阶几何图形
+    await wrapper.find('[data-testid="header-sidebar-toggle"]').trigger('click');
+    await nextTick();
+    expect(brandTrigger.find('[data-testid="brand-logo-mark"]').exists()).toBe(true);
+    expect(brandTrigger.find('[data-testid="brand-logo-wordmark"]').exists()).toBe(false);
+
+    // 点击侧栏品牌区跳转回工作台 /dashboard
+    await brandTrigger.trigger('click');
+    await flushPromises();
+    expect(router.currentRoute.value.path).toBe('/dashboard');
+  });
 });

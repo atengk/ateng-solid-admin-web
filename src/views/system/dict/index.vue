@@ -157,16 +157,17 @@ function handleDeleteType(row: DictTypeVO): void {
     <AtengSplitLayout
       :storage-key="isStackedLayout ? '' : SPLIT_STORAGE_KEY"
       :direction="isStackedLayout ? 'vertical' : 'horizontal'"
-      default-size="42%"
-      :min="isStackedLayout ? '180px' : '300px'"
+      default-size="44%"
+      :min="isStackedLayout ? '180px' : '360px'"
       :max="isStackedLayout ? '75%' : '62%'"
     >
       <template #first>
-        <div class="flex h-full flex-col gap-3 pr-2">
+        <div class="flex h-full min-w-0 flex-col gap-3 pr-2">
           <AtengTable
             :pagination="typePagination"
             row-key="id"
             :storage-key="TYPE_STORAGE_KEY"
+            pagination-layout="total, prev, pager, next"
             highlight-current-row
             :current-row-key="selectedType?.id"
             empty-description="暂无动态字典类型"
@@ -219,7 +220,7 @@ function handleDeleteType(row: DictTypeVO): void {
               </el-button>
             </template>
 
-            <el-table-column prop="dictName" label="字典名称" min-width="130" show-overflow-tooltip>
+            <el-table-column prop="dictName" label="字典名称" min-width="100" show-overflow-tooltip>
               <template #default="{ row }">
                 <button
                   type="button"
@@ -237,7 +238,7 @@ function handleDeleteType(row: DictTypeVO): void {
               </template>
             </el-table-column>
 
-            <el-table-column prop="dictType" label="字典类型" min-width="150" show-overflow-tooltip>
+            <el-table-column prop="dictType" label="字典类型" min-width="110" show-overflow-tooltip>
               <template #default="{ row }">
                 <span class="font-mono-data text-xs text-ink-secondary">
                   {{ asDictTypeRow(row).dictType }}
@@ -245,7 +246,7 @@ function handleDeleteType(row: DictTypeVO): void {
               </template>
             </el-table-column>
 
-            <el-table-column prop="status" label="状态" width="82" align="center">
+            <el-table-column prop="status" label="状态" width="72" align="center">
               <template #default="{ row }">
                 <div @click.stop>
                   <el-switch
@@ -260,7 +261,7 @@ function handleDeleteType(row: DictTypeVO): void {
               </template>
             </el-table-column>
 
-            <el-table-column label="操作" width="116" fixed="right" align="center">
+            <el-table-column label="操作" width="136" fixed="right" align="center">
               <template #default="{ row }">
                 <div class="inline-flex items-center justify-center gap-1" @click.stop>
                   <el-button

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <style>
+    .solid-fav-bg {
+      fill: #1d4ed8;
+    }
+    @media (prefers-color-scheme: dark) {
+      .solid-fav-bg {
+        fill: #2563eb;
+      }
+    }
+  </style>
+  <rect class="solid-fav-bg" width="32" height="32" rx="7" />
+  <path d="M12 7H22.5L20 11.2H9.5L12 7Z" fill="#ffffff" />
+  <path d="M10.2 13.9H24.2L21.7 18.1H7.7L10.2 13.9Z" fill="#ffffff" fill-opacity="0.82" />
+  <path d="M8.5 20.8H26L23.5 25H6L8.5 20.8Z" fill="#ffffff" fill-opacity="0.64" />
+</svg>

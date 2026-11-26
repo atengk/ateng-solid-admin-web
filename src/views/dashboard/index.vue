@@ -217,7 +217,7 @@ function resolveCardIcon(icon?: string | null): Component {
           class="rounded-[var(--solid-radius-md)] border border-border-subtle bg-surface-subtle/50 px-3.5 py-2.5"
         >
           <dt class="text-xs text-ink-secondary">当前账号</dt>
-          <dd class="mt-1 mb-0 flex items-center gap-2 text-sm font-medium text-ink">
+          <dd class="mt-1 mb-0 ms-0 flex items-center gap-2 text-sm font-medium text-ink">
             <span class="font-mono-data">{{ authStore.user?.username || '--' }}</span>
           </dd>
         </div>
@@ -226,7 +226,7 @@ function resolveCardIcon(icon?: string | null): Component {
           class="rounded-[var(--solid-radius-md)] border border-border-subtle bg-surface-subtle/50 px-3.5 py-2.5"
         >
           <dt class="text-xs text-ink-secondary">当前工作租户</dt>
-          <dd class="mt-1 mb-0 flex flex-wrap items-center gap-1.5 text-sm font-medium text-ink">
+          <dd class="mt-1 mb-0 ms-0 flex flex-wrap items-center gap-1.5 text-sm font-medium text-ink">
             <span class="tabular-nums">{{ tenantSummary }}</span>
             <el-tag v-if="tenantStore.isObservingTenant" size="small" type="warning">
               跨租户观察
@@ -238,7 +238,7 @@ function resolveCardIcon(icon?: string | null): Component {
           class="rounded-[var(--solid-radius-md)] border border-border-subtle bg-surface-subtle/50 px-3.5 py-2.5"
         >
           <dt class="text-xs text-ink-secondary">最近登录记录</dt>
-          <dd class="mt-1 mb-0 font-mono-data text-sm font-medium text-ink">
+          <dd class="mt-1 mb-0 ms-0 truncate font-mono-data text-sm font-medium text-ink" :title="lastLoginSummary">
             {{ lastLoginSummary }}
           </dd>
         </div>

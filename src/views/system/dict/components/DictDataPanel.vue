@@ -174,7 +174,7 @@ async function handleRefreshActiveCache(): Promise<void> {
 </script>
 
 <template>
-  <div class="flex h-full flex-col gap-3 pl-2">
+  <div class="flex h-full min-w-0 flex-col gap-3 pl-2">
     <div
       v-if="selectedType"
       class="flex flex-wrap items-center justify-between gap-2 rounded-[var(--solid-radius-md)] border border-border bg-surface-subtle px-3 py-2"
@@ -210,6 +210,7 @@ async function handleRefreshActiveCache(): Promise<void> {
       :pagination="dataPagination"
       row-key="id"
       :storage-key="DATA_STORAGE_KEY"
+      pagination-layout="total, sizes, prev, pager, next"
       empty-description="当前字典类型暂无明细，可点击“新增字典数据”添加"
       search-empty-description="未检索到匹配的字典项"
     >
@@ -250,7 +251,7 @@ async function handleRefreshActiveCache(): Promise<void> {
         </el-button>
       </template>
 
-      <el-table-column prop="dictLabel" label="字典标签" min-width="140">
+      <el-table-column prop="dictLabel" label="字典标签" min-width="100">
         <template #default="{ row }">
           <AtengDictTag
             :options="buildRowTagOptions(asDictDataRow(row))"
@@ -259,19 +260,19 @@ async function handleRefreshActiveCache(): Promise<void> {
         </template>
       </el-table-column>
 
-      <el-table-column prop="dictValue" label="字典键值" min-width="120" show-overflow-tooltip>
+      <el-table-column prop="dictValue" label="字典键值" min-width="96" show-overflow-tooltip>
         <template #default="{ row }">
           <span class="font-mono-data">{{ asDictDataRow(row).dictValue }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="sort" label="排序" width="76" align="center">
+      <el-table-column prop="sort" label="排序" width="68" align="center">
         <template #default="{ row }">
           <span class="tabular-nums">{{ asDictDataRow(row).sort }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="isDefault" label="默认" width="82" align="center">
+      <el-table-column prop="isDefault" label="默认" width="72" align="center">
         <template #default="{ row }">
           <el-tag v-if="asDictDataRow(row).isDefault === 1" size="small" type="primary"
             >默认</el-tag
@@ -280,7 +281,7 @@ async function handleRefreshActiveCache(): Promise<void> {
         </template>
       </el-table-column>
 
-      <el-table-column prop="status" label="状态" width="84" align="center">
+      <el-table-column prop="status" label="状态" width="74" align="center">
         <template #default="{ row }">
           <el-switch
             :data-testid="`dict-data-status-switch-${asDictDataRow(row).id}`"
@@ -293,7 +294,7 @@ async function handleRefreshActiveCache(): Promise<void> {
         </template>
       </el-table-column>
 
-      <el-table-column label="操作" width="124" fixed="right" align="center">
+      <el-table-column label="操作" width="136" fixed="right" align="center">
         <template #default="{ row }">
           <div class="inline-flex items-center justify-center gap-1">
             <el-button

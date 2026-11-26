@@ -69,7 +69,8 @@ function isExpiringSoon(seconds: number): boolean {
 
 function formatDeviceLabel(device?: string | null): string {
   const trimmed = device?.trim();
-  if (!trimmed || trimmed.toLowerCase() === 'default') {
+  const normalized = trimmed?.toLowerCase();
+  if (!trimmed || normalized === 'default' || normalized === 'def') {
     return 'PC 网页端';
   }
   return trimmed;

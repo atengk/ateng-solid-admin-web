@@ -63,4 +63,5 @@ body {
 .font-mono-data {
   font-family: var(--solid-font-mono);
   font-variant-numeric: tabular-nums;
+  font-variant-ligatures: none;
 }

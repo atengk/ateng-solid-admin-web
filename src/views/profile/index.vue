@@ -11,7 +11,7 @@ import {
   ElTag,
   type UploadRequestOptions,
 } from 'element-plus';
-import { RefreshRight, Upload, Warning } from '@element-plus/icons-vue';
+import { Loading, RefreshRight, Upload, Warning } from '@element-plus/icons-vue';
 import { AtengDescriptions, AtengDescriptionsItem, AtengUpload } from '@atengk/element-plus';
 import { BusinessException } from '@atengk/core';
 import { getPersonalProfile, uploadProfileAvatar, type PersonalProfileVO } from '@/api/auth';
@@ -208,9 +208,20 @@ onMounted(() => {
           @type-reject="handleAvatarInvalid"
           @size-exceed="handleAvatarInvalid"
         >
-          <el-button size="small" plain :icon="Upload" :loading="avatarUploading">
-            更换头像
-          </el-button>
+          <span
+            :class="[
+              'inline-flex items-center gap-1.5 rounded-[var(--solid-radius-sm)] border border-border bg-surface px-2.5 py-1 text-xs font-medium text-ink-regular transition-colors',
+              avatarUploading
+                ? 'cursor-not-allowed opacity-60'
+                : 'cursor-pointer hover:border-primary hover:text-primary',
+            ]"
+          >
+            <el-icon :size="13" :class="{ 'is-loading': avatarUploading }">
+              <Loading v-if="avatarUploading" />
+              <Upload v-else />
+            </el-icon>
+            <span>{{ avatarUploading ? '上传中...' : '更换头像' }}</span>
+          </span>
         </AtengUpload>
 
         <div

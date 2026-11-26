@@ -24,13 +24,16 @@ defineProps<{
 </script>
 
 <template>
-  <span v-if="traceId?.trim()" class="inline-flex items-center gap-1">
-    <span class="font-mono-data tabular-nums text-ink">{{ traceId }}</span>
+  <span v-if="traceId?.trim()" class="inline-flex max-w-full items-center gap-1">
+    <span class="min-w-0 truncate font-mono-data tabular-nums text-ink" :title="traceId">{{
+      traceId
+    }}</span>
     <el-button
       :data-testid="testId"
       type="primary"
       link
       size="small"
+      class="shrink-0"
       aria-label="复制 TraceId"
       :icon="CopyDocument"
       @click="copyAuditText(traceId, 'TraceId')"

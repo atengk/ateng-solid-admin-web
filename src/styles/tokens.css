@@ -27,6 +27,10 @@
   --solid-primary-soft: #eff6ff;
   --solid-primary-border: #bfdbfe;
 
+  /* 品牌图形主标双阶透明令牌（确保非文本对比度 >= 3:1） */
+  --solid-mark-tertiary-opacity: 0.8;
+  --solid-mark-secondary-opacity: 0.62;
+
   /* 登录品牌栏深岩面板（遵循设计系统固定深 Slate 对比区） */
   --solid-brand-panel-bg: #0f172a;
   --solid-brand-panel-text: #f8fafc;
@@ -36,6 +40,15 @@
   --solid-brand-panel-border: rgba(255, 255, 255, 0.1);
   --solid-brand-panel-dot: #3b82f6;
   --solid-brand-panel-on-primary: #ffffff;
+  --solid-brand-panel-grid: rgba(148, 163, 184, 0.06);
+  --solid-brand-watermark-guide: rgba(148, 163, 184, 0.12);
+  --solid-brand-watermark-node: rgba(59, 130, 246, 0.35);
+  --solid-brand-watermark-accent-fill: rgba(59, 130, 246, 0.08);
+  --solid-brand-watermark-accent-stroke: rgba(59, 130, 246, 0.28);
+  --solid-brand-watermark-mid-fill: rgba(148, 163, 184, 0.05);
+  --solid-brand-watermark-mid-stroke: rgba(148, 163, 184, 0.22);
+  --solid-brand-watermark-base-fill: rgba(148, 163, 184, 0.03);
+  --solid-brand-watermark-base-stroke: rgba(148, 163, 184, 0.18);
 
   /* 结构细边框 */
   --solid-border: rgba(15, 23, 42, 0.1);
@@ -91,6 +104,10 @@ html.dark {
   --solid-primary-soft: rgba(59, 130, 246, 0.14);
   --solid-primary-border: rgba(59, 130, 246, 0.35);
 
+  /* 品牌图形主标 Dark 态双阶透明令牌 */
+  --solid-mark-tertiary-opacity: 0.84;
+  --solid-mark-secondary-opacity: 0.68;
+
   --solid-brand-panel-bg: #090d16;
   --solid-brand-panel-text: #f8fafc;
   --solid-brand-panel-text-secondary: #cbd5e1;
@@ -99,6 +116,15 @@ html.dark {
   --solid-brand-panel-border: rgba(255, 255, 255, 0.1);
   --solid-brand-panel-dot: #3b82f6;
   --solid-brand-panel-on-primary: #ffffff;
+  --solid-brand-panel-grid: rgba(148, 163, 184, 0.05);
+  --solid-brand-watermark-guide: rgba(148, 163, 184, 0.1);
+  --solid-brand-watermark-node: rgba(59, 130, 246, 0.35);
+  --solid-brand-watermark-accent-fill: rgba(59, 130, 246, 0.08);
+  --solid-brand-watermark-accent-stroke: rgba(59, 130, 246, 0.28);
+  --solid-brand-watermark-mid-fill: rgba(148, 163, 184, 0.05);
+  --solid-brand-watermark-mid-stroke: rgba(148, 163, 184, 0.2);
+  --solid-brand-watermark-base-fill: rgba(148, 163, 184, 0.03);
+  --solid-brand-watermark-base-stroke: rgba(148, 163, 184, 0.16);
 
   --solid-border: rgba(226, 232, 240, 0.12);
   --solid-border-light: rgba(226, 232, 240, 0.07);
