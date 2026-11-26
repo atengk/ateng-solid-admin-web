@@ -146,6 +146,10 @@ export interface AdminProfileVO {
    */
   permissions: string[];
   /**
+   * 当前服务端是否开启多租户模式
+   */
+  tenantEnabled?: boolean;
+  /**
    * 是否仍需自助修改初始/重置密码
    */
   passwordNeedsChange: boolean;

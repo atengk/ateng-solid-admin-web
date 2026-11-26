@@ -77,7 +77,7 @@ export const useAuthStore = defineStore('auth', () => {
   const tenantEnabled = ref<boolean>(readStoredTenantEnabled());
 
   /**
-   * 同步更新多租户功能开关状态（来源于登录前置 /admin/auth/captcha 或运行期兜底推断）。
+   * 同步更新多租户功能开关状态（来源于 /admin/auth/captcha、/admin/auth/info 真源或运行期兜底推断）。
    *
    * @param enabled 是否开启 SaaS 多租户
    */
@@ -120,7 +120,11 @@ export const useAuthStore = defineStore('auth', () => {
     const roles = profile.roles ?? [];
     const permissions = profile.permissions ?? [];
 
-    inferTenantEnabledFromId(profile.tenantId);
+    if (typeof profile.tenantEnabled === 'boolean') {
+      setTenantEnabled(profile.tenantEnabled);
+    } else {
+      inferTenantEnabledFromId(profile.tenantId);
+    }
 
     auth.setUser(profile);
     auth.setRoles(roles);

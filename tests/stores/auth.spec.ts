@@ -188,4 +188,44 @@ describe('useAuthStore & useAppStore', () => {
 
     appStore.dispose();
   });
+
+  it('prefers /admin/auth/info tenantEnabled truth source over stale localStorage and preserves legacy fallback', async () => {
+    localStorage.setItem('solid-tenant-enabled', 'true');
+    setActivePinia(createPinia());
+    const authStore = useAuthStore();
+    expect(authStore.tenantEnabled).toBe(true);
+
+    // 1. 服务端明确返回 tenantEnabled=false 时纠正陈旧缓存（哪怕之前为 true）
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValueOnce(
+      createProfile({
+        tenantId: '0',
+        tenantEnabled: false,
+      }),
+    );
+    await authStore.fetchUserInfo();
+    expect(authStore.tenantEnabled).toBe(false);
+    expect(localStorage.getItem('solid-tenant-enabled')).toBe('false');
+
+    // 2. 服务端明确返回 tenantEnabled=true 时即使停留在 0 号平台视角也立即纠偏为 true
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValueOnce(
+      createProfile({
+        tenantId: '0',
+        tenantEnabled: true,
+      }),
+    );
+    await authStore.fetchUserInfo();
+    expect(authStore.tenantEnabled).toBe(true);
+    expect(localStorage.getItem('solid-tenant-enabled')).toBe('true');
+
+    // 3. 兼容缺省 tenantEnabled 字段的旧响应，仍回退依据非 0 tenantId 推断
+    authStore.setTenantEnabled(false);
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValueOnce(
+      createProfile({
+        tenantId: '10002',
+        tenantEnabled: undefined,
+      }),
+    );
+    await authStore.fetchUserInfo();
+    expect(authStore.tenantEnabled).toBe(true);
+  });
 });
