@@ -10,6 +10,7 @@ export const PASSWORD_MAX_LENGTH = 20;
 export const PASSWORD_MIN_CATEGORIES = 3;
 export const PASSWORD_POLICY_MESSAGE =
   '密码须为 8~20 位，不能包含空白字符，且至少包含大写字母、小写字母、数字、特殊字符中的 3 类';
+export const PASSWORD_POLICY_SHORT_MESSAGE = '请满足上述全部强口令规则要求';
 
 /**
  * 口令复杂度各条目实时校验评估结果。

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import {
   ElAvatar,
   ElButton,
@@ -14,9 +14,10 @@ import {
 } from 'element-plus';
 import { Loading, RefreshRight, Upload, Warning } from '@element-plus/icons-vue';
 import { AtengDescriptions, AtengDescriptionsItem, AtengUpload } from '@atengk/element-plus';
-import { BusinessException } from '@atengk/core';
 import { getPersonalProfile, uploadProfileAvatar, type PersonalProfileVO } from '@/api/auth';
 import { useAuthStore } from '@/stores/auth';
+import { withDictPreload } from '@/utils/dict';
+import { resolveContextualErrorMessage } from '@/utils/http';
 import ProfileBasicForm from '@/views/profile/components/ProfileBasicForm.vue';
 import ProfilePasswordForm from '@/views/profile/components/ProfilePasswordForm.vue';
 
@@ -38,6 +39,7 @@ const AVATAR_LIMIT_HINT = '仅支持 JPG、PNG、WEBP 格式且大小不超过 2
 const SKELETON_DELAY_MS = 120;
 
 const route = useRoute();
+const router = useRouter();
 const authStore = useAuthStore();
 
 const profile = ref<PersonalProfileVO | null>(null);
@@ -69,6 +71,21 @@ watch(
   },
   { immediate: true },
 );
+
+function handleInnerTabChange(tabName: string | number): void {
+  const normalized: ProfileTabKey = tabName === 'password' ? 'password' : 'basic';
+  const currentQueryTab: ProfileTabKey = route.query.tab === 'password' ? 'password' : 'basic';
+  if (normalized === currentQueryTab) {
+    return;
+  }
+  const nextQuery = { ...route.query };
+  if (normalized === 'password') {
+    nextQuery.tab = 'password';
+  } else {
+    delete nextQuery.tab;
+  }
+  void router.replace({ path: route.path, query: nextQuery });
+}
 
 const displayName = computed<string>(
   () => profile.value?.nickname || authStore.user?.nickname || profile.value?.username || '管理员',
@@ -131,7 +148,7 @@ async function loadProfile(): Promise<void> {
     }, SKELETON_DELAY_MS);
   }
   try {
-    const loaded = await getPersonalProfile();
+    const loaded = await withDictPreload(['sys_user_gender'], () => getPersonalProfile());
     profile.value = loaded;
     avatarFailed.value = false;
     authStore.updateUserSummary({
@@ -139,10 +156,10 @@ async function loadProfile(): Promise<void> {
       avatar: loaded.avatar ?? null,
     });
   } catch (error) {
-    profileError.value =
-      error instanceof BusinessException && error.msg
-        ? error.msg
-        : '获取个人资料失败，请检查网络连接后重试';
+    profileError.value = resolveContextualErrorMessage(
+      error,
+      '获取个人资料失败，请检查网络连接后重试',
+    );
   } finally {
     initialLoadDone.value = true;
     clearSkeletonTimer();
@@ -174,8 +191,7 @@ async function uploadAvatarRequest(options: UploadRequestOptions): Promise<unkno
     return res;
   } catch (error) {
     // 上传失败保持既有头像不变，并提示明确的格式与体积约束原因
-    avatarError.value =
-      error instanceof BusinessException && error.msg ? error.msg : AVATAR_LIMIT_HINT;
+    avatarError.value = resolveContextualErrorMessage(error, AVATAR_LIMIT_HINT);
     throw error;
   } finally {
     avatarUploading.value = false;
@@ -331,7 +347,12 @@ onBeforeUnmount(() => {
 
       <el-tabs
         v-model="activeTab"
-        :class="isInitialLoading ? 'pointer-events-none opacity-0' : 'opacity-100 transition-opacity duration-150'"
+        :class="
+          isInitialLoading
+            ? 'pointer-events-none opacity-0'
+            : 'opacity-100 transition-opacity duration-150'
+        "
+        @tab-change="handleInnerTabChange"
       >
         <el-tab-pane label="基本资料" name="basic">
           <ProfileBasicForm :profile="profile" :loading="loading" @saved="loadProfile" />

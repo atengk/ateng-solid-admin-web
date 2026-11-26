@@ -29,6 +29,7 @@ import {
 } from '@/composables/useListTableLayout';
 import { useTreeTableControls } from '@/composables/useTreeTableControls';
 import { useAuthStore } from '@/stores/auth';
+import { withDictPreload } from '@/utils/dict';
 import { isGlobalHandledHttpError, resolveErrorMessage } from '@/utils/http';
 import { resolveMenuIcon } from '@/utils/icon';
 import MenuFormDrawer from '@/views/system/menu/components/MenuFormDrawer.vue';
@@ -103,11 +104,13 @@ async function loadMenuTree(): Promise<void> {
   loading.value = true;
   loadError.value = undefined;
   try {
-    menuTree.value = await getMenuTree({
-      title: query.title?.trim() || undefined,
-      status: typeof query.status === 'number' ? query.status : undefined,
-      platformOnly: typeof query.platformOnly === 'boolean' ? query.platformOnly : undefined,
-    });
+    menuTree.value = await withDictPreload(['visibleStatus'], () =>
+      getMenuTree({
+        title: query.title?.trim() || undefined,
+        status: typeof query.status === 'number' ? query.status : undefined,
+        platformOnly: typeof query.platformOnly === 'boolean' ? query.platformOnly : undefined,
+      }),
+    );
     await nextTick();
     applyTreeExpansion(isAllExpanded.value);
   } catch (error) {

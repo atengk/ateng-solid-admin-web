@@ -113,7 +113,9 @@ VITE_PROXY_TARGET=http://127.0.0.1:8080
 | **`101004`** | 登录页触发防爆破锁定 | **跳过全局弹窗**，静默透传至 `/login`；登录页直接读取 `(err.cause as Result<LoginLockDetailVO>)?.data`（`{ lockType: 'IP' \| 'ACCOUNT', remainSeconds }`）驱动倒计时（`ACCOUNT` 编辑账号/租户即清零，`IP` 保持倒计时） |
 | **`403`** | 接口级无权限或账号禁用 | 弹出 `ElMessage.warning(err.msg || '暂无操作权限')`，不跳转整页 |
 | **`429` / `40003`** | 限流或 `@Idempotent` 重复提交 | 弹出带 `2s` 节流合并的 `ElMessage.warning('操作过于频繁，请稍后再试')` |
-| **`500` / `503` / 未知异常** | 服务端异常或网络超时 | 展示友好错误提示并附带 `err.traceId`（提供一键复制 `traceId`），严禁暴露底层堆栈或 SQL |
+| **`500`** | 服务端未预期异常或系统内部错误 | 对齐后端 `CommonResultCode` 统一归口为「系统繁忙，请稍后再试」（保留 `traceId` 一键复制按钮），2s 内连续 `5xx` 自动节流合并弹窗；弹窗/抽屉内联横幅经 `resolveContextualErrorMessage` 改为呈现操作上下文兜底文案 |
+| **`502` / `504`** | 代理网关或后端服务不可达/响应超时 | 清洗传输层裸英文（如 `Bad Gateway` / HTML / `Request failed with status code ...`），提示「网关或后端服务连接异常，请稍后重试」（2s 节流合并；内联横幅呈现上下文文案） |
+| **`503` / 断网 / 超时** | 服务暂不可用或网络请求超时 | `503` 提示「服务暂不可用，请稍后重试」，`code <= 0` / 超时 / `ECONNREFUSED` 归口「网络请求超时或服务连接异常，请稍后重试」，均参与 2s `5xx` 弹窗合并并剥离英文报文 |
 
 ### 4.3 双轨 `DictManager` 路由与缓存失效（`src/utils/dict.ts`）
 依据后端静态枚举与动态字典的命名正交性，同时注册 `DictManager.setProvider` 与 `DictManager.setBatchProvider`：
@@ -139,7 +141,7 @@ VITE_PROXY_TARGET=http://127.0.0.1:8080
    - 路由守卫校验登录态与菜单权限；页面按钮使用 `v-permission="'system:user:create'"` 或 `authStore.hasPermission('system:user:create')`；
    - `useAuthStore` 直接代理 `useAuth<AdminProfileVO>({ authManager: adminAuthManager, superAdminRoles: ['super_admin'] })` 内部 `WeakMap` 响应式状态，保障 Store 与 `v-permission` / `v-role` 指令 100% 单源零漂移。
 3. **Vitest + `happy-dom` 三层离线测试体系（复用既有 `@vue/test-utils`，零外部 Mock 库依赖）**：
-   - **Layer 1 (`tests/utils/*.spec.ts`)**：覆盖 `adminHttpClient` 全错误码分流（`401` 防重入、`101005` 会话终止、`100002` 回退 `'0'` 不登出、`101004` `err.cause.data`、`429`/`40003`、`500`+`traceId`、Blob JSON 异常）、双轨 `DictManager`（单查/批查分流、`'default'` 归一、`clearCache`）与 `resolveMenuIcon`；
+   - **Layer 1 (`tests/utils/*.spec.ts`)**：覆盖 `adminHttpClient` 全错误码分流（`401` 防重入、`101005` 会话终止、`100002` 回退 `'0'` 不登出、`101004` `err.cause.data`、`429`/`40003`、`500`/`502`/`503`/`504`/断网分层文案及 2s `5xx` 弹窗合并、英文传输错误清洗、`resolveContextualErrorMessage`、Blob JSON 异常）、双轨 `DictManager`（单查/批查分流、`'default'` 归一、`clearCache`、`withDictPreload`）与 `resolveMenuIcon`；
    - **Layer 2 (`tests/stores/*.spec.ts`、`tests/router/*.spec.ts`)**：以 `createPinia()` + `createMemoryHistory()` 测试 4 个 Setup Store（`super_admin` 放行 vs 普通 `admin` 角色隔离、跨租户 7 步强重置、`100002` 安全回退、动态路由注册与精确 `removeRoute`）及路由守卫白名单/重定向/404 兜底；
    - **Layer 3 (`tests/components/*.spec.ts`)**：覆盖 `AdminLayout`（`ATENG_PRO_LAYOUT_KEY` 注入、跨租户横幅显隐、`AtengTabsNav` `@batch-close` 单源同步）、登录页 `101004` 倒计时（`ACCOUNT` 编辑清零 vs `IP` 保持）、组织菜单树与字典参数审计视图（`OrgMenuViews` / `DictConfigViews` / `AuditLogViews`）、角色叶子树与 `CUSTOM` 校验（`RoleTreeHelpers`）、用户导入弹窗 `120s` 超时与批注反馈（`UserImportDialog`）及多租户/套餐裁剪预览（`TenantPackageViews`）；
    - **确定性隔离基线 (`tests/setup.ts`)**：在 `vitest.config.ts` 注册 `setupFiles: ['tests/setup.ts']`，每个用例 `beforeEach`/`afterEach` 强制清空 `localStorage`、`sessionStorage`、`DictManager.clearCache()`、`adminAuthManager.clearToken()`、`adminTenantManager.clearTenantId()` 并执行 `vi.restoreAllMocks()`；网络层统一通过 Axios 自定义 `adapter` 或 `vi.spyOn(adminHttpClient, ...)` 离线拦截，严禁引入 MSW 等重型外部依赖。

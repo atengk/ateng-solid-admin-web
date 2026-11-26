@@ -3,13 +3,12 @@ import { computed, nextTick, reactive, ref, watch } from 'vue';
 import {
   ElForm,
   ElFormItem,
-  ElIcon,
   ElInput,
   ElMessage,
+  ElSkeleton,
   type FormInstance,
   type FormRules,
 } from 'element-plus';
-import { Check, Close, Warning } from '@element-plus/icons-vue';
 import { AtengDialog, AtengDictTag } from '@atengk/element-plus';
 import {
   createConfig,
@@ -18,11 +17,13 @@ import {
   type ConfigSaveRequest,
   type ConfigType,
 } from '@/api/system/config';
+import FormErrorBanner from '@/components/FormErrorBanner.vue';
+import PasswordPolicyChecklist from '@/components/PasswordPolicyChecklist.vue';
 import { useDetailDialogState } from '@/composables/useDetailDialogState';
+import { withDictPreload } from '@/utils/dict';
 import {
   evaluatePasswordPolicy,
-  PASSWORD_POLICY_MESSAGE,
-  type PasswordPolicyEvaluation,
+  PASSWORD_POLICY_SHORT_MESSAGE,
 } from '@/utils/password';
 
 /**
@@ -66,6 +67,7 @@ const formRef = ref<FormInstance>();
 const {
   detailLoading,
   detailLoadFailed,
+  detailReady,
   submitError,
   resetDialogState,
   recordSubmitError,
@@ -91,9 +93,6 @@ const form = reactive<{
 const isBuiltinLocked = computed<boolean>(() => props.mode === 'edit' && form.configType === 'Y');
 const isInitPasswordKey = computed<boolean>(
   () => form.configKey.trim() === INIT_PASSWORD_CONFIG_KEY,
-);
-const passwordPolicy = computed<PasswordPolicyEvaluation>(() =>
-  evaluatePasswordPolicy(form.configValue),
 );
 
 const formRules: FormRules = {
@@ -137,7 +136,7 @@ const formRules: FormRules = {
         if (isInitPasswordKey.value) {
           // 初始默认口令须按原始未裁剪文本执行强口令校验，防止首尾空白绕过
           if (!evaluatePasswordPolicy(raw).valid) {
-            callback(new Error(PASSWORD_POLICY_MESSAGE));
+            callback(new Error(PASSWORD_POLICY_SHORT_MESSAGE));
             return;
           }
           callback();
@@ -182,7 +181,7 @@ async function loadDialogData(): Promise<void> {
   if (props.mode === 'edit' && props.configId) {
     const targetId = props.configId;
     await runDetailLoad({
-      loader: () => getConfigDetail(targetId),
+      loader: () => withDictPreload(['configType'], () => getConfigDetail(targetId)),
       onLoaded: detail => {
         form.id = detail.id;
         form.configName = detail.configName;
@@ -193,6 +192,8 @@ async function loadDialogData(): Promise<void> {
       },
       errorFallback: '加载系统参数详情失败，请关闭重试',
     });
+  } else {
+    await withDictPreload(['configType'], async () => undefined);
   }
   await nextTick();
   formRef.value?.clearValidate();
@@ -247,23 +248,18 @@ async function handleBeforeConfirm(): Promise<boolean> {
     width="560px"
     confirm-text="保存参数"
     :form-ref="formRef"
-    :show-confirm="!detailLoadFailed"
+    :show-confirm="!detailLoadFailed && detailReady"
     :confirm-loading="detailLoading ? true : undefined"
     :before-confirm="handleBeforeConfirm"
     @closed="resetFormState"
   >
     <div class="flex flex-col gap-3">
-      <div
-        v-if="submitError"
-        data-testid="config-form-error"
-        role="alert"
-        class="flex items-center gap-2 rounded-[var(--solid-radius-md)] border border-[var(--solid-danger-border)] bg-[var(--solid-danger-soft)] px-3 py-2 text-[13px] text-[var(--solid-danger)]"
-      >
-        <el-icon :size="15"><Warning /></el-icon>
-        <span>{{ submitError }}</span>
-      </div>
+      <FormErrorBanner :message="submitError" test-id="config-form-error" />
+
+      <el-skeleton v-if="mode === 'edit' && !detailReady && !detailLoadFailed" :rows="5" animated />
 
       <el-form
+        v-else
         ref="formRef"
         v-loading="detailLoading"
         :model="form"
@@ -291,7 +287,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
             class="font-mono-data"
             placeholder="例如 sys.user.initPassword 或 portal.welcome.title"
           />
-          <p v-if="isBuiltinLocked" class="mt-1 text-xs text-ink-muted">
+          <p v-if="isBuiltinLocked" class="m-0 mt-1 text-xs text-ink-muted">
             系统内置核心参数（Y）受保护，禁止修改参数键名或降级
           </p>
         </el-form-item>
@@ -310,37 +306,11 @@ async function handleBeforeConfirm(): Promise<boolean> {
                 isInitPasswordKey ? '请输入符合平台强口令规则的初始默认密码' : '请输入参数键值'
               "
             />
-            <div
+            <PasswordPolicyChecklist
               v-if="isInitPasswordKey"
-              data-testid="config-password-policy"
-              class="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[var(--solid-radius-md)] border border-border bg-surface-subtle px-3 py-2 text-xs"
-            >
-              <span
-                class="inline-flex items-center gap-1"
-                :class="passwordPolicy.lengthOk ? 'text-[var(--solid-success)]' : 'text-ink-muted'"
-              >
-                <el-icon><component :is="passwordPolicy.lengthOk ? Check : Close" /></el-icon>
-                8~20 位长度
-              </span>
-              <span
-                class="inline-flex items-center gap-1"
-                :class="
-                  passwordPolicy.noWhitespace ? 'text-[var(--solid-success)]' : 'text-ink-muted'
-                "
-              >
-                <el-icon><component :is="passwordPolicy.noWhitespace ? Check : Close" /></el-icon>
-                不含空白或控制字符
-              </span>
-              <span
-                class="inline-flex items-center gap-1"
-                :class="
-                  passwordPolicy.categoriesOk ? 'text-[var(--solid-success)]' : 'text-ink-muted'
-                "
-              >
-                <el-icon><component :is="passwordPolicy.categoriesOk ? Check : Close" /></el-icon>
-                大小写/数字/特殊字符至少 3 类
-              </span>
-            </div>
+              :password="form.configValue"
+              test-id="config-password-policy"
+            />
           </div>
         </el-form-item>
 

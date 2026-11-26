@@ -604,4 +604,135 @@ describe('DictView (/system/dict) and ConfigView (/system/config)', () => {
     expect(cfgWrapper.find('.at-table__pagination--between').exists()).toBe(true);
     expect(cfgWrapper.find('.el-pagination__jump').exists()).toBe(true);
   });
+
+  it('preloads configType via single-flight loadDict shared with AtengDictSelect so ConfigView never flashes raw code (#57)', async () => {
+    const router = createDictConfigRouter();
+    await router.push('/system/config');
+    await router.isReady();
+
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue(createProfile());
+    await useAuthStore().fetchUserInfo();
+
+    const dictMap = createDictMap();
+    const providerCalls: string[] = [];
+    let releaseConfigType!: () => void;
+    const configTypeGate = new Promise<void>(resolve => {
+      releaseConfigType = resolve;
+    });
+
+    DictManager.setProvider(async code => {
+      providerCalls.push(code);
+      if (code === 'configType') {
+        await configTypeGate;
+      }
+      return dictMap[code] ?? [];
+    });
+    DictManager.setBatchProvider(async codes => {
+      if (codes.includes('configType')) {
+        await configTypeGate;
+      }
+      return Object.fromEntries(codes.map(code => [code, dictMap[code] ?? []]));
+    });
+
+    vi.spyOn(configApi, 'getConfigPage').mockResolvedValue({
+      records: [
+        {
+          id: 'CFG_BUILTIN',
+          configName: '初始口令策略',
+          configKey: 'sys.user.initPassword',
+          configValue: 'Ateng@1234',
+          configType: 'Y',
+          createTime: '2026-11-26 10:00:00',
+        },
+      ],
+      total: 1,
+      size: 10,
+      current: 1,
+      pages: 1,
+    });
+
+    const wrapper = trackWrapper(
+      mount(ConfigView, {
+        global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] },
+      }),
+    );
+    await flushPromises();
+
+    // 枚举尚未就绪前列表行不得挂载，杜绝首帧闪烁 'Y'
+    expect(wrapper.find('.at-dict-tag__item').exists()).toBe(false);
+
+    releaseConfigType();
+    await flushPromises();
+
+    const typeTag = wrapper.find('.at-dict-tag__item');
+    expect(typeTag.exists()).toBe(true);
+    expect(typeTag.text()).toBe('系统内置');
+    expect(providerCalls.filter(code => code === 'configType')).toHaveLength(1);
+  });
+
+  it('holds edit-mode ConfigFormDialog behind skeleton until detail and configType finish loading so tag never jumps from N to Y (#381)', async () => {
+    const router = createDictConfigRouter();
+    await router.push('/system/config');
+    await router.isReady();
+
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue(createProfile());
+    await useAuthStore().fetchUserInfo();
+
+    DictManager.clearCache('configType');
+
+    let releaseDetail!: (val: ConfigVO) => void;
+    vi.spyOn(configApi, 'getConfigPage').mockResolvedValue({
+      records: [
+        {
+          id: 'CFG1',
+          configName: '用户管理-初始默认密码',
+          configKey: 'sys.user.initPassword',
+          configValue: 'Ateng@2026',
+          configType: 'Y',
+          createTime: '2026-11-26 10:00:00',
+        },
+      ],
+      total: 1,
+      size: 10,
+      current: 1,
+      pages: 1,
+    });
+    vi.spyOn(configApi, 'getConfigDetail').mockImplementation(
+      () =>
+        new Promise<ConfigVO>(resolve => {
+          releaseDetail = resolve;
+        }),
+    );
+
+    const wrapper = trackWrapper(
+      mount(ConfigView, {
+        global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] },
+      }),
+    );
+    await flushPromises();
+
+    await wrapper.find('[data-testid="config-edit-btn-CFG1"]').trigger('click');
+    await flushPromises();
+
+    // 详情未就绪前不渲染默认 configType='N' 标签，且禁用保存确认按钮
+    const dialogRoot = document.body.querySelector('.el-dialog');
+    expect(dialogRoot).not.toBeNull();
+    expect(dialogRoot?.textContent).not.toContain('业务自建');
+    expect(dialogRoot?.querySelector('[data-testid="config-form-key"]')).toBeNull();
+
+    releaseDetail({
+      id: 'CFG1',
+      configName: '用户管理-初始默认密码',
+      configKey: 'sys.user.initPassword',
+      configValue: 'Ateng@2026',
+      configType: 'Y',
+      remark: '全平台初始默认口令',
+      createTime: '2026-11-26 10:00:00',
+    });
+    await flushPromises();
+
+    expect(dialogRoot?.textContent).toContain('系统内置');
+    expect(dialogRoot?.textContent).not.toContain('业务自建');
+    expect(dialogRoot?.querySelector('[data-testid="config-password-policy"]')).not.toBeNull();
+  });
 });

@@ -9,7 +9,7 @@ import {
   watch,
   type Component as VueComponent,
 } from 'vue';
-import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import {
   ATENG_PRO_LAYOUT_KEY,
   AtengTabsNav,
@@ -28,6 +28,11 @@ import {
   ADMIN_PROFILE_PATH,
   MOBILE_BREAKPOINT_PX,
   MOBILE_MEDIA_QUERY,
+  isTabSyncableRoute,
+  resolveBatchAnchorKey,
+  resolveTabFromRoute,
+  resolveTabKey,
+  resolveTabTargetPath,
 } from '@/layouts/layoutHelper';
 import { resolveMenuIcon, TAB_MENU_ICONS } from '@/utils/icon';
 import AdminHeader from '@/layouts/AdminHeader.vue';
@@ -67,37 +72,9 @@ const mobileDrawerVisible = ref<boolean>(false);
 let mediaQueryList: MediaQueryList | null = null;
 let viewportChangeListener: (() => void) | null = null;
 
-function isTabSyncableRoute(targetRoute: RouteLocationNormalizedLoaded): boolean {
-  if (targetRoute.path === '/login' || targetRoute.path === '/403' || targetRoute.path === '/404') {
-    return false;
-  }
-  return Boolean(targetRoute.meta.title);
-}
-
-function resolveTabFromRoute(targetRoute: RouteLocationNormalizedLoaded): TabItem {
-  const rawTitle = targetRoute.meta.title;
-  const title =
-    typeof rawTitle === 'string' && rawTitle.trim().length > 0 ? rawTitle : targetRoute.path;
-  const rawIcon = targetRoute.meta.icon;
-  const icon =
-    typeof rawIcon === 'string' && rawIcon.trim().length > 0
-      ? rawIcon
-      : targetRoute.path === ADMIN_HOME_PATH
-        ? 'HomeFilled'
-        : undefined;
-  const componentName =
-    targetRoute.meta.keepAlive && typeof targetRoute.name === 'string'
-      ? targetRoute.name
-      : undefined;
-
-  return {
-    key: targetRoute.fullPath,
-    title,
-    icon,
-    affix: Boolean(targetRoute.meta.affix) || targetRoute.path === ADMIN_HOME_PATH,
-    closable: !(Boolean(targetRoute.meta.affix) || targetRoute.path === ADMIN_HOME_PATH),
-    componentName,
-  };
+function resolveTabFullPath(key: string): string {
+  const matched = tabsNav.tabs.value.find(tab => tab.key === key);
+  return matched ? resolveTabTargetPath(matched) : key;
 }
 
 const tabsNav = useTabsNav({
@@ -151,34 +128,21 @@ function handleToggleSidebar(): void {
   appStore.toggleSidebar();
 }
 
-function resolveBatchAnchorKey(payload: TabBatchClosePayload): string {
-  if (payload.command === 'closeOthers') {
-    return payload.nextActiveKey || tabsNav.activeKey.value;
-  }
-  if (payload.nextActiveKey && payload.nextActiveKey !== tabsNav.activeKey.value) {
-    return payload.nextActiveKey;
-  }
-  if (payload.command === 'closeLeft') {
-    return payload.remainingTabs.find(tab => !tab.affix)?.key ?? tabsNav.activeKey.value;
-  }
-  if (payload.command === 'closeRight') {
-    const nonAffixTabs = payload.remainingTabs.filter(tab => !tab.affix);
-    return nonAffixTabs[nonAffixTabs.length - 1]?.key ?? tabsNav.activeKey.value;
-  }
-  return tabsNav.activeKey.value;
-}
-
 async function handleTabClick(tab: TabItem): Promise<void> {
-  if (tab.key && route.fullPath !== tab.key) {
-    await router.push(tab.key);
+  const targetPath = resolveTabTargetPath(tab);
+  if (targetPath && route.fullPath !== targetPath) {
+    await router.push(targetPath);
   }
 }
 
 async function closeTabAndSyncRoute(targetKey: string): Promise<void> {
-  const wasActive = route.fullPath === targetKey;
+  const wasActive = resolveTabKey(route) === targetKey || route.fullPath === targetKey;
   tabsNav.closeTab(targetKey);
-  if (wasActive && tabsNav.activeKey.value && tabsNav.activeKey.value !== route.fullPath) {
-    await router.push(tabsNav.activeKey.value);
+  if (wasActive && tabsNav.activeKey.value) {
+    const nextTarget = resolveTabFullPath(tabsNav.activeKey.value);
+    if (nextTarget !== route.fullPath) {
+      await router.push(nextTarget);
+    }
   } else if (wasActive && !tabsNav.activeKey.value) {
     await router.replace(ADMIN_HOME_PATH);
   }
@@ -193,7 +157,7 @@ async function handleBatchClose(payload: TabBatchClosePayload): Promise<void> {
   if (payload.command === 'closeAll') {
     tabsNav.closeAll();
   } else {
-    const anchorKey = resolveBatchAnchorKey(payload);
+    const anchorKey = resolveBatchAnchorKey(payload, tabsNav.activeKey.value);
     if (payload.command === 'closeOthers') {
       tabsNav.closeOthers(anchorKey);
     } else if (payload.command === 'closeLeft') {
@@ -203,8 +167,11 @@ async function handleBatchClose(payload: TabBatchClosePayload): Promise<void> {
     }
   }
 
-  if (tabsNav.activeKey.value && tabsNav.activeKey.value !== route.fullPath) {
-    await router.push(tabsNav.activeKey.value);
+  if (tabsNav.activeKey.value) {
+    const nextTarget = resolveTabFullPath(tabsNav.activeKey.value);
+    if (nextTarget !== route.fullPath) {
+      await router.push(nextTarget);
+    }
   }
 }
 
@@ -250,7 +217,7 @@ const layoutContext: AtengProLayoutContext = {
 provide(ATENG_PRO_LAYOUT_KEY, layoutContext);
 provide(SOLID_LAYOUT_TABS_KEY, {
   closeCurrentTab: async (targetKey?: string) => {
-    const key = targetKey || route.fullPath;
+    const key = targetKey || resolveTabKey(route);
     if (tabsNav.tabs.value.some(tab => tab.key === key && !tab.affix)) {
       await closeTabAndSyncRoute(key);
       return;
@@ -375,9 +342,9 @@ onBeforeUnmount(() => {
                 v-if="
                   Component &&
                   !tenantStore.switching &&
-                  tabsNav.refreshingKey.value !== currentRoute.fullPath
+                  tabsNav.refreshingKey.value !== resolveTabKey(currentRoute)
                 "
-                :key="`${tenantStore.activeTenantId}:${currentRoute.fullPath}`"
+                :key="`${tenantStore.activeTenantId}:${resolveTabKey(currentRoute)}`"
               />
             </KeepAlive>
           </router-view>

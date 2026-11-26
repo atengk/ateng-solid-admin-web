@@ -1,6 +1,9 @@
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import { isGlobalHandledHttpError, resolveErrorMessage } from '@/utils/http';
+import {
+  isGlobalHandledHttpError,
+  resolveContextualErrorMessage,
+} from '@/utils/http';
 
 /**
  * 异步详情弹窗状态与并发竞态序号守卫（供编辑/新增表单弹窗复用）。
@@ -32,6 +35,7 @@ export interface DialogRunOptions<T> {
 export function useDetailDialogState() {
   const detailLoading = ref<boolean>(false);
   const detailLoadFailed = ref<boolean>(false);
+  const detailReady = ref<boolean>(true);
   const submitError = ref<string>('');
   let loadSeq = 0;
 
@@ -39,11 +43,12 @@ export function useDetailDialogState() {
     loadSeq += 1;
     detailLoading.value = false;
     detailLoadFailed.value = false;
+    detailReady.value = true;
     submitError.value = '';
   }
 
   function recordSubmitError(error: unknown, fallback: string): void {
-    const message = resolveErrorMessage(error, fallback);
+    const message = resolveContextualErrorMessage(error, fallback);
     submitError.value = message;
     if (!isGlobalHandledHttpError(error)) {
       ElMessage.error(message);
@@ -54,6 +59,7 @@ export function useDetailDialogState() {
     const currentSeq = ++loadSeq;
     detailLoading.value = true;
     detailLoadFailed.value = false;
+    detailReady.value = false;
     submitError.value = '';
 
     try {
@@ -62,11 +68,13 @@ export function useDetailDialogState() {
         return;
       }
       options.onLoaded(data);
+      detailReady.value = true;
     } catch (error) {
       if (currentSeq !== loadSeq) {
         return;
       }
       detailLoadFailed.value = true;
+      detailReady.value = false;
       recordSubmitError(error, options.errorFallback);
     } finally {
       if (currentSeq === loadSeq) {
@@ -78,6 +86,7 @@ export function useDetailDialogState() {
   return {
     detailLoading,
     detailLoadFailed,
+    detailReady,
     submitError,
     resetDialogState,
     recordSubmitError,

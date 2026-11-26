@@ -272,4 +272,75 @@ describe('RoleTreeHelpers & RoleView', () => {
       '选择自定部门数据权限时，至少需勾选 1 个部门',
     );
   });
+
+  it('preloads dataScopeType before rendering RoleView rows so first frame never flashes raw numeric codes (#57)', async () => {
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue({
+      userId: '1',
+      tenantId: '0',
+      tenantName: '平台默认租户',
+      username: 'superadmin',
+      nickname: '超级管理员',
+      avatar: null,
+      roles: ['super_admin'],
+      permissions: ['*:*:*'],
+      passwordNeedsChange: false,
+    });
+    await useAuthStore().fetchUserInfo();
+
+    const dictMap = createDictMap();
+    let releaseDataScope!: () => void;
+    const dataScopeGate = new Promise<void>(resolve => {
+      releaseDataScope = resolve;
+    });
+
+    DictManager.setProvider(async code => {
+      if (code === 'dataScopeType') {
+        await dataScopeGate;
+      }
+      return dictMap[code] ?? [];
+    });
+    DictManager.setBatchProvider(async codes => {
+      if (codes.includes('dataScopeType')) {
+        await dataScopeGate;
+      }
+      return Object.fromEntries(codes.map(code => [code, dictMap[code] ?? []]));
+    });
+
+    vi.spyOn(roleApi, 'getRolePage').mockResolvedValue({
+      records: [
+        {
+          id: 'R1',
+          roleName: '超级管理员',
+          roleKey: 'super_admin',
+          dataScope: 1,
+          menuCheckStrictly: true,
+          deptCheckStrictly: false,
+          sort: 1,
+          status: 0,
+          builtinSuperAdmin: true,
+          createTime: '2026-11-26 09:00:00',
+        },
+      ],
+      total: 1,
+      size: 10,
+      current: 1,
+      pages: 1,
+    });
+
+    const wrapper = trackWrapper(
+      mount(RoleView, {
+        global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] },
+      }),
+    );
+    await flushPromises();
+
+    expect(wrapper.find('.at-dict-tag__item').exists()).toBe(false);
+
+    releaseDataScope();
+    await flushPromises();
+
+    const scopeTag = wrapper.find('.at-dict-tag__item');
+    expect(scopeTag.exists()).toBe(true);
+    expect(scopeTag.text()).toBe('全部数据权限');
+  });
 });

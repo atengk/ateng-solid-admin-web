@@ -3,18 +3,17 @@ import { computed, nextTick, reactive, ref, watch } from 'vue';
 import {
   ElForm,
   ElFormItem,
-  ElIcon,
   ElInput,
   ElInputNumber,
   ElMessage,
   ElOption,
   ElSelect,
+  ElSkeleton,
   ElTag,
   ElTreeSelect,
   type FormInstance,
   type FormRules,
 } from 'element-plus';
-import { Warning } from '@element-plus/icons-vue';
 import { AtengDialog, AtengDictRadio } from '@atengk/element-plus';
 import {
   createDept,
@@ -26,7 +25,9 @@ import {
 } from '@/api/system/dept';
 import { getUserOptions, type UserOptionVO } from '@/api/system/user';
 import type { CommonStatus } from '@/api/types';
-import { isGlobalHandledHttpError, resolveErrorMessage } from '@/utils/http';
+import FormErrorBanner from '@/components/FormErrorBanner.vue';
+import { useDetailDialogState } from '@/composables/useDetailDialogState';
+import { withDictPreload } from '@/utils/dict';
 import {
   buildDeptFormRules,
   buildDeptSelectorOptions,
@@ -73,9 +74,16 @@ const visible = computed<boolean>({
 });
 
 const formRef = ref<FormInstance>();
-const detailLoading = ref<boolean>(false);
+const {
+  detailLoading,
+  detailLoadFailed,
+  detailReady,
+  submitError,
+  resetDialogState,
+  recordSubmitError,
+  runDetailLoad,
+} = useDetailDialogState();
 const leaderLoading = ref<boolean>(false);
-const submitError = ref<string>('');
 const fullDeptTree = ref<DeptTreeVO[]>([]);
 const leaderOptions = ref<UserOptionVO[]>([]);
 const originalParentId = ref<string | undefined>(undefined);
@@ -111,6 +119,7 @@ const parentTreeOptions = computed<DeptSelectorOption[]>(() =>
 const formRules: FormRules = buildDeptFormRules();
 
 function resetFormState(): void {
+  resetDialogState();
   form.id = undefined;
   form.parentId = props.initialParentId?.trim() || ROOT_DEPT_ID;
   form.deptName = '';
@@ -120,7 +129,6 @@ function resetFormState(): void {
   form.email = '';
   form.status = 0;
   originalParentId.value = undefined;
-  submitError.value = '';
 }
 
 function mergeCurrentLeaderOption(
@@ -161,39 +169,38 @@ async function handleSearchLeaders(keyword: string): Promise<void> {
 
 async function loadDialogData(): Promise<void> {
   resetFormState();
-  detailLoading.value = true;
-  try {
-    const [tree, users] = await Promise.all([
-      getDeptTree(),
-      getUserOptions().catch(() => [] as UserOptionVO[]),
-    ]);
-    fullDeptTree.value = tree;
-    leaderOptions.value = users;
+  await runDetailLoad({
+    loader: () =>
+      withDictPreload(['commonStatus'], async () => {
+        const [tree, users] = await Promise.all([
+          getDeptTree(),
+          getUserOptions().catch(() => [] as UserOptionVO[]),
+        ]);
+        const detail =
+          props.mode === 'edit' && props.deptId ? await getDeptDetail(props.deptId) : null;
+        return { tree, users, detail };
+      }),
+    onLoaded: ({ tree, users, detail }) => {
+      fullDeptTree.value = tree;
+      leaderOptions.value = users;
 
-    if (props.mode === 'edit' && props.deptId) {
-      const detail = await getDeptDetail(props.deptId);
-      form.id = detail.id;
-      form.parentId = detail.parentId || ROOT_DEPT_ID;
-      originalParentId.value = detail.parentId || ROOT_DEPT_ID;
-      form.deptName = detail.deptName;
-      form.sort = detail.sort ?? 0;
-      form.leaderUserId = detail.leaderUserId ?? '';
-      form.phone = detail.phone ?? '';
-      form.email = detail.email ?? '';
-      form.status = detail.status;
-      mergeCurrentLeaderOption(detail.leaderUserId, detail.leaderNickname, detail.leaderUsername);
-    }
-  } catch (error) {
-    const message = resolveErrorMessage(error, '加载部门详情失败，请关闭重试');
-    submitError.value = message;
-    if (!isGlobalHandledHttpError(error)) {
-      ElMessage.error(message);
-    }
-  } finally {
-    detailLoading.value = false;
-    await nextTick();
-    formRef.value?.clearValidate();
-  }
+      if (detail) {
+        form.id = detail.id;
+        form.parentId = detail.parentId || ROOT_DEPT_ID;
+        originalParentId.value = detail.parentId || ROOT_DEPT_ID;
+        form.deptName = detail.deptName;
+        form.sort = detail.sort ?? 0;
+        form.leaderUserId = detail.leaderUserId ?? '';
+        form.phone = detail.phone ?? '';
+        form.email = detail.email ?? '';
+        form.status = detail.status;
+        mergeCurrentLeaderOption(detail.leaderUserId, detail.leaderNickname, detail.leaderUsername);
+      }
+    },
+    errorFallback: '加载部门详情失败，请关闭重试',
+  });
+  await nextTick();
+  formRef.value?.clearValidate();
 }
 
 watch(
@@ -206,7 +213,7 @@ watch(
 );
 
 async function handleBeforeConfirm(): Promise<boolean> {
-  if (detailLoading.value) {
+  if (detailLoading.value || detailLoadFailed.value) {
     return false;
   }
   submitError.value = '';
@@ -232,11 +239,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
     emit('saved');
     return true;
   } catch (error) {
-    const message = resolveErrorMessage(error, '保存部门失败，请核对后重试');
-    submitError.value = message;
-    if (!isGlobalHandledHttpError(error)) {
-      ElMessage.error(message);
-    }
+    recordSubmitError(error, '保存部门失败，请核对后重试');
     return false;
   }
 }
@@ -249,22 +252,18 @@ async function handleBeforeConfirm(): Promise<boolean> {
     width="640px"
     confirm-text="保存部门"
     :form-ref="formRef"
+    :show-confirm="!detailLoadFailed && detailReady"
     :confirm-loading="detailLoading ? true : undefined"
     :before-confirm="handleBeforeConfirm"
-    @closed="submitError = ''"
+    @closed="resetFormState"
   >
     <div class="flex flex-col gap-3">
-      <div
-        v-if="submitError"
-        data-testid="dept-form-error"
-        role="alert"
-        class="flex items-center gap-2 rounded-[var(--solid-radius-md)] border border-[var(--solid-danger-border)] bg-[var(--solid-danger-soft)] px-3 py-2 text-[13px] text-[var(--solid-danger)]"
-      >
-        <el-icon :size="15"><Warning /></el-icon>
-        <span>{{ submitError }}</span>
-      </div>
+      <FormErrorBanner :message="submitError" test-id="dept-form-error" />
+
+      <el-skeleton v-if="!detailReady && !detailLoadFailed" :rows="5" animated />
 
       <el-form
+        v-else
         ref="formRef"
         v-loading="detailLoading"
         :model="form"

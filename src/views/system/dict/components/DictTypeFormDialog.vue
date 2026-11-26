@@ -3,13 +3,12 @@ import { computed, nextTick, reactive, ref, watch } from 'vue';
 import {
   ElForm,
   ElFormItem,
-  ElIcon,
   ElInput,
   ElMessage,
+  ElSkeleton,
   type FormInstance,
   type FormRules,
 } from 'element-plus';
-import { Warning } from '@element-plus/icons-vue';
 import { AtengDialog, AtengDictRadio, DictManager } from '@atengk/element-plus';
 import {
   createDictType,
@@ -18,7 +17,9 @@ import {
   type DictTypeSaveRequest,
 } from '@/api/system/dict';
 import type { CommonStatus } from '@/api/types';
+import FormErrorBanner from '@/components/FormErrorBanner.vue';
 import { useDetailDialogState } from '@/composables/useDetailDialogState';
+import { withDictPreload } from '@/utils/dict';
 
 /**
  * 动态字典类型新增/编辑弹窗（480px）：
@@ -60,6 +61,7 @@ const formRef = ref<FormInstance>();
 const {
   detailLoading,
   detailLoadFailed,
+  detailReady,
   submitError,
   resetDialogState,
   recordSubmitError,
@@ -141,7 +143,7 @@ async function loadDialogData(): Promise<void> {
   if (props.mode === 'edit' && props.dictTypeId) {
     const targetId = props.dictTypeId;
     await runDetailLoad({
-      loader: () => getDictTypeDetail(targetId),
+      loader: () => withDictPreload(['commonStatus'], () => getDictTypeDetail(targetId)),
       onLoaded: detail => {
         form.id = detail.id;
         form.dictName = detail.dictName;
@@ -151,6 +153,8 @@ async function loadDialogData(): Promise<void> {
       },
       errorFallback: '加载字典类型详情失败，请关闭重试',
     });
+  } else {
+    await withDictPreload(['commonStatus'], async () => undefined);
   }
   await nextTick();
   formRef.value?.clearValidate();
@@ -205,23 +209,18 @@ async function handleBeforeConfirm(): Promise<boolean> {
     width="480px"
     confirm-text="保存字典类型"
     :form-ref="formRef"
-    :show-confirm="!detailLoadFailed"
+    :show-confirm="!detailLoadFailed && detailReady"
     :confirm-loading="detailLoading ? true : undefined"
     :before-confirm="handleBeforeConfirm"
     @closed="resetFormState"
   >
     <div class="flex flex-col gap-3">
-      <div
-        v-if="submitError"
-        data-testid="dict-type-form-error"
-        role="alert"
-        class="flex items-center gap-2 rounded-[var(--solid-radius-md)] border border-[var(--solid-danger-border)] bg-[var(--solid-danger-soft)] px-3 py-2 text-[13px] text-[var(--solid-danger)]"
-      >
-        <el-icon :size="15"><Warning /></el-icon>
-        <span>{{ submitError }}</span>
-      </div>
+      <FormErrorBanner :message="submitError" test-id="dict-type-form-error" />
+
+      <el-skeleton v-if="mode === 'edit' && !detailReady && !detailLoadFailed" :rows="4" animated />
 
       <el-form
+        v-else
         ref="formRef"
         v-loading="detailLoading"
         :model="form"
@@ -249,7 +248,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
             class="font-mono-data"
             placeholder="小写下划线格式，例如 sys_user_gender"
           />
-          <p v-if="mode === 'edit'" class="mt-1 text-xs text-ink-muted">
+          <p v-if="mode === 'edit'" class="m-0 mt-1 text-xs text-ink-muted">
             字典类型编码创建后锁定只读，避免破坏业务引用一致性
           </p>
         </el-form-item>

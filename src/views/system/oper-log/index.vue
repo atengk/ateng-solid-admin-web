@@ -12,6 +12,7 @@ import {
 import { usePagination } from '@atengk/vue';
 import { getOperLogPage, type OperLogQuery, type OperLogVO } from '@/api/system/log';
 import { useListTableLayout } from '@/composables/useListTableLayout';
+import { withDictPreload } from '@/utils/dict';
 import AuditTraceCell from '@/views/system/log/components/AuditTraceCell.vue';
 import OperLogDetailDrawer from '@/views/system/oper-log/components/OperLogDetailDrawer.vue';
 import {
@@ -35,13 +36,16 @@ const STORAGE_KEY = 'solid:table:sys-oper-log';
 const QUERY_FORM_COLS = { xs: 1, sm: 2, md: 3, lg: 5, xl: 5 } as const;
 const { tableAutoHeight, tableAutoHeightMode } = useListTableLayout();
 
-const pagination = usePagination<OperLogVO, OperLogQuery>(getOperLogPage, {
-  defaultSize: 10,
-  defaultParams: {
-    beginTime: undefined,
-    endTime: undefined,
+const pagination = usePagination<OperLogVO, OperLogQuery>(
+  params => withDictPreload(['operateType', 'logStatus'], () => getOperLogPage(params)),
+  {
+    defaultSize: 10,
+    defaultParams: {
+      beginTime: undefined,
+      endTime: undefined,
+    },
   },
-});
+);
 
 const timeRange = createTimeRangeBinding(pagination.query);
 const timeShortcuts = buildAuditTimeShortcuts();

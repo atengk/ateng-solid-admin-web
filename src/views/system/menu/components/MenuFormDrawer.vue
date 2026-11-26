@@ -3,19 +3,18 @@ import { computed, nextTick, reactive, ref, watch } from 'vue';
 import {
   ElForm,
   ElFormItem,
-  ElIcon,
   ElInput,
   ElInputNumber,
   ElMessage,
   ElRadio,
   ElRadioGroup,
+  ElSkeleton,
   ElSwitch,
   ElTag,
   ElTreeSelect,
   type FormInstance,
   type FormRules,
 } from 'element-plus';
-import { Warning } from '@element-plus/icons-vue';
 import { AtengDictRadio, AtengDrawer, AtengIconSelect } from '@atengk/element-plus';
 import {
   createMenu,
@@ -25,7 +24,9 @@ import {
   type MenuTreeVO,
 } from '@/api/system/menu';
 import type { CommonStatus, MenuType, VisibleStatus } from '@/api/types';
-import { isGlobalHandledHttpError, resolveErrorMessage } from '@/utils/http';
+import FormErrorBanner from '@/components/FormErrorBanner.vue';
+import { useDetailDialogState } from '@/composables/useDetailDialogState';
+import { withDictPreload } from '@/utils/dict';
 import { EXTRA_ELEMENT_ICONS, resolveMenuIcon } from '@/utils/icon';
 import { buildMenuFormRules } from '@/views/system/menu/menuFormRules';
 import {
@@ -83,8 +84,15 @@ const visible = computed<boolean>({
 });
 
 const formRef = ref<FormInstance>();
-const detailLoading = ref<boolean>(false);
-const submitError = ref<string>('');
+const {
+  detailLoading,
+  detailLoadFailed,
+  detailReady,
+  submitError,
+  resetDialogState,
+  recordSubmitError,
+  runDetailLoad,
+} = useDetailDialogState();
 const fullMenuTree = ref<MenuTreeVO[]>([]);
 let isInitializing = false;
 
@@ -157,6 +165,7 @@ const formRules: FormRules = buildMenuFormRules({
 });
 
 function resetFormState(): void {
+  resetDialogState();
   const initType = props.initialMenuType ?? 'M';
   const initParent = props.initialParentId?.trim() || (initType === 'F' ? '' : ROOT_MENU_ID);
   form.id = undefined;
@@ -175,7 +184,6 @@ function resetFormState(): void {
   form.keepAlive = true;
   form.isExternal = false;
   form.platformOnly = false;
-  submitError.value = '';
 }
 
 function syncPlatformOnlyInheritance(): void {
@@ -187,42 +195,44 @@ function syncPlatformOnlyInheritance(): void {
 async function loadDrawerData(): Promise<void> {
   isInitializing = true;
   resetFormState();
-  detailLoading.value = true;
   try {
-    const tree = await getMenuTree();
-    fullMenuTree.value = tree;
+    await runDetailLoad({
+      loader: () =>
+        withDictPreload(['visibleStatus', 'commonStatus'], async () => {
+          const tree = await getMenuTree();
+          const detail =
+            props.mode === 'edit' && props.menuId ? await getMenuDetail(props.menuId) : null;
+          return { tree, detail };
+        }),
+      onLoaded: ({ tree, detail }) => {
+        fullMenuTree.value = tree;
 
-    if (props.mode === 'edit' && props.menuId) {
-      const detail = await getMenuDetail(props.menuId);
-      form.id = detail.id;
-      form.parentId = detail.parentId || ROOT_MENU_ID;
-      form.menuType = detail.menuType;
-      form.title = detail.title;
-      form.name = detail.name ?? '';
-      form.path = detail.path ?? '';
-      form.component = detail.component ?? '';
-      form.redirect = detail.redirect ?? '';
-      form.perms = detail.perms ?? '';
-      form.icon = detail.icon ?? '';
-      form.sort = detail.sort ?? 0;
-      form.visible = detail.visible;
-      form.status = detail.status;
-      form.keepAlive = detail.keepAlive;
-      form.isExternal = detail.isExternal;
-      form.platformOnly = detail.platformOnly;
-    }
+        if (detail) {
+          form.id = detail.id;
+          form.parentId = detail.parentId || ROOT_MENU_ID;
+          form.menuType = detail.menuType;
+          form.title = detail.title;
+          form.name = detail.name ?? '';
+          form.path = detail.path ?? '';
+          form.component = detail.component ?? '';
+          form.redirect = detail.redirect ?? '';
+          form.perms = detail.perms ?? '';
+          form.icon = detail.icon ?? '';
+          form.sort = detail.sort ?? 0;
+          form.visible = detail.visible;
+          form.status = detail.status;
+          form.keepAlive = detail.keepAlive;
+          form.isExternal = detail.isExternal;
+          form.platformOnly = detail.platformOnly;
+        }
 
-    syncPlatformOnlyInheritance();
-  } catch (error) {
-    const message = resolveErrorMessage(error, '加载菜单详情失败，请关闭重试');
-    submitError.value = message;
-    if (!isGlobalHandledHttpError(error)) {
-      ElMessage.error(message);
-    }
+        syncPlatformOnlyInheritance();
+      },
+      errorFallback: '加载菜单详情失败，请关闭重试',
+    });
   } finally {
-    detailLoading.value = false;
-    isInitializing = false;
     await nextTick();
+    isInitializing = false;
     formRef.value?.clearValidate();
   }
 }
@@ -289,7 +299,7 @@ watch(
 );
 
 async function handleBeforeConfirm(): Promise<boolean> {
-  if (detailLoading.value) {
+  if (detailLoading.value || detailLoadFailed.value) {
     return false;
   }
   submitError.value = '';
@@ -324,11 +334,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
     emit('saved');
     return true;
   } catch (error) {
-    const message = resolveErrorMessage(error, '保存菜单失败，请核对后重试');
-    submitError.value = message;
-    if (!isGlobalHandledHttpError(error)) {
-      ElMessage.error(message);
-    }
+    recordSubmitError(error, '保存菜单失败，请核对后重试');
     return false;
   }
 }
@@ -341,22 +347,18 @@ async function handleBeforeConfirm(): Promise<boolean> {
     size="500px"
     confirm-text="保存菜单"
     :form-ref="formRef"
+    :show-confirm="!detailLoadFailed && detailReady"
     :confirm-loading="detailLoading ? true : undefined"
     :before-confirm="handleBeforeConfirm"
-    @closed="submitError = ''"
+    @closed="resetFormState"
   >
     <div class="flex flex-col gap-3">
-      <div
-        v-if="submitError"
-        data-testid="menu-form-error"
-        role="alert"
-        class="flex items-center gap-2 rounded-[var(--solid-radius-md)] border border-[var(--solid-danger-border)] bg-[var(--solid-danger-soft)] px-3 py-2 text-[13px] text-[var(--solid-danger)]"
-      >
-        <el-icon :size="15"><Warning /></el-icon>
-        <span>{{ submitError }}</span>
-      </div>
+      <FormErrorBanner :message="submitError" test-id="menu-form-error" />
+
+      <el-skeleton v-if="!detailReady && !detailLoadFailed" :rows="6" animated />
 
       <el-form
+        v-else
         ref="formRef"
         v-loading="detailLoading"
         :model="form"
@@ -560,7 +562,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
             <p
               v-if="parentInheritedPlatformOnly"
               data-testid="menu-platform-locked-hint"
-              class="text-xs leading-relaxed text-[var(--solid-warning)]"
+              class="m-0 text-xs leading-relaxed text-[var(--solid-warning)]"
             >
               继承自上级平台专属节点，不可降级为通用可分发菜单
             </p>

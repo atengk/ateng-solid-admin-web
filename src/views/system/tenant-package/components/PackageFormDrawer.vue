@@ -6,6 +6,7 @@ import {
   ElFormItem,
   ElInput,
   ElMessage,
+  ElSkeleton,
   ElTag,
   ElTree,
   type FormInstance,
@@ -24,6 +25,7 @@ import {
 import FormErrorBanner from '@/components/FormErrorBanner.vue';
 import TreeSelectionToolbar from '@/components/TreeSelectionToolbar.vue';
 import { useDetailDialogState } from '@/composables/useDetailDialogState';
+import { withDictPreload } from '@/utils/dict';
 import {
   collectSubmittedMenuIds,
   collectTreeNodeIds,
@@ -73,6 +75,7 @@ const menuTreeRef = ref<InstanceType<typeof ElTree>>();
 const {
   detailLoading,
   detailLoadFailed,
+  detailReady,
   submitError,
   resetDialogState,
   recordSubmitError,
@@ -158,16 +161,17 @@ async function loadDrawerData(): Promise<void> {
   let boundMenuIds: string[] = [];
 
   await runDetailLoad({
-    loader: async () => {
-      if (props.mode === 'edit' && props.packageId) {
-        return Promise.all([
-          getMenuTree({ platformOnly: false, status: 0 }),
-          getTenantPackageDetail(props.packageId),
-        ] as const);
-      }
-      const tree = await getMenuTree({ platformOnly: false, status: 0 });
-      return [tree, null] as const;
-    },
+    loader: () =>
+      withDictPreload(['commonStatus'], async () => {
+        if (props.mode === 'edit' && props.packageId) {
+          return Promise.all([
+            getMenuTree({ platformOnly: false, status: 0 }),
+            getTenantPackageDetail(props.packageId),
+          ] as const);
+        }
+        const tree = await getMenuTree({ platformOnly: false, status: 0 });
+        return [tree, null] as const;
+      }),
     onLoaded: ([rawTree, detail]) => {
       assignableMenuTree.value = filterPackageAssignableMenus(rawTree);
       if (detail) {
@@ -268,7 +272,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
     size="720px"
     confirm-text="保存套餐"
     :form-ref="formRef"
-    :show-confirm="!detailLoadFailed"
+    :show-confirm="!detailLoadFailed && detailReady"
     :confirm-loading="detailLoading ? true : undefined"
     :before-confirm="handleBeforeConfirm"
     @closed="resetFormState"
@@ -276,21 +280,24 @@ async function handleBeforeConfirm(): Promise<boolean> {
     <div class="flex flex-col gap-3">
       <FormErrorBanner :message="submitError" test-id="pkg-form-error" />
 
-      <el-alert
-        type="info"
-        :closable="false"
-        show-icon
-        title="已自动排除平台专属菜单（租户管理、租户套餐、菜单管理、数据字典）及停用节点"
-      />
+      <el-skeleton v-if="!detailReady && !detailLoadFailed" :rows="6" animated />
 
-      <el-form
-        ref="formRef"
-        v-loading="detailLoading"
-        :model="form"
-        :rules="formRules"
-        :validate-on-rule-change="false"
-        label-width="88px"
-      >
+      <div v-else class="flex flex-col gap-3">
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          title="已自动排除平台专属菜单（租户管理、租户套餐、菜单管理、数据字典）及停用节点"
+        />
+
+        <el-form
+          ref="formRef"
+          v-loading="detailLoading"
+          :model="form"
+          :rules="formRules"
+          :validate-on-rule-change="false"
+          label-width="88px"
+        >
         <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
           <el-form-item label="套餐名称" prop="packageName">
             <el-input
@@ -375,6 +382,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
           />
         </el-form-item>
       </el-form>
+      </div>
     </div>
 
     <PackageShrinkConfirmDialog

@@ -94,3 +94,21 @@ body {
 .el-pagination.is-background .el-pager li.is-active {
   font-weight: 600;
 }
+
+/* 非行内表单校验报错参与文档流，防止多行错误文案覆盖下一行输入或在弹窗底部被滚动容器裁半（零 !important） */
+.el-form:not(.el-form--inline) .el-form-item__content .el-form-item__error {
+  position: static;
+  flex-basis: 100%;
+  width: 100%;
+  padding-top: 4px;
+  line-height: 1.4;
+}
+
+/* 弹窗末行留白与非 Preflight 下默认表单项间距保护，避免最后一行校验出错时触发多余滚动条或裁切焦点框 */
+.at-dialog__content .el-form .el-form-item:last-child {
+  margin-bottom: 6px;
+}
+
+.el-form p {
+  margin-bottom: 0;
+}

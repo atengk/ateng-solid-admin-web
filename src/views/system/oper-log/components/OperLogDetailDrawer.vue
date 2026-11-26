@@ -4,7 +4,9 @@ import { ElButton, ElIcon } from 'element-plus';
 import { CopyDocument, Warning } from '@element-plus/icons-vue';
 import { AtengDescriptions, AtengDrawer, type DescriptionsItemConfig } from '@atengk/element-plus';
 import { getOperLogDetail, type OperLogDetailVO } from '@/api/system/log';
+import FormErrorBanner from '@/components/FormErrorBanner.vue';
 import { useDetailDialogState } from '@/composables/useDetailDialogState';
+import { withDictPreload } from '@/utils/dict';
 import {
   copyAuditText,
   formatAuditClientEnv,
@@ -131,7 +133,7 @@ async function loadOperLogDetail(): Promise<void> {
     return;
   }
   await runDetailLoad({
-    loader: () => getOperLogDetail(targetId),
+    loader: () => withDictPreload(['operateType', 'logStatus'], () => getOperLogDetail(targetId)),
     onLoaded: data => {
       Object.assign(detail, data);
     },
@@ -159,15 +161,7 @@ watch(
     @closed="clearDetailState"
   >
     <div v-loading="detailLoading" data-testid="oper-log-detail-body" class="flex flex-col gap-4">
-      <div
-        v-if="submitError"
-        data-testid="oper-log-detail-error"
-        role="alert"
-        class="flex items-center gap-2 rounded-[var(--solid-radius-md)] border border-[var(--solid-danger-border)] bg-[var(--solid-danger-soft)] px-3 py-2 text-[13px] text-[var(--solid-danger)]"
-      >
-        <el-icon :size="15"><Warning /></el-icon>
-        <span>{{ submitError }}</span>
-      </div>
+      <FormErrorBanner :message="submitError" test-id="oper-log-detail-error" />
 
       <AtengDescriptions
         v-if="hasLoadedDetail"

@@ -9,7 +9,7 @@ import {
   createDateTimeRangeBinding,
   DEFAULT_RANGE_PICKER_TIME,
 } from '@/utils/dateRange';
-import { evaluatePasswordPolicy, PASSWORD_POLICY_MESSAGE } from '@/utils/password';
+import { evaluatePasswordPolicy, PASSWORD_POLICY_SHORT_MESSAGE } from '@/utils/password';
 
 /**
  * 用户管理与 Fesod 导入导出纯逻辑辅助函数（自身/超管保护、停用部门岗位回显兜底、强口令规则与导出入参收敛）。
@@ -383,7 +383,7 @@ export function buildUserFormRules(isCreate: () => boolean): FormRules {
             return;
           }
           if (!evaluatePasswordPolicy(value ?? '').valid) {
-            callback(new Error(PASSWORD_POLICY_MESSAGE));
+            callback(new Error(PASSWORD_POLICY_SHORT_MESSAGE));
             return;
           }
           callback();

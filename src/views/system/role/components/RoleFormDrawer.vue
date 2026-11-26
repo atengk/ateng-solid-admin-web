@@ -6,6 +6,7 @@ import {
   ElInput,
   ElInputNumber,
   ElMessage,
+  ElSkeleton,
   ElTag,
   ElTree,
   type FormInstance,
@@ -24,6 +25,7 @@ import type { CommonStatus } from '@/api/types';
 import FormErrorBanner from '@/components/FormErrorBanner.vue';
 import TreeSelectionToolbar from '@/components/TreeSelectionToolbar.vue';
 import { useDetailDialogState } from '@/composables/useDetailDialogState';
+import { withDictPreload } from '@/utils/dict';
 import {
   buildRoleFormRules,
   collectSubmittedMenuIds,
@@ -32,7 +34,7 @@ import {
 } from '@/views/system/role/roleHelper';
 
 /**
- * 角色新增/编辑表单抽屉（500px）：
+ * 角色新增/编辑表单抽屉（540px）：
  * 对接当前租户套餐收敛后的可授权菜单树，实现展开/全选/父子联动控制、联动切换态重算与叶子节点精确回显。
  *
  * @author Ateng
@@ -66,6 +68,7 @@ const menuTreeRef = ref<InstanceType<typeof ElTree>>();
 const {
   detailLoading,
   detailLoadFailed,
+  detailReady,
   submitError,
   resetDialogState,
   recordSubmitError,
@@ -150,13 +153,14 @@ async function loadDrawerData(): Promise<void> {
   let boundMenuIds: string[] = [];
 
   await runDetailLoad({
-    loader: async () => {
-      if (props.mode === 'edit' && props.roleId) {
-        return Promise.all([getRoleGrantableMenuTree(), getRoleDetail(props.roleId)] as const);
-      }
-      const tree = await getRoleGrantableMenuTree();
-      return [tree, null] as const;
-    },
+    loader: () =>
+      withDictPreload(['commonStatus'], async () => {
+        if (props.mode === 'edit' && props.roleId) {
+          return Promise.all([getRoleGrantableMenuTree(), getRoleDetail(props.roleId)] as const);
+        }
+        const tree = await getRoleGrantableMenuTree();
+        return [tree, null] as const;
+      }),
     onLoaded: ([tree, detail]) => {
       grantableMenuTree.value = tree;
       if (detail) {
@@ -229,10 +233,10 @@ async function handleBeforeConfirm(): Promise<boolean> {
   <AtengDrawer
     v-model="visible"
     :title="mode === 'edit' ? '编辑角色' : '新增角色'"
-    size="500px"
+    size="540px"
     confirm-text="保存角色"
     :form-ref="formRef"
-    :show-confirm="!detailLoadFailed"
+    :show-confirm="!detailLoadFailed && detailReady"
     :confirm-loading="detailLoading ? true : undefined"
     :before-confirm="handleBeforeConfirm"
     @closed="resetFormState"
@@ -240,7 +244,10 @@ async function handleBeforeConfirm(): Promise<boolean> {
     <div class="flex flex-col gap-3">
       <FormErrorBanner :message="submitError" test-id="role-form-error" />
 
+      <el-skeleton v-if="!detailReady && !detailLoadFailed" :rows="6" animated />
+
       <el-form
+        v-else
         ref="formRef"
         v-loading="detailLoading"
         :model="form"

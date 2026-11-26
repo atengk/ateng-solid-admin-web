@@ -38,12 +38,16 @@
    - **检索复杂度分级与弹性封顶滚动（[ADR-0005](../adr/0005-tiered-query-collapse-and-max-auto-height-table.md)）**：全宽 ≤3 项检索统一 `:default-collapsed="false" :show-collapse="false"` 并配 `:cols` 单行收口（复用 `useListTableLayout.ts` 导出的 `QUERY_COLS_THREE_ITEMS` / `QUERY_COLS_TWO_ITEMS`）；仅窄分栏（`dict` 左栏）与 ≥4 项多条件页保留 `:default-collapsed="true"`；全站 12 个业务页已通过 `useListTableLayout` 在桌面横排态统一接入 `:auto-height="16"` + `auto-height-mode="max"`（已于 [`ateng-ui#380`](https://github.com/atengk/ateng-ui/issues/380) 下沉并在 `dev` 经本地 `yalc` 联调验证，合入 `main` 前锁回 npm 正式版；分栏外层配 `h-full min-h-0`），移动端/垂直堆叠态自动传 `false` 退回整页滚动；
    - 当 `AtengQueryForm` 嵌套在已传 `:pagination` 的 `<AtengTable #query>` 插槽内时，受益于 `#375` 修复可自动继承 `tableContext.loading` 且无双发查询/无效重置，仅需传 `:model="pagination.query"`，勿重复传 `:pagination`；
    - 树形表格直接向 `<AtengTable>` 透传 `:tree-props`、`row-key="id"`、`:show-pagination="false"`。
-4. **双轨字典与枚举加载（`src/utils/dict.ts`）**：
+- **双轨字典、预热与同步缓存水合（`src/utils/dict.ts`）**：
    - 必须同时注册 `DictManager.setProvider` 与 `DictManager.setBatchProvider`：依据数学互斥命名规则，`lowerCamelCase`（含 `[A-Z]`，如 `commonStatus`/`dataScopeType`）路由至 `GET /admin/system/enums/{name}` 与 `POST /admin/system/enums/batch`；`snake_case`（如 `sys_user_gender`）路由至 `GET /admin/system/dict/data/type/{dictType}`；
    - 适配层将后端 `OptionItem`（`{ code, label, disabled, extra }`）与 `DictDataVO` 统一归一化为 `DictItem`，过滤 `'default'` 及非法 `tagType` 为 `undefined`（与 `#375` 修复形成双防线）；列表用 `AtengDictTag`，表单用 `AtengDictSelect` / `AtengDictRadio` / `AtengDictCheckbox`。
+   - 受益于 `ateng-ui#381`（提交 `934135a`），`AtengDictTag` 命中缓存支持 `setup()` 同步水合且冷加载支持占位；列表页与详情弹窗/抽屉在拉数期间通过 `withDictPreload` + `useDetailDialogState().detailReady` 骨架屏门控协同（待后端详情与所需字典均返回后再渲染表单与关闭禁点），消除编辑态 `'N'` ➔ `'Y'`、`isPlatformZero` 或 `CUSTOM` 权限树的首帧假默认跳变。
 5. **验证码、上传与 Excel 导入导出**：
    - 图形验证码：`<AtengCaptcha type="image" :refresh="loadCaptcha" />`（`refresh` 是 **Prop 回调**，不是 `@refresh` 事件）；
    - 上传组件：**强制传递 `:http-request="uploadWithAdminClient"`** 桥接 `adminHttpClient`（严禁使用默认 XHR `action`，否则绕过 `satoken-admin`、`X-Tenant-Id` 与全局异常拦截器）；用户导入写接口须覆盖请求级超时 `timeout: 120_000`；
    - 导入错误反馈：`<AtengExcelFeedback :download-action="downloadFeedbackBlob" />` 强制经 `adminHttpClient` 拉取二进制流（受益于 `#375` 自动优先解析 `Content-Disposition` 文件名）；导出使用 `AtengExcelExport` 或 `useExcel({ httpClient: adminHttpClient })`。
+6. **弹窗/抽屉表单流式校验与协同组件复用（`src/styles/main.css`、`src/components/`）**：
+   - **流式校验提示与无 Preflight 补偿**：在 `src/styles/main.css` 为非行内表单 `.el-form:not(.el-form--inline) .el-form-item__content .el-form-item__error` 配置 `position: static; flex-basis: 100%; width: 100%; padding-top: 4px; line-height: 1.4;`，并同步收敛 `.at-dialog__content .el-form .el-form-item:last-child` 下边距与 `.el-form p { margin-bottom: 0; }`，根除多行校验提示遮挡下一行表单控件或撑出弹窗底部滚动裁切；
+   - **宽裕列宽与协作组件单源化**：编辑/新增表单弹窗与抽屉统一复用 `<FormErrorBanner>`、`<PasswordPolicyChecklist>`（含 `inline`/`list` 双形态与 `extraRules`，配对字段使用简短规则文案 `PASSWORD_POLICY_SHORT_MESSAGE`）与 `useDetailDialogState`；涉及 30~64 字符账号/编码/邮箱及日期时间选择器的抽屉（`UserFormDrawer`、`TenantFormDrawer` `560px`，`RoleFormDrawer` `540px`）采用单列或宽列布局避免 2~3 行校验折行。
 
 > 若接入中发现 `@atengk/*` 通用能力缺失或缺陷，按 [`foundation-first-gate.md`](./foundation-first-gate.md) 提单并先在 `ateng-ui` 本地改造；当前本地 `.yalc/@atengk/element-plus` 可在 `dev` 分支随本仓改动正常提交联调，合入 `main` 与发版前必须还原为上游已发布的正式 npm 版本锁版。

@@ -36,7 +36,7 @@ import {
   useListTableLayout,
 } from '@/composables/useListTableLayout';
 import { useAuthStore } from '@/stores/auth';
-import { normalizeTagType } from '@/utils/dict';
+import { normalizeTagType, withDictPreload } from '@/utils/dict';
 import DictDataFormDialog from '@/views/system/dict/components/DictDataFormDialog.vue';
 
 /**
@@ -90,7 +90,7 @@ const dataPagination = usePagination<DictDataVO, DictDataQuery>(
         size: params?.size ?? 10,
       });
     }
-    return getDictDataPage({ ...params, dictType: activeType });
+    return withDictPreload(['commonStatus'], () => getDictDataPage({ ...params, dictType: activeType }));
   },
   { defaultSize: 10 },
 );

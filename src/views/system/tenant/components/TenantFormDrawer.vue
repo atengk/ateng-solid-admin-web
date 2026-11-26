@@ -12,6 +12,7 @@ import {
   ElMessage,
   ElOption,
   ElSelect,
+  ElSkeleton,
   ElTag,
   type FormInstance,
   type FormRules,
@@ -23,6 +24,7 @@ import { getTenantPackageOptions, type TenantPackageOptionVO } from '@/api/syste
 import FormErrorBanner from '@/components/FormErrorBanner.vue';
 import PasswordPolicyChecklist from '@/components/PasswordPolicyChecklist.vue';
 import { useDetailDialogState } from '@/composables/useDetailDialogState';
+import { withDictPreload } from '@/utils/dict';
 import {
   buildSelectablePackageOptions,
   buildTenantCreatePayload,
@@ -38,7 +40,7 @@ import {
 } from '@/views/system/tenant/tenantHelper';
 
 /**
- * SaaS 租户新增/编辑抽屉（540px）：
+ * SaaS 租户新增/编辑抽屉（560px）：
  * 新增态采集原子初始化配置（含初始强口令预填与随机编码生成），
  * 编辑态保护 0 号默认租户仅允许维护名称与备注，并兼容已停用既绑套餐的回显。
  *
@@ -71,8 +73,15 @@ const visible = computed<boolean>({
 });
 
 const formRef = ref<FormInstance>();
-const { detailLoading, detailLoadFailed, submitError, resetDialogState, recordSubmitError, runDetailLoad } =
-  useDetailDialogState();
+const {
+  detailLoading,
+  detailLoadFailed,
+  detailReady,
+  submitError,
+  resetDialogState,
+  recordSubmitError,
+  runDetailLoad,
+} = useDetailDialogState();
 
 const activePackages = ref<TenantPackageOptionVO[]>([]);
 const isPlatformZero = ref<boolean>(false);
@@ -136,21 +145,22 @@ async function loadDrawerData(): Promise<void> {
   const targetId = props.tenantId ?? '';
 
   await runDetailLoad({
-    loader: async () => {
-      if (isEdit) {
-        const detail = await getTenantDetail(targetId);
-        // 0 号默认租户不展示套餐下拉，跳过无意义的选项请求
-        const packages = isProtectedPlatformTenant(detail)
-          ? ([] as TenantPackageOptionVO[])
-          : await getTenantPackageOptions();
-        return { packages, detail, initPassword: null };
-      }
-      const [packages, initPassword] = await Promise.all([
-        getTenantPackageOptions(),
-        getConfigByKey('sys.user.initPassword').catch(() => null),
-      ]);
-      return { packages, detail: null, initPassword };
-    },
+    loader: () =>
+      withDictPreload(['commonStatus'], async () => {
+        if (isEdit) {
+          const detail = await getTenantDetail(targetId);
+          // 0 号默认租户不展示套餐下拉，跳过无意义的选项请求
+          const packages = isProtectedPlatformTenant(detail)
+            ? ([] as TenantPackageOptionVO[])
+            : await getTenantPackageOptions();
+          return { packages, detail, initPassword: null };
+        }
+        const [packages, initPassword] = await Promise.all([
+          getTenantPackageOptions(),
+          getConfigByKey('sys.user.initPassword').catch(() => null),
+        ]);
+        return { packages, detail: null, initPassword };
+      }),
     onLoaded: ({ packages, detail, initPassword }) => {
       activePackages.value = packages;
       if (detail) {
@@ -211,10 +221,10 @@ async function handleBeforeConfirm(): Promise<boolean> {
   <AtengDrawer
     v-model="visible"
     :title="drawerTitle"
-    size="520px"
+    size="560px"
     :confirm-text="mode === 'create' ? '创建租户' : '保存租户'"
     :form-ref="formRef"
-    :show-confirm="!detailLoadFailed"
+    :show-confirm="!detailLoadFailed && detailReady"
     :confirm-loading="detailLoading ? true : undefined"
     :before-confirm="handleBeforeConfirm"
     @closed="resetFormState"
@@ -222,16 +232,18 @@ async function handleBeforeConfirm(): Promise<boolean> {
     <div class="flex flex-col gap-3">
       <FormErrorBanner :message="submitError" test-id="tenant-form-error" />
 
-      <el-alert
-        v-if="isPlatformZero"
-        type="warning"
-        :closable="false"
-        show-icon
-        title="平台内置默认租户（000000）受系统保护，仅允许修改租户名称与备注"
-      />
+      <el-skeleton v-if="!detailReady && !detailLoadFailed" :rows="6" animated />
 
-      <el-form ref="formRef" v-loading="detailLoading" :model="form" :rules="formRules" :validate-on-rule-change="false" label-width="96px">
-        <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
+      <div v-else class="flex flex-col gap-3">
+        <el-alert
+          v-if="isPlatformZero"
+          type="warning"
+          :closable="false"
+          show-icon
+          title="平台内置默认租户（000000）受系统保护，仅允许修改租户名称与备注"
+        />
+
+        <el-form ref="formRef" v-loading="detailLoading" :model="form" :rules="formRules" :validate-on-rule-change="false" label-width="96px">
           <el-form-item label="租户编码" prop="tenantCode">
             <div class="flex w-full items-center gap-1.5">
               <el-input v-model="form.tenantCode" data-testid="tenant-form-code" :disabled="mode === 'edit'" maxlength="32" clearable class="font-mono-data" placeholder="4~32 位，禁填 000000" />
@@ -244,28 +256,26 @@ async function handleBeforeConfirm(): Promise<boolean> {
           <el-form-item label="租户名称" prop="tenantName">
             <el-input v-model="form.tenantName" data-testid="tenant-form-name" maxlength="50" clearable placeholder="请输入 2~50 个字符" />
           </el-form-item>
-        </div>
 
-        <template v-if="!isPlatformZero">
-          <el-form-item label="关联套餐" prop="packageId">
-            <el-select v-model="form.packageId" data-testid="tenant-form-package" popper-class="tenant-form-package-popper" filterable class="w-full" placeholder="请选择正常启用的租户套餐">
-              <el-option
-                v-for="item in packageSelectOptions"
-                :key="item.id"
-                :data-testid="`tenant-form-package-option-${item.id}`"
-                :label="item.packageName"
-                :value="item.id"
-                :disabled="item.disabled"
-              >
-                <div class="flex items-center justify-between gap-2">
-                  <span>{{ item.packageName }}</span>
-                  <el-tag v-if="item.status === 1" size="small" type="warning">已停用</el-tag>
-                </div>
-              </el-option>
-            </el-select>
-          </el-form-item>
+          <template v-if="!isPlatformZero">
+            <el-form-item label="关联套餐" prop="packageId">
+              <el-select v-model="form.packageId" data-testid="tenant-form-package" popper-class="tenant-form-package-popper" filterable class="w-full" placeholder="请选择正常启用的租户套餐">
+                <el-option
+                  v-for="item in packageSelectOptions"
+                  :key="item.id"
+                  :data-testid="`tenant-form-package-option-${item.id}`"
+                  :label="item.packageName"
+                  :value="item.id"
+                  :disabled="item.disabled"
+                >
+                  <div class="flex items-center justify-between gap-2">
+                    <span>{{ item.packageName }}</span>
+                    <el-tag v-if="item.status === 1" size="small" type="warning">已停用</el-tag>
+                  </div>
+                </el-option>
+              </el-select>
+            </el-form-item>
 
-          <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
             <el-form-item label="账号配额" prop="accountCount">
               <div class="flex w-full flex-col gap-1.5">
                 <el-checkbox v-model="form.unlimitedAccount" name="unlimitedAccount" data-testid="tenant-form-unlimited-account" @change="handleUnlimitedChange">
@@ -283,34 +293,34 @@ async function handleBeforeConfirm(): Promise<boolean> {
                 <el-date-picker v-model="form.expireTime" data-testid="tenant-form-expire-time" type="datetime" :disabled="form.permanentExpire" value-format="YYYY-MM-DD HH:mm:ss" format="YYYY-MM-DD HH:mm:ss" class="tenant-date-picker" placeholder="选择授权到期时间" />
               </div>
             </el-form-item>
-          </div>
 
-          <el-form-item for="" label="租户状态" prop="status">
-            <AtengDictRadio v-model="form.status" data-testid="tenant-form-status" dict-code="commonStatus" value-type="number" />
-          </el-form-item>
-        </template>
+            <el-form-item for="" label="租户状态" prop="status">
+              <AtengDictRadio v-model="form.status" data-testid="tenant-form-status" dict-code="commonStatus" value-type="number" />
+            </el-form-item>
+          </template>
 
-        <template v-if="mode === 'create'">
-          <div class="mb-3 border-t border-border-subtle pt-3 text-xs font-medium text-ink-secondary">
-            默认租户管理员初始化（与租户同一事务原子落库）
-          </div>
-
-          <el-form-item label="管理员账号" prop="adminUsername">
-            <el-input v-model="form.adminUsername" data-testid="tenant-form-admin-username" maxlength="30" clearable class="font-mono-data" placeholder="默认如 admin（2~30 位字母/数字/下划线）" />
-          </el-form-item>
-
-          <el-form-item label="初始密码" prop="adminPassword">
-            <div class="flex w-full flex-col gap-1.5">
-              <el-input v-model="form.adminPassword" data-testid="tenant-form-admin-password" type="password" show-password maxlength="20" autocomplete="new-password" placeholder="已预填系统初始密码，可按强口令规则修改" />
-              <PasswordPolicyChecklist :password="form.adminPassword" />
+          <template v-if="mode === 'create'">
+            <div class="mb-3 border-t border-border-subtle pt-3 text-xs font-medium text-ink-secondary">
+              默认租户管理员初始化（与租户同一事务原子落库）
             </div>
-          </el-form-item>
-        </template>
 
-        <el-form-item label="备注" prop="remark">
-          <el-input v-model="form.remark" data-testid="tenant-form-remark" type="textarea" :rows="2" maxlength="500" show-word-limit placeholder="可选填写租户业务背景与授权备注" />
-        </el-form-item>
-      </el-form>
+            <el-form-item label="管理员账号" prop="adminUsername">
+              <el-input v-model="form.adminUsername" data-testid="tenant-form-admin-username" maxlength="30" clearable class="font-mono-data" placeholder="默认如 admin（2~30 位字母/数字/下划线）" />
+            </el-form-item>
+
+            <el-form-item label="初始密码" prop="adminPassword">
+              <div class="flex w-full flex-col gap-1.5">
+                <el-input v-model="form.adminPassword" data-testid="tenant-form-admin-password" type="password" show-password maxlength="20" autocomplete="new-password" placeholder="已预填系统初始密码，可按强口令规则修改" />
+                <PasswordPolicyChecklist :password="form.adminPassword" />
+              </div>
+            </el-form-item>
+          </template>
+
+          <el-form-item label="备注" prop="remark">
+            <el-input v-model="form.remark" data-testid="tenant-form-remark" type="textarea" :rows="2" maxlength="500" show-word-limit placeholder="可选填写租户业务背景与授权备注" />
+          </el-form-item>
+        </el-form>
+      </div>
     </div>
   </AtengDrawer>
 </template>

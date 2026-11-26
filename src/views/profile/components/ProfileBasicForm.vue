@@ -4,17 +4,17 @@ import {
   ElButton,
   ElForm,
   ElFormItem,
-  ElIcon,
   ElInput,
   ElMessage,
   type FormInstance,
   type FormRules,
 } from 'element-plus';
-import { Refresh, Warning } from '@element-plus/icons-vue';
+import { Refresh } from '@element-plus/icons-vue';
 import { AtengDictRadio } from '@atengk/element-plus';
-import { BusinessException } from '@atengk/core';
 import { updatePersonalProfile, type PersonalProfileVO } from '@/api/auth';
 import type { GenderValue } from '@/api/types';
+import FormErrorBanner from '@/components/FormErrorBanner.vue';
+import { resolveContextualErrorMessage } from '@/utils/http';
 
 /**
  * 个人中心基本资料表单面板：保持表单绑定值为完整未脱敏内存真明文，支持还原与冲突错误就地提示。
@@ -156,10 +156,10 @@ async function handleSave(): Promise<void> {
     ElMessage.success('已保存个人资料');
     emit('saved');
   } catch (error) {
-    submitError.value =
-      error instanceof BusinessException && error.msg
-        ? error.msg
-        : '保存个人资料失败，请核对手机或邮箱后重试';
+    submitError.value = resolveContextualErrorMessage(
+      error,
+      '保存个人资料失败，请核对手机或邮箱后重试',
+    );
   } finally {
     saving.value = false;
   }
@@ -168,15 +168,7 @@ async function handleSave(): Promise<void> {
 
 <template>
   <div class="flex flex-col gap-4">
-    <div
-      v-if="submitError"
-      data-testid="profile-basic-error"
-      role="alert"
-      class="flex items-center gap-2 rounded-[var(--solid-radius-md)] border border-[var(--solid-danger-border)] bg-[var(--solid-danger-soft)] px-3 py-2 text-[13px] text-[var(--solid-danger)]"
-    >
-      <el-icon :size="15"><Warning /></el-icon>
-      <span>{{ submitError }}</span>
-    </div>
+    <FormErrorBanner :message="submitError" test-id="profile-basic-error" />
 
     <el-form ref="formRef" :model="form" :rules="formRules" label-width="96px" class="max-w-xl">
       <el-form-item label="登录账号">

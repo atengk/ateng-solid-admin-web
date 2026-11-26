@@ -5,17 +5,18 @@ import {
   ElButton,
   ElForm,
   ElFormItem,
-  ElIcon,
   ElInput,
   ElMessage,
   type FormInstance,
   type FormRules,
 } from 'element-plus';
-import { Check, Close, Lock, Warning } from '@element-plus/icons-vue';
-import { BusinessException } from '@atengk/core';
+import { Lock } from '@element-plus/icons-vue';
 import { updatePassword } from '@/api/auth';
+import FormErrorBanner from '@/components/FormErrorBanner.vue';
+import PasswordPolicyChecklist from '@/components/PasswordPolicyChecklist.vue';
 import { useAuthStore } from '@/stores/auth';
-import { evaluatePasswordPolicy, PASSWORD_POLICY_MESSAGE } from '@/utils/password';
+import { resolveContextualErrorMessage } from '@/utils/http';
+import { evaluatePasswordPolicy, PASSWORD_POLICY_SHORT_MESSAGE } from '@/utils/password';
 
 /**
  * 个人中心修改密码面板：提供实时 4 项强口令规则达成指示，修改成功后强制注销全端会话重登。
@@ -38,21 +39,9 @@ const form = reactive({
   confirmPassword: '',
 });
 
-const policyEval = computed(() => evaluatePasswordPolicy(form.newPassword));
 const isDifferentFromOld = computed<boolean>(
   () => form.newPassword.length > 0 && form.newPassword !== form.oldPassword,
 );
-
-const checklistItems = computed(() => [
-  { key: 'length', label: '长度为 8~20 个字符', passed: policyEval.value.lengthOk },
-  { key: 'whitespace', label: '不能包含空格或控制字符', passed: policyEval.value.noWhitespace },
-  {
-    key: 'categories',
-    label: '至少包含大写字母、小写字母、数字、特殊字符中的 3 类',
-    passed: policyEval.value.categoriesOk,
-  },
-  { key: 'different', label: '不能与当前密码完全一致', passed: isDifferentFromOld.value },
-]);
 
 const formRules: FormRules = {
   oldPassword: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
@@ -66,7 +55,7 @@ const formRules: FormRules = {
         }
         const evaluated = evaluatePasswordPolicy(value);
         if (!evaluated.valid) {
-          callback(new Error(PASSWORD_POLICY_MESSAGE));
+          callback(new Error(PASSWORD_POLICY_SHORT_MESSAGE));
           return;
         }
         if (value === form.oldPassword) {
@@ -138,10 +127,10 @@ async function handleSubmit(): Promise<void> {
     // 后端已全端注销该账号会话，前端直接清理本地凭据并跳转 /login
     await authStore.logout({ remote: false, router });
   } catch (error) {
-    submitError.value =
-      error instanceof BusinessException && error.msg
-        ? error.msg
-        : '修改密码失败，请核对当前密码后重试';
+    submitError.value = resolveContextualErrorMessage(
+      error,
+      '修改密码失败，请核对当前密码后重试',
+    );
   } finally {
     submitting.value = false;
   }
@@ -150,15 +139,7 @@ async function handleSubmit(): Promise<void> {
 
 <template>
   <div class="flex flex-col gap-4">
-    <div
-      v-if="submitError"
-      data-testid="profile-password-error"
-      role="alert"
-      class="flex items-center gap-2 rounded-[var(--solid-radius-md)] border border-[var(--solid-danger-border)] bg-[var(--solid-danger-soft)] px-3 py-2 text-[13px] text-[var(--solid-danger)]"
-    >
-      <el-icon :size="15"><Warning /></el-icon>
-      <span>{{ submitError }}</span>
-    </div>
+    <FormErrorBanner :message="submitError" test-id="profile-password-error" />
 
     <el-form ref="formRef" :model="form" :rules="formRules" label-width="104px" class="max-w-xl">
       <el-form-item label="当前密码" prop="oldPassword">
@@ -186,22 +167,14 @@ async function handleSubmit(): Promise<void> {
           :prefix-icon="Lock"
         />
 
-        <ul
-          class="mt-2 mb-0 flex list-none flex-col gap-1 rounded-[var(--solid-radius-md)] border border-border-subtle bg-canvas/70 px-3 py-2 text-xs"
-        >
-          <li
-            v-for="rule in checklistItems"
-            :key="rule.key"
-            class="flex items-center gap-1.5"
-            :class="rule.passed ? 'text-success' : 'text-ink-secondary'"
-          >
-            <el-icon :size="13">
-              <Check v-if="rule.passed" />
-              <Close v-else />
-            </el-icon>
-            <span>{{ rule.label }}</span>
-          </li>
-        </ul>
+        <PasswordPolicyChecklist
+          :password="form.newPassword"
+          layout="list"
+          :extra-rules="[
+            { key: 'different', label: '不能与当前密码完全一致', passed: isDifferentFromOld },
+          ]"
+          test-id="profile-password-policy"
+        />
       </el-form-item>
 
       <el-form-item label="确认新密码" prop="confirmPassword">

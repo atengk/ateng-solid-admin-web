@@ -3,17 +3,16 @@ import { computed, nextTick, reactive, ref, watch } from 'vue';
 import {
   ElForm,
   ElFormItem,
-  ElIcon,
   ElInput,
   ElInputNumber,
   ElMessage,
   ElRadio,
   ElRadioGroup,
+  ElSkeleton,
   ElSwitch,
   type FormInstance,
   type FormRules,
 } from 'element-plus';
-import { Warning } from '@element-plus/icons-vue';
 import {
   AtengDialog,
   AtengDictRadio,
@@ -28,8 +27,9 @@ import {
   type DictDataSaveRequest,
 } from '@/api/system/dict';
 import type { CommonStatus, TagType } from '@/api/types';
+import FormErrorBanner from '@/components/FormErrorBanner.vue';
 import { useDetailDialogState } from '@/composables/useDetailDialogState';
-import { normalizeTagType } from '@/utils/dict';
+import { normalizeTagType, withDictPreload } from '@/utils/dict';
 
 /**
  * 动态字典明细新增/编辑弹窗（520px）：
@@ -82,6 +82,7 @@ const formRef = ref<FormInstance>();
 const {
   detailLoading,
   detailLoadFailed,
+  detailReady,
   submitError,
   resetDialogState,
   recordSubmitError,
@@ -198,7 +199,7 @@ async function loadDialogData(): Promise<void> {
   if (props.mode === 'edit' && props.dictDataId) {
     const targetId = props.dictDataId;
     await runDetailLoad({
-      loader: () => getDictDataDetail(targetId),
+      loader: () => withDictPreload(['commonStatus'], () => getDictDataDetail(targetId)),
       onLoaded: detail => {
         form.id = detail.id;
         form.dictType = detail.dictType;
@@ -213,6 +214,8 @@ async function loadDialogData(): Promise<void> {
       },
       errorFallback: '加载字典数据详情失败，请关闭重试',
     });
+  } else {
+    await withDictPreload(['commonStatus'], async () => undefined);
   }
   await nextTick();
   formRef.value?.clearValidate();
@@ -270,38 +273,33 @@ async function handleBeforeConfirm(): Promise<boolean> {
     width="520px"
     confirm-text="保存字典数据"
     :form-ref="formRef"
-    :show-confirm="!detailLoadFailed"
+    :show-confirm="!detailLoadFailed && detailReady"
     :confirm-loading="detailLoading ? true : undefined"
     :before-confirm="handleBeforeConfirm"
     @closed="resetFormState"
   >
     <div class="flex flex-col gap-3">
-      <div
-        v-if="submitError"
-        data-testid="dict-data-form-error"
-        role="alert"
-        class="flex items-center gap-2 rounded-[var(--solid-radius-md)] border border-[var(--solid-danger-border)] bg-[var(--solid-danger-soft)] px-3 py-2 text-[13px] text-[var(--solid-danger)]"
-      >
-        <el-icon :size="15"><Warning /></el-icon>
-        <span>{{ submitError }}</span>
-      </div>
+      <FormErrorBanner :message="submitError" test-id="dict-data-form-error" />
 
-      <div
-        data-testid="dict-data-preview"
-        class="flex items-center justify-between rounded-[var(--solid-radius-md)] border border-border bg-surface-subtle px-3 py-2"
-      >
-        <span class="text-xs font-medium text-ink-secondary">样式实时预览</span>
-        <AtengDictTag :options="previewOptions" :value="previewKey" />
-      </div>
+      <el-skeleton v-if="mode === 'edit' && !detailReady && !detailLoadFailed" :rows="6" animated />
 
-      <el-form
-        ref="formRef"
-        v-loading="detailLoading"
-        :model="form"
-        :rules="formRules"
-        :validate-on-rule-change="false"
-        label-width="92px"
-      >
+      <div v-else class="flex flex-col gap-3">
+        <div
+          data-testid="dict-data-preview"
+          class="flex items-center justify-between rounded-[var(--solid-radius-md)] border border-border bg-surface-subtle px-3 py-2"
+        >
+          <span class="text-xs font-medium text-ink-secondary">样式实时预览</span>
+          <AtengDictTag :options="previewOptions" :value="previewKey" />
+        </div>
+
+        <el-form
+          ref="formRef"
+          v-loading="detailLoading"
+          :model="form"
+          :rules="formRules"
+          :validate-on-rule-change="false"
+          label-width="92px"
+        >
         <el-form-item label="字典类型">
           <el-input :model-value="form.dictType" disabled class="font-mono-data" />
         </el-form-item>
@@ -390,6 +388,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
           />
         </el-form-item>
       </el-form>
+      </div>
     </div>
   </AtengDialog>
 </template>

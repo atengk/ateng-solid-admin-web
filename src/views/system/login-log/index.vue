@@ -10,6 +10,7 @@ import {
 import { usePagination } from '@atengk/vue';
 import { getLoginLogPage, type LoginLogQuery, type LoginLogVO } from '@/api/system/log';
 import { useListTableLayout } from '@/composables/useListTableLayout';
+import { withDictPreload } from '@/utils/dict';
 import AuditTraceCell from '@/views/system/log/components/AuditTraceCell.vue';
 import {
   buildAuditTimeShortcuts,
@@ -31,13 +32,16 @@ const STORAGE_KEY = 'solid:table:sys-login-log';
 const QUERY_FORM_COLS = { xs: 1, sm: 2, md: 3, lg: 4, xl: 4 } as const;
 const { tableAutoHeight, tableAutoHeightMode } = useListTableLayout();
 
-const pagination = usePagination<LoginLogVO, LoginLogQuery>(getLoginLogPage, {
-  defaultSize: 10,
-  defaultParams: {
-    beginTime: undefined,
-    endTime: undefined,
+const pagination = usePagination<LoginLogVO, LoginLogQuery>(
+  params => withDictPreload(['logStatus'], () => getLoginLogPage(params)),
+  {
+    defaultSize: 10,
+    defaultParams: {
+      beginTime: undefined,
+      endTime: undefined,
+    },
   },
-});
+);
 
 const timeRange = createTimeRangeBinding(pagination.query);
 const timeShortcuts = buildAuditTimeShortcuts();

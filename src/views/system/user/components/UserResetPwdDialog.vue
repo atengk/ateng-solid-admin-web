@@ -7,7 +7,7 @@ import { resetUserPassword, type UserVO } from '@/api/system/user';
 import FormErrorBanner from '@/components/FormErrorBanner.vue';
 import PasswordPolicyChecklist from '@/components/PasswordPolicyChecklist.vue';
 import { useDetailDialogState } from '@/composables/useDetailDialogState';
-import { evaluatePasswordPolicy, PASSWORD_POLICY_MESSAGE } from '@/utils/password';
+import { evaluatePasswordPolicy, PASSWORD_POLICY_SHORT_MESSAGE } from '@/utils/password';
 
 /**
  * 管理员重置用户密码弹窗（480px）：
@@ -49,7 +49,7 @@ const formRules: FormRules = {
       required: true,
       validator: (_rule, value: string, callback) => {
         if (!evaluatePasswordPolicy(value ?? '').valid) {
-          callback(new Error(PASSWORD_POLICY_MESSAGE));
+          callback(new Error(PASSWORD_POLICY_SHORT_MESSAGE));
           return;
         }
         callback();

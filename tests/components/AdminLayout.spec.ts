@@ -488,7 +488,13 @@ describe('AdminLayout Core Shell', () => {
         path: '/system/user',
         name: 'SysUser',
         component: TrackedUser,
-        meta: { title: '用户管理', icon: 'User', keepAlive: true, groupTitle: '组织权限', requiresAuth: true },
+        meta: {
+          title: '用户管理',
+          icon: 'User',
+          keepAlive: true,
+          groupTitle: '组织权限',
+          requiresAuth: true,
+        },
       });
     };
     registerTrackedRoutes(router);
@@ -591,11 +597,83 @@ describe('AdminLayout Core Shell', () => {
 
     const dashBtnCollapsed = nav.find('[data-testid="sidebar-item-/dashboard"]');
     expect(dashBtnCollapsed.attributes('aria-label')).toBe('工作台');
-    expect(nav.find('[data-testid="sidebar-item-/system/user"]').attributes('aria-label')).toBe('用户管理');
+    expect(nav.find('[data-testid="sidebar-item-/system/user"]').attributes('aria-label')).toBe(
+      '用户管理',
+    );
 
     await dashBtnCollapsed.trigger('click');
     await flushPromises();
     expect(router.currentRoute.value.path).toBe('/dashboard');
     expect(dashBtnCollapsed.attributes('aria-current')).toBe('page');
+  });
+
+  it('consolidates /profile and /profile?tab=password into one single 个人中心 tab without remounting', async () => {
+    const router = createLayoutTestRouter();
+    let profileMountCount = 0;
+    const TrackedProfile = defineComponent({
+      name: 'Profile',
+      setup() {
+        const currentRoute = router.currentRoute;
+        return { currentRoute };
+      },
+      mounted() {
+        profileMountCount += 1;
+      },
+      template:
+        '<div data-testid="tracked-profile">tab:{{ currentRoute.query.tab || "basic" }}</div>',
+    });
+    router.addRoute('RootLayout', {
+      path: '/profile',
+      name: 'Profile',
+      component: TrackedProfile,
+      meta: { title: '个人中心', hidden: true, keepAlive: true, requiresAuth: true },
+    });
+
+    await router.push('/dashboard');
+    await router.isReady();
+
+    const RootOutlet = defineComponent({ name: 'RootOutletStub', template: '<router-view />' });
+    const wrapper = trackWrapper(
+      mount(RootOutlet, {
+        global: { plugins: [pinia, router, ElementPlus, AtengElementPlus] },
+      }),
+    );
+    await flushPromises();
+
+    // 1. 打开个人中心（/profile）与修改密码（/profile?tab=password），只保留单个个人中心页签且不重建组件
+    await router.push('/profile');
+    await flushPromises();
+    expect(profileMountCount).toBe(1);
+    expect(wrapper.find('[data-testid="tracked-profile"]').text()).toBe('tab:basic');
+
+    await router.push('/profile?tab=password');
+    await flushPromises();
+    expect(profileMountCount).toBe(1);
+    expect(wrapper.find('[data-testid="tracked-profile"]').text()).toBe('tab:password');
+
+    const tabsNavComp = wrapper.findComponent(AtengTabsNav);
+    const tabs = tabsNavComp.props('tabs') as Array<{
+      key: string;
+      title: string;
+      meta?: Record<string, unknown>;
+    }>;
+    expect(tabs.map(t => ({ key: t.key, title: t.title }))).toEqual([
+      { key: '/dashboard', title: '工作台' },
+      { key: '/profile', title: '个人中心' },
+    ]);
+    expect(tabsNavComp.props('modelValue')).toBe('/profile');
+
+    // 2. 切回工作台后再点击个人中心页签，应恢复到最后访问的 /profile?tab=password
+    await router.push('/dashboard');
+    await flushPromises();
+    tabsNavComp.vm.$emit('tabClick', tabs[1]);
+    await flushPromises();
+    expect(router.currentRoute.value.fullPath).toBe('/profile?tab=password');
+    expect(profileMountCount).toBe(1);
+
+    // 3. 右键刷新个人中心页签时，即使当前 URL 带 query 也能正常触发局部重载
+    tabsNavComp.vm.$emit('tabRefresh', '/profile', tabs[1]);
+    await flushPromises();
+    expect(profileMountCount).toBe(2);
   });
 });

@@ -24,6 +24,7 @@ import {
   useListTableLayout,
 } from '@/composables/useListTableLayout';
 import { useAuthStore } from '@/stores/auth';
+import { withDictPreload } from '@/utils/dict';
 import RoleDataScopeDialog from '@/views/system/role/components/RoleDataScopeDialog.vue';
 import RoleFormDrawer from '@/views/system/role/components/RoleFormDrawer.vue';
 import { isProtectedRole, ROLE_PROTECTED_TOOLTIP } from '@/views/system/role/roleHelper';
@@ -42,7 +43,10 @@ const STORAGE_KEY = 'solid:table:sys-role';
 const authStore = useAuthStore();
 const { tableAutoHeight, tableAutoHeightMode } = useListTableLayout();
 const tableRef = ref<AtengTableInstance<RoleVO>>();
-const pagination = usePagination<RoleVO, RoleQuery>(getRolePage, { defaultSize: 10 });
+const pagination = usePagination<RoleVO, RoleQuery>(
+  params => withDictPreload(['dataScopeType'], () => getRolePage(params)),
+  { defaultSize: 10 },
+);
 const selectedRows = ref<RoleVO[]>([]);
 const statusUpdatingId = ref<string>('');
 

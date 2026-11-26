@@ -393,4 +393,68 @@ describe('ProfileView (/profile)', () => {
     expect(labelEl?.tagName).toBe('DIV');
     expect(genderFormItem?.querySelectorAll('label[for]')).toHaveLength(0);
   });
+
+  it('syncs inner el-tabs selection with route.query.tab so header password shortcut works repeatedly', async () => {
+    const router = createProfileRouter();
+    await router.push('/profile?tab=password');
+    await router.isReady();
+
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue(createAuthProfile());
+    vi.spyOn(authApi, 'getPersonalProfile').mockResolvedValue(createPersonalProfile());
+    await useAuthStore().fetchUserInfo();
+
+    const wrapper = trackWrapper(
+      mount(ProfileView, {
+        global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] },
+      }),
+    );
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="profile-password-panel"]').exists()).toBe(true);
+
+    // 点击内部“基本资料”子页签，应同步清除 URL ?tab=password
+    const basicTabItem = wrapper.find('#tab-basic');
+    await basicTabItem.trigger('click');
+    await flushPromises();
+    expect(router.currentRoute.value.fullPath).toBe('/profile');
+
+    // 再次通过菜单路由推入 /profile?tab=password，应可正常切回修改密码子页签
+    await router.push('/profile?tab=password');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="profile-password-panel"]').exists()).toBe(true);
+  });
+
+  it('reuses PasswordPolicyChecklist list layout and translates 502 raw error into contextual Chinese banner', async () => {
+    const router = createProfileRouter();
+    await router.push('/profile?tab=password');
+    await router.isReady();
+
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue(createAuthProfile());
+    vi.spyOn(authApi, 'getPersonalProfile').mockResolvedValue(createPersonalProfile());
+    await useAuthStore().fetchUserInfo();
+
+    const wrapper = trackWrapper(
+      mount(ProfileView, {
+        global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] },
+      }),
+    );
+    await flushPromises();
+
+    const policyBox = wrapper.find('[data-testid="profile-password-policy"]');
+    expect(policyBox.exists()).toBe(true);
+    expect(policyBox.text()).toContain('不能与当前密码完全一致');
+
+    vi.spyOn(authApi, 'updatePassword').mockRejectedValueOnce(
+      new BusinessException(502, 'Request failed with status code 502'),
+    );
+    await wrapper.find('[data-testid="profile-old-password-input"]').setValue('Old@2026');
+    await wrapper.find('[data-testid="profile-new-password-input"]').setValue('NewStrong@2026');
+    await wrapper.find('[data-testid="profile-confirm-password-input"]').setValue('NewStrong@2026');
+    await wrapper.find('[data-testid="profile-password-submit-btn"]').trigger('click');
+    await flushPromises();
+
+    const errorBanner = wrapper.find('[data-testid="profile-password-error"]').text();
+    expect(errorBanner).toBe('修改密码失败，请核对当前密码后重试');
+    expect(errorBanner).not.toContain('Request failed');
+  });
 });

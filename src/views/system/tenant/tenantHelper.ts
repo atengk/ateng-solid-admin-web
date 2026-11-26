@@ -7,7 +7,7 @@ import type {
 } from '@/api/system/tenant';
 import type { TenantPackageOptionVO } from '@/api/system/tenant-package';
 import type { CommonStatus } from '@/api/types';
-import { evaluatePasswordPolicy, PASSWORD_POLICY_MESSAGE } from '@/utils/password';
+import { evaluatePasswordPolicy, PASSWORD_POLICY_SHORT_MESSAGE } from '@/utils/password';
 
 /**
  * 租户管理纯逻辑辅助函数（0 号默认租户保护、配额与过期语义计算、停用套餐回显兜底与初始化凭据文本拼装）。
@@ -431,7 +431,7 @@ export function buildTenantFormRules(flags: {
             return;
           }
           if (!evaluatePasswordPolicy(value ?? '').valid) {
-            callback(new Error(PASSWORD_POLICY_MESSAGE));
+            callback(new Error(PASSWORD_POLICY_SHORT_MESSAGE));
             return;
           }
           callback();

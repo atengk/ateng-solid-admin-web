@@ -120,3 +120,23 @@ export function setupDictManager(): void {
   DictManager.setProvider(loadSingleDictOrEnum);
   DictManager.setBatchProvider(loadBatchDictOrEnum);
 }
+
+/**
+ * 在业务数据就绪渲染前并发预热所需字典/枚举缓存，复用 `DictManager.loadDict` 单飞去重避免重复请求。
+ * 字典预加载失败时静默降级返回业务数据，不阻断主列表加载。
+ *
+ * @param codes 需要预加载的静态枚举或动态字典编码集合
+ * @param loader 业务数据异步加载函数
+ * @returns 业务数据加载函数的返回值
+ */
+export async function withDictPreload<T>(
+  codes: readonly string[],
+  loader: () => Promise<T>,
+): Promise<T> {
+  const uniqueCodes = Array.from(new Set(codes.map(code => code.trim()).filter(Boolean)));
+  const preloadPromise = Promise.all(
+    uniqueCodes.map(code => DictManager.loadDict(code).catch(() => [] as DictItem[])),
+  );
+  const [result] = await Promise.all([loader(), preloadPromise]);
+  return result;
+}

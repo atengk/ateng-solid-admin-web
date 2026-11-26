@@ -387,4 +387,135 @@ describe('Audit log views (/system/oper-log & /system/login-log)', () => {
     await flushPromises();
     expect(writeTextMock).toHaveBeenCalledWith('trace-login-001');
   });
+
+  it('preloads operateType/logStatus on OperLogView and logStatus on LoginLogView with single-flight dedup before rendering rows (#57)', async () => {
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue(createProfile());
+    await useAuthStore().fetchUserInfo();
+
+    const dictMap = createDictMap();
+    const providerCalls: string[] = [];
+    let releaseAuditDicts!: () => void;
+    const auditDictGate = new Promise<void>(resolve => {
+      releaseAuditDicts = resolve;
+    });
+
+    DictManager.setProvider(async code => {
+      providerCalls.push(code);
+      if (code === 'operateType' || code === 'logStatus') {
+        await auditDictGate;
+      }
+      return dictMap[code] ?? [];
+    });
+    DictManager.setBatchProvider(async codes => {
+      if (codes.includes('operateType') || codes.includes('logStatus')) {
+        await auditDictGate;
+      }
+      return Object.fromEntries(codes.map(code => [code, dictMap[code] ?? []]));
+    });
+
+    const router1 = createAuditRouter();
+    await router1.push('/system/oper-log');
+    await router1.isReady();
+    vi.spyOn(logApi, 'getOperLogPage').mockResolvedValue({
+      records: [
+        {
+          id: '9010',
+          traceId: 'trace-cold-oper',
+          userId: '1',
+          userName: 'admin',
+          module: '参数设置',
+          operateType: 2,
+          description: '修改参数',
+          requestMethod: 'PUT',
+          requestUrl: '/admin/system/config',
+          clientIp: '127.0.0.1',
+          operateLocation: null,
+          browser: 'Chrome',
+          os: 'Windows',
+          requestParams: '{}',
+          responseResult: '{}',
+          status: 1,
+          costTime: 10,
+          errorMsg: null,
+          extraJson: null,
+          operateTime: '2026-11-26 11:00:00',
+        },
+      ],
+      total: 1,
+      size: 10,
+      current: 1,
+      pages: 1,
+    });
+
+    const operWrapper = trackWrapper(
+      mount(OperLogView, {
+        global: { plugins: [pinia, router1, ElementPlus, atengVue, AtengElementPlus] },
+      }),
+    );
+    await flushPromises();
+    expect(operWrapper.find('.at-dict-tag__item').exists()).toBe(false);
+
+    releaseAuditDicts();
+    await flushPromises();
+
+    const operTagTexts = operWrapper.findAll('.at-dict-tag__item').map(item => item.text().trim());
+    expect(operTagTexts).toContain('修改');
+    expect(operTagTexts).toContain('失败');
+    expect(providerCalls.filter(code => code === 'operateType')).toHaveLength(1);
+    expect(providerCalls.filter(code => code === 'logStatus')).toHaveLength(1);
+
+    // 清空缓存后独立验证 LoginLogView 的 logStatus 并发门控与单飞去重
+    DictManager.clearCache();
+    providerCalls.length = 0;
+    let releaseLoginDict!: () => void;
+    const loginDictGate = new Promise<void>(resolve => {
+      releaseLoginDict = resolve;
+    });
+    DictManager.setProvider(async code => {
+      providerCalls.push(code);
+      if (code === 'logStatus') {
+        await loginDictGate;
+      }
+      return dictMap[code] ?? [];
+    });
+
+    const router2 = createAuditRouter();
+    await router2.push('/system/login-log');
+    await router2.isReady();
+    vi.spyOn(logApi, 'getLoginLogPage').mockResolvedValue({
+      records: [
+        {
+          id: '9110',
+          traceId: 'trace-cold-login',
+          username: 'superadmin',
+          loginType: 'admin',
+          clientIp: '127.0.0.1',
+          loginLocation: null,
+          browser: 'Chrome',
+          os: 'Windows',
+          status: 1,
+          msg: '账号停用',
+          loginTime: '2026-11-26 11:05:00',
+        },
+      ],
+      total: 1,
+      size: 10,
+      current: 1,
+      pages: 1,
+    });
+
+    const loginWrapper = trackWrapper(
+      mount(LoginLogView, {
+        global: { plugins: [pinia, router2, ElementPlus, atengVue, AtengElementPlus] },
+      }),
+    );
+    await flushPromises();
+    expect(loginWrapper.find('.at-dict-tag__item').exists()).toBe(false);
+
+    releaseLoginDict();
+    await flushPromises();
+
+    expect(loginWrapper.find('.at-dict-tag__item').text().trim()).toBe('失败');
+    expect(providerCalls.filter(code => code === 'logStatus')).toHaveLength(1);
+  });
 });

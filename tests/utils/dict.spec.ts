@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DictManager } from '@atengk/element-plus';
 import { adminHttpClient } from '@/utils/http';
-import { normalizeTagType, setupDictManager } from '@/utils/dict';
+import { normalizeTagType, setupDictManager, withDictPreload } from '@/utils/dict';
 
 /**
  * 双轨（静态枚举 + 动态字典）分发器与 Tag 样式归一化单元测试。
@@ -154,5 +154,46 @@ describe('dual-track DictManager & tagType normalizer', () => {
     const refreshed = await DictManager.loadDict('commonStatus');
     expect(refreshed[0]?.label).toBe('停用');
     expect(getSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('withDictPreload populates cache before resolving data and never blocks loader on dict errors', async () => {
+    setupDictManager();
+    let releaseEnum!: () => void;
+    const enumGate = new Promise<void>(resolve => {
+      releaseEnum = resolve;
+    });
+
+    const getSpy = vi.spyOn(adminHttpClient, 'get').mockImplementation(async (url: string) => {
+      if (url === '/admin/system/enums/visibleStatus') {
+        await enumGate;
+        return [{ code: 0, label: '显示', disabled: false }];
+      }
+      if (url === '/admin/system/enums/brokenEnum') {
+        throw new Error('enum endpoint down');
+      }
+      return [];
+    });
+
+    let settled = false;
+    const preloadPromise = withDictPreload(
+      ['visibleStatus', 'visibleStatus', 'brokenEnum'],
+      async () => ({ items: ['menu-1'] }),
+    ).then(result => {
+      settled = true;
+      return result;
+    });
+
+    // 业务 loader 虽同步完成，但字典未就绪前 withDictPreload 不得提前 resolve
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    releaseEnum();
+    const loaded = await preloadPromise;
+
+    expect(settled).toBe(true);
+    expect(loaded).toEqual({ items: ['menu-1'] });
+    expect(getSpy).toHaveBeenCalledTimes(2);
+    expect(DictManager.hasCache('visibleStatus')).toBe(true);
+    expect(DictManager.getCache('visibleStatus')?.[0]?.label).toBe('显示');
   });
 });

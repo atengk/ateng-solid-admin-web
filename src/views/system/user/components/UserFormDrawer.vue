@@ -7,6 +7,7 @@ import {
   ElMessage,
   ElOption,
   ElSelect,
+  ElSkeleton,
   ElTag,
   ElTreeSelect,
   type FormInstance,
@@ -23,6 +24,7 @@ import PasswordPolicyChecklist from '@/components/PasswordPolicyChecklist.vue';
 import { useDetailDialogState } from '@/composables/useDetailDialogState';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
+import { withDictPreload } from '@/utils/dict';
 import {
   buildAssignablePostOptions,
   buildUserDeptTreeOptions,
@@ -36,7 +38,7 @@ import {
 } from '@/views/system/user/userHelper';
 
 /**
- * 用户新增/编辑表单抽屉（500px）：
+ * 用户新增/编辑表单抽屉（560px）：
  * 新增模式预填 sys.user.initPassword 并校验强口令，编辑模式锁定账号只读、回显真明文联系方式及已停用原归属部门/岗位并保护自身角色授权。
  *
  * @author Ateng
@@ -72,8 +74,15 @@ const visible = computed<boolean>({
 const authStore = useAuthStore();
 const tenantStore = useTenantStore();
 const formRef = ref<FormInstance>();
-const { detailLoading, detailLoadFailed, submitError, resetDialogState, recordSubmitError, runDetailLoad } =
-  useDetailDialogState();
+const {
+  detailLoading,
+  detailLoadFailed,
+  detailReady,
+  submitError,
+  resetDialogState,
+  recordSubmitError,
+  runDetailLoad,
+} = useDetailDialogState();
 
 const deptTreeOptionsRaw = ref<DeptTreeVO[]>([]);
 const postOptions = ref<PostOptionVO[]>([]);
@@ -160,20 +169,21 @@ async function loadDrawerData(): Promise<void> {
   const targetUserId = props.userId ?? '';
 
   await runDetailLoad({
-    loader: async () => {
-      const preloadedDepts = props.deptOptions?.length ? props.deptOptions : null;
-      const [depts, posts, roles] = await Promise.all([
-        preloadedDepts ? Promise.resolve(preloadedDepts) : getDeptOptions().catch(() => [] as DeptTreeVO[]),
-        getPostOptions().catch(() => [] as PostOptionVO[]),
-        getRoleOptions().catch(() => [] as RoleOptionVO[]),
-      ]);
-      if (isEdit) {
-        const detail = await getUserDetail(targetUserId);
-        return { depts, posts, roles, detail, initPassword: null };
-      }
-      const initPassword = await getConfigByKey('sys.user.initPassword').catch(() => null);
-      return { depts, posts, roles, detail: null, initPassword };
-    },
+    loader: () =>
+      withDictPreload(['sys_user_gender', 'commonStatus'], async () => {
+        const preloadedDepts = props.deptOptions?.length ? props.deptOptions : null;
+        const [depts, posts, roles] = await Promise.all([
+          preloadedDepts ? Promise.resolve(preloadedDepts) : getDeptOptions().catch(() => [] as DeptTreeVO[]),
+          getPostOptions().catch(() => [] as PostOptionVO[]),
+          getRoleOptions().catch(() => [] as RoleOptionVO[]),
+        ]);
+        if (isEdit) {
+          const detail = await getUserDetail(targetUserId);
+          return { depts, posts, roles, detail, initPassword: null };
+        }
+        const initPassword = await getConfigByKey('sys.user.initPassword').catch(() => null);
+        return { depts, posts, roles, detail: null, initPassword };
+      }),
     onLoaded: ({ depts, posts, roles, detail, initPassword }) => {
       deptTreeOptionsRaw.value = depts;
       postOptions.value = posts;
@@ -243,17 +253,20 @@ async function handleBeforeConfirm(): Promise<boolean> {
   <AtengDrawer
     v-model="visible"
     :title="mode === 'edit' ? '编辑用户' : '新增用户'"
-    size="500px"
+    size="560px"
     confirm-text="保存用户"
     :form-ref="formRef"
-    :show-confirm="!detailLoadFailed && !detailLoading"
+    :show-confirm="!detailLoadFailed && detailReady"
     :before-confirm="handleBeforeConfirm"
     @closed="resetFormState"
   >
     <div class="flex flex-col gap-3">
       <FormErrorBanner :message="submitError" test-id="user-form-error" />
 
+      <el-skeleton v-if="!detailReady && !detailLoadFailed" :rows="6" animated />
+
       <el-form
+        v-else
         ref="formRef"
         v-loading="detailLoading"
         :model="form"
@@ -261,14 +274,13 @@ async function handleBeforeConfirm(): Promise<boolean> {
         :validate-on-rule-change="false"
         label-width="88px"
       >
-        <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
-          <el-form-item label="登录账号" prop="username" :required="mode === 'create'">
-            <el-input v-model="form.username" data-testid="user-form-username" :disabled="mode === 'edit'" maxlength="30" clearable class="font-mono-data" placeholder="2~30 位字母、数字或下划线" />
-          </el-form-item>
-          <el-form-item label="用户昵称" prop="nickname">
-            <el-input v-model="form.nickname" data-testid="user-form-nickname" maxlength="30" clearable placeholder="请输入 2~30 个字符" />
-          </el-form-item>
-        </div>
+        <el-form-item label="登录账号" prop="username" :required="mode === 'create'">
+          <el-input v-model="form.username" data-testid="user-form-username" :disabled="mode === 'edit'" maxlength="30" clearable class="font-mono-data" placeholder="2~30 位字母、数字或下划线" />
+        </el-form-item>
+
+        <el-form-item label="用户昵称" prop="nickname">
+          <el-input v-model="form.nickname" data-testid="user-form-nickname" maxlength="30" clearable placeholder="请输入 2~30 个字符" />
+        </el-form-item>
 
         <el-form-item v-if="mode === 'create'" label="初始密码" prop="password">
           <div class="flex w-full flex-col gap-1.5">
@@ -300,14 +312,13 @@ async function handleBeforeConfirm(): Promise<boolean> {
           </el-tree-select>
         </el-form-item>
 
-        <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
-          <el-form-item label="手机号码" prop="phone">
-            <el-input v-model="form.phone" data-testid="user-form-phone" maxlength="11" clearable class="font-mono-data" placeholder="请输入 11 位手机号" />
-          </el-form-item>
-          <el-form-item label="电子邮箱" prop="email">
-            <el-input v-model="form.email" data-testid="user-form-email" maxlength="64" clearable class="font-mono-data" placeholder="请输入电子邮箱" />
-          </el-form-item>
-        </div>
+        <el-form-item label="手机号码" prop="phone">
+          <el-input v-model="form.phone" data-testid="user-form-phone" maxlength="11" clearable class="font-mono-data" placeholder="请输入 11 位手机号" />
+        </el-form-item>
+
+        <el-form-item label="电子邮箱" prop="email">
+          <el-input v-model="form.email" data-testid="user-form-email" maxlength="64" clearable class="font-mono-data" placeholder="请输入电子邮箱" />
+        </el-form-item>
 
         <el-form-item label="所属岗位" prop="postIds">
           <el-select v-model="form.postIds" data-testid="user-form-posts" multiple filterable clearable collapse-tags collapse-tags-tooltip class="w-full" placeholder="请选择所属岗位">
@@ -331,14 +342,13 @@ async function handleBeforeConfirm(): Promise<boolean> {
           </div>
         </el-form-item>
 
-        <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
-          <el-form-item for="" label="用户性别" prop="gender">
-            <AtengDictRadio v-model="form.gender" dict-code="sys_user_gender" />
-          </el-form-item>
-          <el-form-item for="" label="账号状态" prop="status">
-            <AtengDictRadio v-model="form.status" dict-code="commonStatus" value-type="number" :disabled="isStatusLocked" />
-          </el-form-item>
-        </div>
+        <el-form-item for="" label="用户性别" prop="gender">
+          <AtengDictRadio v-model="form.gender" dict-code="sys_user_gender" />
+        </el-form-item>
+
+        <el-form-item for="" label="账号状态" prop="status">
+          <AtengDictRadio v-model="form.status" dict-code="commonStatus" value-type="number" :disabled="isStatusLocked" />
+        </el-form-item>
 
         <el-form-item label="备注" prop="remark">
           <el-input v-model="form.remark" data-testid="user-form-remark" type="textarea" :rows="2" maxlength="500" show-word-limit placeholder="可选填写账号备注说明" />

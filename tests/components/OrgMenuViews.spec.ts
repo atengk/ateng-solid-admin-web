@@ -842,4 +842,68 @@ describe('Dept / Post / Menu views and helpers', () => {
     expect(deleteSpy).toHaveBeenCalledWith('M1');
     expect(errorToastSpy).toHaveBeenCalledWith('存在子菜单或按钮权限，禁止删除');
   });
+
+  it('preloads visibleStatus before rendering MenuView rows so first frame never flashes raw "0" (#57)', async () => {
+    const router = createOrgRouter();
+    await router.push('/system/menu');
+    await router.isReady();
+
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue(createProfile());
+    await useAuthStore().fetchUserInfo();
+
+    const dictMap = createDictMap();
+    let releaseVisibleStatus!: () => void;
+    const visibleStatusGate = new Promise<void>(resolve => {
+      releaseVisibleStatus = resolve;
+    });
+
+    DictManager.setProvider(async code => {
+      if (code === 'visibleStatus') {
+        await visibleStatusGate;
+      }
+      return dictMap[code] ?? [];
+    });
+    DictManager.setBatchProvider(async codes => {
+      if (codes.includes('visibleStatus')) {
+        await visibleStatusGate;
+      }
+      return Object.fromEntries(codes.map(code => [code, dictMap[code] ?? []]));
+    });
+
+    vi.spyOn(menuApi, 'getMenuTree').mockResolvedValue([
+      {
+        id: 'M1',
+        parentId: '0',
+        menuType: 'M',
+        title: '系统治理',
+        path: '/system',
+        icon: 'Setting',
+        sort: 1,
+        visible: 0,
+        status: 0,
+        keepAlive: false,
+        isExternal: false,
+        platformOnly: false,
+        createTime: '2026-11-26 09:00:00',
+        children: [],
+      },
+    ]);
+
+    const wrapper = trackWrapper(
+      mount(MenuView, {
+        global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] },
+      }),
+    );
+    await flushPromises();
+
+    // 枚举尚在冷加载期间不得先将原始码值 "0" 渲染进表格标签
+    expect(wrapper.find('.at-dict-tag__item').exists()).toBe(false);
+
+    releaseVisibleStatus();
+    await flushPromises();
+
+    const visibleTag = wrapper.find('.at-dict-tag__item');
+    expect(visibleTag.exists()).toBe(true);
+    expect(visibleTag.text()).toBe('显示');
+  });
 });

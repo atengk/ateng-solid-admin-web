@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue';
-import { ElForm, ElFormItem, ElMessage, ElTree, type FormInstance } from 'element-plus';
+import { ElForm, ElFormItem, ElMessage, ElSkeleton, ElTree, type FormInstance } from 'element-plus';
 import { AtengDialog, AtengDictSelect } from '@atengk/element-plus';
 import { getDeptOptions, type DeptTreeVO } from '@/api/system/dept';
 import {
@@ -12,6 +12,7 @@ import {
 import FormErrorBanner from '@/components/FormErrorBanner.vue';
 import TreeSelectionToolbar from '@/components/TreeSelectionToolbar.vue';
 import { useDetailDialogState } from '@/composables/useDetailDialogState';
+import { withDictPreload } from '@/utils/dict';
 import {
   collectTreeNodeIds,
   DATA_SCOPE_CUSTOM,
@@ -52,6 +53,7 @@ const deptTreeRef = ref<InstanceType<typeof ElTree>>();
 const {
   detailLoading,
   detailLoadFailed,
+  detailReady,
   submitError,
   resetDialogState,
   recordSubmitError,
@@ -142,7 +144,11 @@ async function loadDialogData(): Promise<void> {
   }
   const targetId = props.roleId;
   await runDetailLoad({
-    loader: () => Promise.all([getDeptOptions(), getRoleDetail(targetId)] as const),
+    loader: () =>
+      withDictPreload(
+        ['dataScopeType'],
+        () => Promise.all([getDeptOptions(), getRoleDetail(targetId)] as const),
+      ),
     onLoaded: ([depts, detail]) => {
       deptTreeOptions.value = depts;
       form.id = detail.id;
@@ -211,7 +217,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
     title="分配数据权限"
     width="520px"
     confirm-text="保存权限"
-    :show-confirm="!detailLoadFailed"
+    :show-confirm="!detailLoadFailed && detailReady"
     :confirm-loading="detailLoading ? true : undefined"
     :before-confirm="handleBeforeConfirm"
     @closed="resetState"
@@ -219,7 +225,9 @@ async function handleBeforeConfirm(): Promise<boolean> {
     <div class="flex flex-col gap-3">
       <FormErrorBanner :message="submitError" test-id="role-data-scope-api-error" />
 
-      <el-form ref="formRef" v-loading="detailLoading" :model="form" label-width="88px">
+      <el-skeleton v-if="!detailReady && !detailLoadFailed" :rows="4" animated />
+
+      <el-form v-else ref="formRef" v-loading="detailLoading" :model="form" label-width="88px">
         <el-form-item label="角色名称">
           <span class="font-medium text-ink">{{ form.roleName || '--' }}</span>
         </el-form-item>

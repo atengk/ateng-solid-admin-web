@@ -17,6 +17,7 @@ import {
   useListTableLayout,
 } from '@/composables/useListTableLayout';
 import { useAuthStore } from '@/stores/auth';
+import { withDictPreload } from '@/utils/dict';
 import ConfigFormDialog from '@/views/system/config/components/ConfigFormDialog.vue';
 
 /**
@@ -38,9 +39,12 @@ const hasRowActions = computed<boolean>(() =>
   authStore.hasPermission(['system:config:update', 'system:config:delete']),
 );
 
-const pagination = usePagination<ConfigVO, ConfigQuery>(getConfigPage, {
-  defaultSize: 10,
-});
+const pagination = usePagination<ConfigVO, ConfigQuery>(
+  params => withDictPreload(['configType'], () => getConfigPage(params)),
+  {
+    defaultSize: 10,
+  },
+);
 
 const selectedRows = ref<ConfigVO[]>([]);
 

@@ -3,18 +3,19 @@ import { computed, nextTick, reactive, ref, watch } from 'vue';
 import {
   ElForm,
   ElFormItem,
-  ElIcon,
   ElInput,
   ElInputNumber,
   ElMessage,
+  ElSkeleton,
   type FormInstance,
   type FormRules,
 } from 'element-plus';
-import { Warning } from '@element-plus/icons-vue';
 import { AtengDialog, AtengDictRadio } from '@atengk/element-plus';
 import { createPost, getPostDetail, updatePost, type PostSaveRequest } from '@/api/system/post';
 import type { CommonStatus } from '@/api/types';
-import { isGlobalHandledHttpError, resolveErrorMessage } from '@/utils/http';
+import FormErrorBanner from '@/components/FormErrorBanner.vue';
+import { useDetailDialogState } from '@/composables/useDetailDialogState';
+import { withDictPreload } from '@/utils/dict';
 
 /**
  * 岗位新增/编辑表单弹窗（480px）：
@@ -53,8 +54,15 @@ const visible = computed<boolean>({
 });
 
 const formRef = ref<FormInstance>();
-const detailLoading = ref<boolean>(false);
-const submitError = ref<string>('');
+const {
+  detailLoading,
+  detailLoadFailed,
+  detailReady,
+  submitError,
+  resetDialogState,
+  recordSubmitError,
+  runDetailLoad,
+} = useDetailDialogState();
 
 const form = reactive<{
   id?: string;
@@ -117,43 +125,36 @@ const formRules: FormRules = {
 };
 
 function resetFormState(): void {
+  resetDialogState();
   form.id = undefined;
   form.postCode = '';
   form.postName = '';
   form.sort = 0;
   form.status = 0;
   form.remark = '';
-  submitError.value = '';
 }
 
 async function loadDialogData(): Promise<void> {
   resetFormState();
-  if (props.mode !== 'edit' || !props.postId) {
-    await nextTick();
-    formRef.value?.clearValidate();
-    return;
+  if (props.mode === 'edit' && props.postId) {
+    const targetId = props.postId;
+    await runDetailLoad({
+      loader: () => withDictPreload(['commonStatus'], () => getPostDetail(targetId)),
+      onLoaded: detail => {
+        form.id = detail.id;
+        form.postCode = detail.postCode;
+        form.postName = detail.postName;
+        form.sort = detail.sort ?? 0;
+        form.status = detail.status;
+        form.remark = detail.remark ?? '';
+      },
+      errorFallback: '加载岗位详情失败，请关闭重试',
+    });
+  } else {
+    await withDictPreload(['commonStatus'], async () => undefined);
   }
-
-  detailLoading.value = true;
-  try {
-    const detail = await getPostDetail(props.postId);
-    form.id = detail.id;
-    form.postCode = detail.postCode;
-    form.postName = detail.postName;
-    form.sort = detail.sort ?? 0;
-    form.status = detail.status;
-    form.remark = detail.remark ?? '';
-  } catch (error) {
-    const message = resolveErrorMessage(error, '加载岗位详情失败，请关闭重试');
-    submitError.value = message;
-    if (!isGlobalHandledHttpError(error)) {
-      ElMessage.error(message);
-    }
-  } finally {
-    detailLoading.value = false;
-    await nextTick();
-    formRef.value?.clearValidate();
-  }
+  await nextTick();
+  formRef.value?.clearValidate();
 }
 
 watch(
@@ -166,7 +167,7 @@ watch(
 );
 
 async function handleBeforeConfirm(): Promise<boolean> {
-  if (detailLoading.value) {
+  if (detailLoading.value || detailLoadFailed.value) {
     return false;
   }
   submitError.value = '';
@@ -190,11 +191,7 @@ async function handleBeforeConfirm(): Promise<boolean> {
     emit('saved');
     return true;
   } catch (error) {
-    const message = resolveErrorMessage(error, '保存岗位失败，请核对后重试');
-    submitError.value = message;
-    if (!isGlobalHandledHttpError(error)) {
-      ElMessage.error(message);
-    }
+    recordSubmitError(error, '保存岗位失败，请核对后重试');
     return false;
   }
 }
@@ -207,22 +204,18 @@ async function handleBeforeConfirm(): Promise<boolean> {
     width="480px"
     confirm-text="保存岗位"
     :form-ref="formRef"
+    :show-confirm="!detailLoadFailed && detailReady"
     :confirm-loading="detailLoading ? true : undefined"
     :before-confirm="handleBeforeConfirm"
-    @closed="submitError = ''"
+    @closed="resetFormState"
   >
     <div class="flex flex-col gap-3">
-      <div
-        v-if="submitError"
-        data-testid="post-form-error"
-        role="alert"
-        class="flex items-center gap-2 rounded-[var(--solid-radius-md)] border border-[var(--solid-danger-border)] bg-[var(--solid-danger-soft)] px-3 py-2 text-[13px] text-[var(--solid-danger)]"
-      >
-        <el-icon :size="15"><Warning /></el-icon>
-        <span>{{ submitError }}</span>
-      </div>
+      <FormErrorBanner :message="submitError" test-id="post-form-error" />
+
+      <el-skeleton v-if="mode === 'edit' && !detailReady && !detailLoadFailed" :rows="4" animated />
 
       <el-form
+        v-else
         ref="formRef"
         v-loading="detailLoading"
         :model="form"
