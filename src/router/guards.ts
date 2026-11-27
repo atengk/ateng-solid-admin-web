@@ -185,12 +185,9 @@ export function setupRouterGuards(router: Router, pinia: Pinia): () => void {
       return buildLoginRedirectLocation(to.fullPath);
     }
 
-    // 2. 已登录态访问错误兜底页直接放行，避免触发冗余拉取或死循环
-    if (to.path === '/403' || to.path === '/404') {
-      return true;
-    }
+    const isErrorFallbackPath = to.path === '/403' || to.path === '/404';
 
-    // 3. 首次进入或浏览器刷新后，并行拉取当前用户身份与动态路由表
+    // 2. 首次进入或浏览器刷新后，并行拉取当前用户身份与动态路由表（含直达 /403、/404 时补齐菜单与布局状态）
     if (!authStore.isInitialized || !permissionStore.routesLoaded) {
       const initStatus = await initializeSessionWithRecovery();
       if (initStatus === 'failed') {
@@ -207,6 +204,10 @@ export function setupRouterGuards(router: Router, pinia: Pinia): () => void {
         return resolveAuthenticatedRedirectTarget(to.query.redirect, permissionStore);
       }
 
+      if (isErrorFallbackPath) {
+        return true;
+      }
+
       // 动态 addRoute 生效后触发原地址替换重匹配，确保深链刷新命中真实业务视图
       return {
         path: to.path,
@@ -214,6 +215,11 @@ export function setupRouterGuards(router: Router, pinia: Pinia): () => void {
         hash: to.hash,
         replace: true,
       };
+    }
+
+    // 3. 已完成初始化态访问错误兜底页直接放行，避免触发冗余拉取或死循环
+    if (isErrorFallbackPath) {
+      return true;
     }
 
     // 4. 已完成初始化且访问登录页：按同源且权限可达校验后跳转回目标页或默认工作台

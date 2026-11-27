@@ -494,4 +494,90 @@ describe('router & guards', () => {
     expect(useAuthStore(pinia).isInitialized).toBe(false);
     expect(router.currentRoute.value.path).toBe('/login');
   });
+
+  it.each(['/403', '/404'])(
+    'hydrates user info and menus before rendering %s on authenticated direct refresh',
+    async targetPath => {
+      const pinia = createPinia();
+      const router = createAppRouter(createMemoryHistory());
+      setupRouterGuards(router, pinia);
+
+      adminAuthManager.setToken('valid-token');
+      const infoSpy = vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue(createProfile());
+      const routesSpy = vi.spyOn(authApi, 'getAuthRoutes').mockResolvedValue(createSampleRoutes());
+
+      await router.push(targetPath);
+      await router.isReady();
+
+      expect(infoSpy).toHaveBeenCalledTimes(1);
+      expect(routesSpy).toHaveBeenCalledTimes(1);
+      expect(useAuthStore(pinia).isInitialized).toBe(true);
+      expect(usePermissionStore(pinia).routesLoaded).toBe(true);
+      expect(usePermissionStore(pinia).hasAccessibleMenus).toBe(true);
+      expect(router.currentRoute.value.path).toBe(targetPath);
+    },
+  );
+
+  it('hydrates and stays on /403 for authenticated zero-menu users', async () => {
+    const pinia = createPinia();
+    const router = createAppRouter(createMemoryHistory());
+    setupRouterGuards(router, pinia);
+
+    adminAuthManager.setToken('zero-menu-token');
+    const infoSpy = vi
+      .spyOn(authApi, 'getAuthInfo')
+      .mockResolvedValue(createProfile({ roles: ['empty_role'], permissions: [] }));
+    const routesSpy = vi.spyOn(authApi, 'getAuthRoutes').mockResolvedValue([]);
+
+    await router.push('/403');
+    await router.isReady();
+
+    expect(infoSpy).toHaveBeenCalledTimes(1);
+    expect(routesSpy).toHaveBeenCalledTimes(1);
+    expect(useAuthStore(pinia).isInitialized).toBe(true);
+    expect(usePermissionStore(pinia).routesLoaded).toBe(true);
+    expect(usePermissionStore(pinia).hasAccessibleMenus).toBe(false);
+    expect(router.currentRoute.value.path).toBe('/403');
+  });
+
+  it.each(['/403', '/404'])(
+    'clears invalid session and redirects to clean /login when %s hydration fails',
+    async targetPath => {
+      const pinia = createPinia();
+      const router = createAppRouter(createMemoryHistory());
+      setupRouterGuards(router, pinia);
+
+      adminAuthManager.setToken('broken-token');
+      vi.spyOn(authApi, 'getAuthInfo').mockRejectedValue(new Error('401 unauthorized'));
+      vi.spyOn(authApi, 'getAuthRoutes').mockResolvedValue([]);
+
+      await router.push(targetPath);
+      await router.isReady();
+
+      expect(adminAuthManager.getToken()).toBeNull();
+      expect(useAuthStore(pinia).isInitialized).toBe(false);
+      expect(router.currentRoute.value.path).toBe('/login');
+      expect(router.currentRoute.value.query.redirect).toBeUndefined();
+      expect(AtengLoadingBar.error).toHaveBeenCalled();
+    },
+  );
+
+  it.each(['/403', '/404'])(
+    'recovers to platform tenant 0 and lands on /dashboard when %s hydration hits 100002',
+    async targetPath => {
+      vi.spyOn(ElMessage, 'warning').mockImplementation(() => ({ close: vi.fn() }));
+      const { pinia, router } = await navigateWithGuardAndAdapter({
+        targetUrl: targetPath,
+        token: 'super-token-error-page',
+        tenantId: '119405572993097728',
+        adapterOptions: {},
+      });
+
+      expect(adminAuthManager.getToken()).toBe('super-token-error-page');
+      expect(useAuthStore(pinia).isAuthenticated).toBe(true);
+      expect(useAuthStore(pinia).isInitialized).toBe(true);
+      expect(adminTenantManager.getTenantId()).toBe('0');
+      expect(router.currentRoute.value.path).toBe('/dashboard');
+    },
+  );
 });
