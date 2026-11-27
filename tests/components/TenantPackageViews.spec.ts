@@ -26,6 +26,7 @@ import {
   isProtectedPlatformTenant,
   resolveTenantExpireStatus,
 } from '@/views/system/tenant/tenantHelper';
+import TenantFormDrawer from '@/views/system/tenant/components/TenantFormDrawer.vue';
 import TenantView from '@/views/system/tenant/index.vue';
 import { filterPackageAssignableMenus, hasRemovedMenuIds } from '@/views/system/tenant-package/tenantPackageHelper';
 import TenantPackageView from '@/views/system/tenant-package/index.vue';
@@ -303,7 +304,9 @@ describe('Tenant & TenantPackage Views & Helpers', () => {
     ];
 
     vi.spyOn(tenantApi, 'getTenantPage').mockResolvedValue({ records: sampleTenants, total: 2, size: 10, current: 1, pages: 1 });
-    vi.spyOn(tenantPackageApi, 'getTenantPackageOptions').mockResolvedValue([{ id: 'P_STD', packageName: '标准企业版' }]);
+    const pkgOptionsSpy = vi
+      .spyOn(tenantPackageApi, 'getTenantPackageOptions')
+      .mockResolvedValue([{ id: 'P_STD', packageName: '标准企业版' }]);
     const tenantOptionsSpy = vi.spyOn(tenantApi, 'getTenantOptions').mockResolvedValue([]);
     vi.spyOn(tenantApi, 'getTenantDetail').mockResolvedValue(sampleTenants[0]!);
     const updateTenantSpy = vi.spyOn(tenantApi, 'updateTenant').mockResolvedValue();
@@ -320,6 +323,7 @@ describe('Tenant & TenantPackage Views & Helpers', () => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: writeTextMock }, configurable: true });
 
     const wrapper = await mountWithPlatformSuperAdmin('/system/tenant');
+    expect(pkgOptionsSpy).toHaveBeenCalledTimes(1);
 
     // 1. id === '0' 行禁用勾选、状态与删除；普通租户可删并显示配额/过期标识
     const checkboxes = wrapper.findAll('.el-table__body-wrapper .el-table-column--selection input[type="checkbox"]');
@@ -344,9 +348,10 @@ describe('Tenant & TenantPackage Views & Helpers', () => {
     expect(updateTenantSpy).toHaveBeenCalledWith({ id: '0', tenantName: '平台运营底座', remark: '平台内置' });
     expect(tenantOptionsSpy).toHaveBeenCalledTimes(1);
 
-    // 3. 新建租户预填初始密码并弹出 CreateTenantVO 凭据回显框
+    // 3. 新建租户复用父页已加载的 packageOptions，预填初始密码并弹出 CreateTenantVO 凭据回显框
     await wrapper.find('[data-testid="tenant-add-btn"]').trigger('click');
     await flushPromises();
+    expect(pkgOptionsSpy).toHaveBeenCalledTimes(1);
     const pwdInput = document.body.querySelector('[data-testid="tenant-form-admin-password"] input, input[data-testid="tenant-form-admin-password"]') as HTMLInputElement | null;
     expect(pwdInput?.value).toBe('Ateng@2026');
 
@@ -565,5 +570,80 @@ describe('Tenant & TenantPackage Views & Helpers', () => {
     await flushPromises();
     expect(tenantPageSpy).toHaveBeenCalledTimes(2);
     expect(pkgOptSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('reuses packageOptions from TenantView across create and edit drawers while falling back when standalone TenantFormDrawer omits packageOptions (#74)', async () => {
+    const sampleTenants: TenantVO[] = [
+      {
+        id: '10002',
+        tenantCode: '100002',
+        tenantName: '星辰智能科技',
+        packageId: 'P_OLD',
+        packageName: '历史体验版',
+        packageDisabled: true,
+        accountCount: 10,
+        usedAccountCount: 2,
+        expireTime: null,
+        expired: false,
+        status: 0,
+        remark: '绑定已停用套餐',
+        platformDefault: false,
+        createTime: '2026-11-20 10:00:00',
+      },
+    ];
+    vi.spyOn(tenantApi, 'getTenantPage').mockResolvedValue({
+      records: sampleTenants,
+      total: 1,
+      size: 10,
+      current: 1,
+      pages: 1,
+    });
+    vi.spyOn(tenantApi, 'getTenantDetail').mockResolvedValue(sampleTenants[0]!);
+    vi.spyOn(configApi, 'getConfigByKey').mockResolvedValue('Ateng@2026');
+    const pkgOptSpy = vi
+      .spyOn(tenantPackageApi, 'getTenantPackageOptions')
+      .mockResolvedValue([{ id: 'P_STD', packageName: '标准企业版' }]);
+
+    const wrapper = await mountWithPlatformSuperAdmin('/system/tenant');
+    expect(pkgOptSpy).toHaveBeenCalledTimes(1);
+
+    // 1. 打开新增抽屉复用父页 packageOptions
+    await wrapper.find('[data-testid="tenant-add-btn"]').trigger('click');
+    await flushPromises();
+    expect(pkgOptSpy).toHaveBeenCalledTimes(1);
+    findButtonByText('取消')?.click();
+    await flushPromises();
+
+    // 2. 打开编辑普通租户抽屉仍复用父页 packageOptions，且已停用历史套餐保留回显
+    await wrapper.find('[data-testid="tenant-edit-btn-10002"]').trigger('click');
+    await flushPromises();
+    expect(pkgOptSpy).toHaveBeenCalledTimes(1);
+    const editOptionLabels = wrapper
+      .findComponent(TenantFormDrawer)
+      .findAllComponents({ name: 'ElOption' })
+      .map(opt => String(opt.props('label')));
+    expect(editOptionLabels).toContain('标准企业版');
+    expect(editOptionLabels).toContain('历史体验版 (已停用)');
+
+    // 3. 独立挂载未传 packageOptions 与传空数组时自动回退请求 getTenantPackageOptions()
+    const standaloneOmitted = trackWrapper(
+      mount(TenantFormDrawer, {
+        props: { modelValue: false, mode: 'create' },
+        global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] },
+      }),
+    );
+    await standaloneOmitted.setProps({ modelValue: true });
+    await flushPromises();
+    expect(pkgOptSpy).toHaveBeenCalledTimes(2);
+
+    const standaloneEmpty = trackWrapper(
+      mount(TenantFormDrawer, {
+        props: { modelValue: false, mode: 'edit', tenantId: '10002', packageOptions: [] },
+        global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] },
+      }),
+    );
+    await standaloneEmpty.setProps({ modelValue: true });
+    await flushPromises();
+    expect(pkgOptSpy).toHaveBeenCalledTimes(3);
   });
 });

@@ -56,6 +56,8 @@ const props = defineProps<{
   mode: 'create' | 'edit';
   /** 编辑模式下的目标租户主键。 */
   tenantId?: string;
+  /** 父视图已加载的启用租户套餐选项（非空时免重复拉取）。 */
+  packageOptions?: TenantPackageOptionVO[];
 }>();
 
 const emit = defineEmits<{
@@ -143,20 +145,21 @@ async function loadDrawerData(): Promise<void> {
   resetFormState();
   const isEdit = props.mode === 'edit' && Boolean(props.tenantId);
   const targetId = props.tenantId ?? '';
+  const preloadedPackages = props.packageOptions?.length ? props.packageOptions : null;
 
   await runDetailLoad({
     loader: () =>
       withDictPreload(['commonStatus'], async () => {
         if (isEdit) {
           const detail = await getTenantDetail(targetId);
-          // 0 号默认租户不展示套餐下拉，跳过无意义的选项请求
+          // 0 号默认租户不展示套餐下拉，跳过无意义的选项请求；其余租户优先复用父页已加载套餐
           const packages = isProtectedPlatformTenant(detail)
             ? ([] as TenantPackageOptionVO[])
-            : await getTenantPackageOptions();
+            : (preloadedPackages ?? (await getTenantPackageOptions()));
           return { packages, detail, initPassword: null };
         }
         const [packages, initPassword] = await Promise.all([
-          getTenantPackageOptions(),
+          preloadedPackages ? Promise.resolve(preloadedPackages) : getTenantPackageOptions(),
           getConfigByKey('sys.user.initPassword').catch(() => null),
         ]);
         return { packages, detail: null, initPassword };

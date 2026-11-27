@@ -20,6 +20,7 @@ import { setupDictManager } from '@/utils/dict';
 import { adminAuthManager, adminHttpClient, adminTenantManager } from '@/utils/http';
 import { useAuthStore } from '@/stores/auth';
 import { buildDeptSelectorOptions } from '@/views/system/dept/deptHelper';
+import DeptFormDialog from '@/views/system/dept/components/DeptFormDialog.vue';
 import DeptView from '@/views/system/dept/index.vue';
 import {
   buildMenuParentOptions,
@@ -318,11 +319,11 @@ describe('Dept / Post / Menu views and helpers', () => {
     expect(errorToastSpy).toHaveBeenCalledWith('同级部门下已存在相同部门名称');
     expect(document.body.querySelector('[data-testid="dept-form-phone"]')).not.toBeNull();
 
-    // 二次提交成功关闭弹窗并刷新部门树
+    // 二次提交成功关闭弹窗并刷新部门树（编辑打开弹窗复用全量树，不再重复拉取）
     confirmBtn?.click();
     await flushPromises();
     expect(updateSpy).toHaveBeenCalledTimes(2);
-    expect(treeSpy).toHaveBeenCalledTimes(3);
+    expect(treeSpy).toHaveBeenCalledTimes(2);
 
     // 已停用部门 F 的 [新增下级] 按钮应禁用，启用部门 A 点击 [新增下级] 预填 parentId = A
     const disabledAddChild = wrapper.find('[data-testid="dept-add-child-btn-F"]');
@@ -354,7 +355,7 @@ describe('Dept / Post / Menu views and helpers', () => {
       }),
     );
 
-    // 删除部门前弹出确认且在 102005 时提示具体错误
+    // 删除部门前弹出确认且在 102005 时提示具体错误（新增打开弹窗复用全量树，仅在保存后刷新）
     vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm' as never);
     const deleteSpy = vi
       .spyOn(deptApi, 'deleteDept')
@@ -363,7 +364,7 @@ describe('Dept / Post / Menu views and helpers', () => {
     await flushPromises();
     expect(deleteSpy).toHaveBeenCalledWith('B');
     expect(errorToastSpy).toHaveBeenCalledWith('存在下级部门，禁止删除');
-    expect(treeSpy).toHaveBeenCalledTimes(5);
+    expect(treeSpy).toHaveBeenCalledTimes(3);
   });
 
   it('loads paginated posts, edits with 102002 guard, creates post, toggles status, and batch-deletes via deletePosts', async () => {
@@ -905,5 +906,177 @@ describe('Dept / Post / Menu views and helpers', () => {
     const visibleTag = wrapper.find('.at-dict-tag__item');
     expect(visibleTag.exists()).toBe(true);
     expect(visibleTag.text()).toBe('显示');
+  });
+
+  it('reuses unfiltered fullDeptTree from DeptView when opening DeptFormDialog even after keyword filter, and falls back on standalone mount (#74)', async () => {
+    const router = createOrgRouter();
+    await router.push('/system/dept');
+    await router.isReady();
+
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue(createProfile());
+    await useAuthStore().fetchUserInfo();
+
+    const fullTree = createSampleDeptTree();
+    const filteredTree: DeptTreeVO[] = [
+      {
+        ...fullTree[0]!.children[0]!,
+        children: [],
+      },
+    ];
+    const treeSpy = vi
+      .spyOn(deptApi, 'getDeptTree')
+      .mockImplementation(async params => (params?.deptName ? filteredTree : fullTree));
+    vi.spyOn(userApi, 'getUserOptions').mockResolvedValue([]);
+
+    const wrapper = trackWrapper(
+      mount(DeptView, {
+        global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] },
+      }),
+    );
+    await flushPromises();
+    expect(treeSpy).toHaveBeenCalledTimes(1);
+
+    // 在 DeptView 先按关键字过滤表格，再点开新增弹窗：弹窗应复用未过滤全量树且零额外 getDeptTree
+    await wrapper.find('[data-testid="dept-query-name"]').setValue('研发');
+    wrapper.findComponent({ name: 'AtengQueryForm' }).vm.$emit('search');
+    await flushPromises();
+    expect(treeSpy).toHaveBeenCalledTimes(2);
+
+    await wrapper.find('[data-testid="dept-add-btn"]').trigger('click');
+    await flushPromises();
+    expect(treeSpy).toHaveBeenCalledTimes(2);
+
+    const dialogCmp = wrapper.findComponent(DeptFormDialog);
+    const treeSelect = dialogCmp.findComponent({ name: 'ElTreeSelect' });
+    expect(JSON.stringify(treeSelect.props('data'))).toContain('财务合规部');
+
+    // 过滤态下新增保存成功会刷新过滤列表并使全量缓存失效，再次打开弹窗时应回退拉取最新全量树
+    vi.spyOn(deptApi, 'createDept').mockResolvedValueOnce('G');
+    const createNameInput = document.body.querySelector(
+      'input[data-testid="dept-form-name"], [data-testid="dept-form-name"] input',
+    ) as HTMLInputElement | null;
+    if (createNameInput) {
+      createNameInput.value = '过滤态新增部门';
+      createNameInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    await flushPromises();
+    const saveDeptBtn = Array.from(document.body.querySelectorAll('button')).find(btn =>
+      btn.textContent?.includes('保存部门'),
+    ) as HTMLButtonElement | undefined;
+    saveDeptBtn?.click();
+    await flushPromises();
+    expect(treeSpy).toHaveBeenCalledTimes(3);
+
+    await wrapper.find('[data-testid="dept-add-btn"]').trigger('click');
+    await flushPromises();
+    expect(treeSpy).toHaveBeenCalledTimes(4);
+
+    // 独立挂载未传 deptTree 的 DeptFormDialog：应自动回退调用 getDeptTree()
+    const standalone = trackWrapper(
+      mount(DeptFormDialog, {
+        props: { modelValue: false, mode: 'create' },
+        global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] },
+      }),
+    );
+    await standalone.setProps({ modelValue: true });
+    await flushPromises();
+    expect(treeSpy).toHaveBeenCalledTimes(5);
+  });
+
+  it('skips redundant initial empty-keyword remote leader search in DeptFormDialog while supporting keyword filter and clear recovery (#74)', async () => {
+    const router = createOrgRouter();
+    await router.push('/system/dept');
+    await router.isReady();
+
+    let resolveSlowSearch!: (list: userApi.UserOptionVO[]) => void;
+    const userOptSpy = vi
+      .spyOn(userApi, 'getUserOptions')
+      .mockImplementation(async keyword => {
+        if (keyword === '慢查询') {
+          return new Promise(resolve => {
+            resolveSlowSearch = resolve;
+          });
+        }
+        return keyword
+          ? [{ userId: '1002', username: 'linyun', nickname: '林芸' }]
+          : [
+              { userId: '1001', username: 'chenmo', nickname: '陈默' },
+              { userId: '1002', username: 'linyun', nickname: '林芸' },
+            ];
+      });
+    vi.spyOn(deptApi, 'getDeptDetail').mockResolvedValue({
+      id: 'B',
+      parentId: 'A',
+      ancestors: '0,A',
+      deptName: '研发中心',
+      sort: 1,
+      leaderUserId: '9999',
+      leaderNickname: '王芳',
+      leaderUsername: 'wangfang',
+      phone: '13987654321',
+      email: 'rd@ateng.dev',
+      status: 0,
+      createTime: '2026-11-20 09:10:00',
+    });
+
+    const dialog = trackWrapper(
+      mount(DeptFormDialog, {
+        props: {
+          modelValue: false,
+          mode: 'edit',
+          deptId: 'B',
+          deptTree: createSampleDeptTree(),
+        },
+        global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] },
+      }),
+    );
+    await dialog.setProps({ modelValue: true });
+    await flushPromises();
+    expect(userOptSpy).toHaveBeenCalledTimes(1);
+
+    const leaderSelect = dialog
+      .findAllComponents({ name: 'ElSelect' })
+      .find(cmp => typeof cmp.props('remoteMethod') === 'function');
+    expect(leaderSelect).toBeDefined();
+    const remoteMethod = leaderSelect!.props('remoteMethod') as (query: string) => Promise<void>;
+
+    // 1. 首次展开触发 remoteMethod('') 不得重发 getUserOptions
+    await remoteMethod('');
+    await flushPromises();
+    expect(userOptSpy).toHaveBeenCalledTimes(1);
+
+    // 2. 输入非空关键字正常触发远程检索
+    await remoteMethod('林');
+    await flushPromises();
+    expect(userOptSpy).toHaveBeenCalledTimes(2);
+    expect(userOptSpy).toHaveBeenLastCalledWith('林');
+    const filteredLabels = dialog
+      .findAllComponents({ name: 'ElOption' })
+      .map(opt => String(opt.props('label')));
+    expect(filteredLabels).toEqual(['林芸 (linyun)']);
+
+    // 3. 在途慢查询期间清空关键字：立即取消加载态并恢复初始候选，随后迟到的慢响应不得回写覆盖
+    const slowPromise = remoteMethod('慢查询');
+    await Promise.resolve();
+    expect(leaderSelect!.props('loading')).toBe(true);
+
+    await remoteMethod('');
+    await flushPromises();
+    expect(leaderSelect!.props('loading')).toBe(false);
+    expect(userOptSpy).toHaveBeenCalledTimes(3);
+    const restoredLabels = dialog
+      .findAllComponents({ name: 'ElOption' })
+      .map(opt => String(opt.props('label')));
+    expect(restoredLabels).toContain('王芳 (wangfang)');
+    expect(restoredLabels).toContain('陈默 (chenmo)');
+
+    resolveSlowSearch([{ userId: '8888', username: 'stale', nickname: '过期用户' }]);
+    await slowPromise;
+    await flushPromises();
+    expect(leaderSelect!.props('loading')).toBe(false);
+    const finalLabels = dialog
+      .findAllComponents({ name: 'ElOption' })
+      .map(opt => String(opt.props('label')));
+    expect(finalLabels).not.toContain('过期用户 (stale)');
   });
 });

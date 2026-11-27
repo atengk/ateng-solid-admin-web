@@ -53,6 +53,7 @@ const query = reactive<DeptQuery>({
 });
 
 const deptTree = ref<DeptTreeVO[]>([]);
+const fullDeptTree = ref<DeptTreeVO[]>([]);
 const loading = ref<boolean>(false);
 const loadError = ref<unknown>(undefined);
 const statusUpdatingId = ref<string>('');
@@ -69,6 +70,10 @@ const hasRowActions = computed<boolean>(() =>
 
 function asDeptRow(row: unknown): DeptTreeVO {
   return row as DeptTreeVO;
+}
+
+function hasActiveDeptFilter(): boolean {
+  return Boolean(query.deptName?.trim()) || query.status !== undefined;
 }
 
 const {
@@ -95,13 +100,18 @@ async function loadDeptTree(): Promise<void> {
   loadError.value = undefined;
   try {
     const trimmedName = query.deptName?.trim();
+    const isUnfiltered = !hasActiveDeptFilter();
     const params: DeptQuery = {
       deptName: trimmedName || undefined,
       status: query.status,
     };
-    deptTree.value = await getDeptTree(params);
+    const fetchedTree = await getDeptTree(params);
+    deptTree.value = fetchedTree;
+    if (isUnfiltered) {
+      fullDeptTree.value = fetchedTree;
+    }
     await nextTick();
-    if (trimmedName || query.status !== undefined || isAllExpanded.value) {
+    if (!isUnfiltered || isAllExpanded.value) {
       applyTreeExpansion(true);
     } else {
       applyTreeExpansion(false);
@@ -112,6 +122,13 @@ async function loadDeptTree(): Promise<void> {
   } finally {
     loading.value = false;
   }
+}
+
+async function refreshDeptTreeAfterMutation(): Promise<void> {
+  if (hasActiveDeptFilter()) {
+    fullDeptTree.value = [];
+  }
+  await loadDeptTree();
 }
 
 function openCreateDialog(parentId = ROOT_DEPT_ID): void {
@@ -153,7 +170,7 @@ async function handleToggleStatus(row: DeptTreeVO): Promise<void> {
   try {
     await updateDeptStatus(row.id, nextStatus);
     ElMessage.success(`已${actionText}部门【${row.deptName}】`);
-    await loadDeptTree();
+    await refreshDeptTreeAfterMutation();
   } catch (error) {
     if (!isGlobalHandledHttpError(error)) {
       ElMessage.error(resolveErrorMessage(error, `${actionText}部门失败，请稍后重试`));
@@ -181,7 +198,7 @@ async function handleDelete(row: DeptTreeVO): Promise<void> {
   try {
     await deleteDept(row.id);
     ElMessage.success(`已删除部门【${row.deptName}】`);
-    await loadDeptTree();
+    await refreshDeptTreeAfterMutation();
   } catch (error) {
     if (!isGlobalHandledHttpError(error)) {
       ElMessage.error(resolveErrorMessage(error, '删除部门失败，请核对关联数据后重试'));
@@ -383,7 +400,8 @@ onMounted(() => {
       :mode="dialogMode"
       :dept-id="editingDeptId"
       :initial-parent-id="initialParentId"
-      @saved="loadDeptTree"
+      :dept-tree="fullDeptTree"
+      @saved="refreshDeptTreeAfterMutation"
     />
   </section>
 </template>

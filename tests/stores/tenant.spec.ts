@@ -615,4 +615,77 @@ describe('useTenantStore', () => {
     expect(tenantStore.activeTenantId).toBe('0');
     expect(tenantStore.activeTenantName).toBe('平台默认租户');
   });
+
+  it('deduplicates concurrent loadTenantOptions calls, releases lock on settle/error, and ignores stale response after resetLocalTenant (#74)', async () => {
+    const authStore = useAuthStore();
+    const tenantStore = useTenantStore();
+
+    authStore.setTenantEnabled(true);
+    useAuth({ authManager: adminAuthManager, superAdminRoles: ['super_admin'] }).login({
+      token: 'super-token-options-dedupe',
+      roles: ['super_admin'],
+      permissions: ['*:*:*'],
+      user: createProfile(),
+    });
+    tenantStore.initForUser(createProfile());
+
+    let resolveFirst!: (val: { id: string; tenantCode: string; tenantName: string; status: 0; expireTime: null }[]) => void;
+    let rejectSecond!: (err: Error) => void;
+    const getOptionsSpy = vi
+      .spyOn(tenantApi, 'getTenantOptions')
+      .mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectSecond = reject;
+          }),
+      )
+      .mockResolvedValueOnce([
+        { id: '10003', tenantCode: '100003', tenantName: '未来云租户', status: 0, expireTime: null },
+      ])
+      .mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            resolveFirst = resolve;
+          }),
+      );
+
+    // 1. 并发调用共享同一个在途 Promise，仅发出 1 次请求
+    const p1 = tenantStore.loadTenantOptions();
+    const p2 = tenantStore.loadTenantOptions();
+    expect(getOptionsSpy).toHaveBeenCalledTimes(1);
+
+    resolveFirst([
+      { id: '10002', tenantCode: '100002', tenantName: '星辰智能科技', status: 0, expireTime: null },
+    ]);
+    const [res1, res2] = await Promise.all([p1, p2]);
+    expect(res1).toHaveLength(1);
+    expect(res2).toHaveLength(1);
+    expect(tenantStore.tenantOptions.map(item => item.id)).toEqual(['10002']);
+
+    // 2. 请求失败后必须释放锁，允许后续重拉恢复
+    const errPromise = tenantStore.loadTenantOptions();
+    expect(getOptionsSpy).toHaveBeenCalledTimes(2);
+    rejectSecond(new BusinessException(500, '网络抖动'));
+    await expect(errPromise).rejects.toBeInstanceOf(BusinessException);
+
+    const retryOptions = await tenantStore.loadTenantOptions();
+    expect(getOptionsSpy).toHaveBeenCalledTimes(3);
+    expect(retryOptions.map(item => item.id)).toEqual(['10003']);
+
+    // 3. 在途期间执行 resetLocalTenant 后，迟到的旧请求不得回写污染 tenantOptions
+    const stalePromise = tenantStore.loadTenantOptions();
+    expect(getOptionsSpy).toHaveBeenCalledTimes(4);
+    tenantStore.resetLocalTenant();
+    resolveFirst([
+      { id: '10099', tenantCode: '100099', tenantName: '过期旧响应', status: 0, expireTime: null },
+    ]);
+    await stalePromise;
+    expect(tenantStore.tenantOptions).toEqual([]);
+  });
 });

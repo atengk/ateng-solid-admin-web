@@ -271,7 +271,7 @@ describe('Shell Controls & Error Views', () => {
     expect(tenantStore.isSuperAdminTenantSwitchAllowed).toBe(true);
     expect(wrapper.find('[data-testid="tenant-switch-trigger"]').exists()).toBe(true);
 
-    // #46: 已有非空列表后每次打开浮层仍刷新 getTenantOptions，同步最新租户列表
+    // #46 + #74: 每次打开浮层仅单点静默刷新 1 次 getTenantOptions（移除 @click + @before-enter 双发），关闭不重发
     await flushPromises();
     const spy = vi.spyOn(tenantApi, 'getTenantOptions').mockResolvedValue([
       { id: '10002', tenantCode: '100002', tenantName: '星辰智能科技', status: 0 },
@@ -282,8 +282,27 @@ describe('Shell Controls & Error Views', () => {
     triggerEl.click();
     await new Promise(resolve => setTimeout(resolve, 30));
     await flushPromises();
-    expect(spy).toHaveBeenCalled();
+    expect(spy).toHaveBeenCalledTimes(1);
     expect(wrapper.find('[data-testid="tenant-option-10099"]').text()).toContain('新建未来科技');
+
+    // 再次点击等待 ElPopover 默认 hideAfter(200ms) 完成关闭且不发请求；第三次重新打开仅发第 2 次请求
+    triggerEl.click();
+    await new Promise(resolve => setTimeout(resolve, 250));
+    await flushPromises();
+    expect(spy).toHaveBeenCalledTimes(1);
+
+    triggerEl.click();
+    await new Promise(resolve => setTimeout(resolve, 30));
+    await flushPromises();
+    expect(spy).toHaveBeenCalledTimes(2);
+
+    // 选定新目标租户（当前 activeTenantId 已为 '10002'）后收起浮层且不触发额外 getTenantOptions 请求
+    const switchTenantSpy = vi.spyOn(tenantStore, 'switchTenant').mockResolvedValue(true);
+    await wrapper.find('[data-testid="tenant-option-10099"]').trigger('click');
+    await flushPromises();
+    expect(switchTenantSpy).toHaveBeenCalledWith('10099', expect.anything());
+    expect(wrapper.findComponent({ name: 'ElPopover' }).props('visible')).toBe(false);
+    expect(spy).toHaveBeenCalledTimes(2);
   });
 
   it('renders anti-deadlock logout button on 403 for zero-menu logged-in users and supports 404 recovery actions', async () => {

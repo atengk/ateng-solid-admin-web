@@ -42,6 +42,7 @@ export const useTenantStore = defineStore('tenant', () => {
   const switching = ref<boolean>(false);
 
   let recoveryPromise: Promise<void> | null = null;
+  let tenantOptionsPromise: Promise<TenantOptionVO[]> | null = null;
   let guardInitDepth = 0;
 
   /**
@@ -145,15 +146,32 @@ export const useTenantStore = defineStore('tenant', () => {
       tenantOptions.value = [];
       return [];
     }
-    const options = await getTenantOptions();
-    tenantOptions.value = options;
-    return options;
+    if (tenantOptionsPromise) {
+      return tenantOptionsPromise;
+    }
+
+    const requestTask = getTenantOptions()
+      .then(options => {
+        if (tenantOptionsPromise === requestTask && isSuperAdminTenantSwitchAllowed.value) {
+          tenantOptions.value = options;
+        }
+        return options;
+      })
+      .finally(() => {
+        if (tenantOptionsPromise === requestTask) {
+          tenantOptionsPromise = null;
+        }
+      });
+
+    tenantOptionsPromise = requestTask;
+    return requestTask;
   }
 
   /**
    * 清空本地多租户状态并复位至平台默认租户 '0'（供登出或 401/101005 会话终止调用）。
    */
   function resetLocalTenant(): void {
+    tenantOptionsPromise = null;
     ownerTenantId.value = DEFAULT_TENANT_ID;
     tenant.setTenantId(DEFAULT_TENANT_ID);
     activeTenantName.value = DEFAULT_TENANT_NAME;

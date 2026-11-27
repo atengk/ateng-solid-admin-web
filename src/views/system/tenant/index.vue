@@ -454,6 +454,7 @@ async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
       v-model="formDrawerVisible"
       :mode="formDrawerMode"
       :tenant-id="editingTenantId"
+      :package-options="packageOptions"
       @saved="handleDrawerSaved"
       @created="handleTenantCreated"
     />

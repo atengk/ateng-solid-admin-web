@@ -61,6 +61,10 @@ const props = defineProps<{
    * 新增下级或新建时预设的上级部门主键。
    */
   initialParentId?: string;
+  /**
+   * 父视图已加载的全量部门树（非空时免重复拉取）。
+   */
+  deptTree?: DeptTreeVO[];
 }>();
 
 const emit = defineEmits<{
@@ -86,7 +90,10 @@ const {
 const leaderLoading = ref<boolean>(false);
 const fullDeptTree = ref<DeptTreeVO[]>([]);
 const leaderOptions = ref<UserOptionVO[]>([]);
+const initialLeaderOptions = ref<UserOptionVO[]>([]);
 const originalParentId = ref<string | undefined>(undefined);
+let lastLeaderKeyword: string | null = null;
+let leaderSearchSeq = 0;
 
 const form = reactive<{
   id?: string;
@@ -128,7 +135,12 @@ function resetFormState(): void {
   form.phone = '';
   form.email = '';
   form.status = 0;
+  leaderLoading.value = false;
+  leaderOptions.value = [];
+  initialLeaderOptions.value = [];
   originalParentId.value = undefined;
+  lastLeaderKeyword = null;
+  leaderSearchSeq += 1;
 }
 
 function mergeCurrentLeaderOption(
@@ -157,13 +169,37 @@ function formatUserOptionLabel(option: UserOptionVO): string {
 }
 
 async function handleSearchLeaders(keyword: string): Promise<void> {
+  const normalized = keyword.trim();
+  // 跳过 Element Plus 远程下拉首次展开自动触发的空串重查，保留已有预加载/已合并列表
+  if (normalized === '' && lastLeaderKeyword === '') {
+    return;
+  }
+  if (normalized === '' && initialLeaderOptions.value.length > 0) {
+    leaderSearchSeq += 1;
+    leaderLoading.value = false;
+    leaderOptions.value = [...initialLeaderOptions.value];
+    lastLeaderKeyword = '';
+    return;
+  }
+
+  const seq = ++leaderSearchSeq;
   leaderLoading.value = true;
   try {
-    leaderOptions.value = await getUserOptions(keyword);
+    const result = await getUserOptions(normalized || undefined);
+    if (seq !== leaderSearchSeq) {
+      return;
+    }
+    leaderOptions.value = result;
+    lastLeaderKeyword = normalized;
   } catch {
-    leaderOptions.value = [];
+    if (seq === leaderSearchSeq) {
+      leaderOptions.value = [];
+      lastLeaderKeyword = null;
+    }
   } finally {
-    leaderLoading.value = false;
+    if (seq === leaderSearchSeq) {
+      leaderLoading.value = false;
+    }
   }
 }
 
@@ -172,15 +208,20 @@ async function loadDialogData(): Promise<void> {
   await runDetailLoad({
     loader: () =>
       withDictPreload(['commonStatus'], async () => {
+        let usersLoaded = true;
+        const preloadedTree = props.deptTree?.length ? props.deptTree : null;
         const [tree, users] = await Promise.all([
-          getDeptTree(),
-          getUserOptions().catch(() => [] as UserOptionVO[]),
+          preloadedTree ? Promise.resolve(preloadedTree) : getDeptTree(),
+          getUserOptions().catch(() => {
+            usersLoaded = false;
+            return [] as UserOptionVO[];
+          }),
         ]);
         const detail =
           props.mode === 'edit' && props.deptId ? await getDeptDetail(props.deptId) : null;
-        return { tree, users, detail };
+        return { tree, users, usersLoaded, detail };
       }),
-    onLoaded: ({ tree, users, detail }) => {
+    onLoaded: ({ tree, users, usersLoaded, detail }) => {
       fullDeptTree.value = tree;
       leaderOptions.value = users;
 
@@ -196,6 +237,9 @@ async function loadDialogData(): Promise<void> {
         form.status = detail.status;
         mergeCurrentLeaderOption(detail.leaderUserId, detail.leaderNickname, detail.leaderUsername);
       }
+
+      initialLeaderOptions.value = [...leaderOptions.value];
+      lastLeaderKeyword = usersLoaded ? '' : null;
     },
     errorFallback: '加载部门详情失败，请关闭重试',
   });
