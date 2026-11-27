@@ -54,9 +54,9 @@ _Avoid_: 将代码强类型枚举重复录入动态字典表，或要求底层�
 由运营人员在后台维护的键值选项集合（`sys_dict_type` / `sys_dict_data`），通过 `DictManager` 统一缓存渲染。
 _Avoid_: 前端组件内硬编码魔法数字下拉项
 
-**内存真明文 (In-Memory Plaintext)**:
-前端表单与 Store 状态层始终持有原始业务字段值，敏感信息掩码仅发生在展示渲染阶段。
-_Avoid_: 在表单编辑状态中直接将手机号/邮箱改写为带星号字符串
+**内存真明文与列表脱敏 (In-Memory Plaintext vs List Masking)**:
+前端编辑表单与 Store 状态层基于详情接口（如 `GET /admin/system/user/{id}`、`GET /admin/auth/profile`）始终持有原始真明文以避免提交污染；用户分页、部门树等高频列表接口响应由服务端经 `@FieldSensitive` 动态脱敏后下发，表格层不再要求传输全明文。
+_Avoid_: 在表单编辑状态中直接将手机号/邮箱改写为带星号字符串，或向列表页全量下发明文联系方式
 
 ### 品牌与视觉标识
 
