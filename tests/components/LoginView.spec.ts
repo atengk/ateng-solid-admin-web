@@ -416,4 +416,73 @@ describe('LoginView (/login)', () => {
     expect(alertText).not.toContain('系统繁忙');
     expect(router.currentRoute.value.path).toBe('/login');
   });
+
+  it('renders multi-tenant input immediately on first frame from localStorage cache before getCaptcha settles (#71)', async () => {
+    localStorage.setItem('solid-tenant-enabled', 'true');
+    const cachedPinia = createPinia();
+    setActivePinia(cachedPinia);
+    const router = createLoginRouter();
+    await router.push('/login');
+    await router.isReady();
+
+    let resolveCaptcha!: (payload: CaptchaVO) => void;
+    vi.spyOn(authApi, 'getCaptcha').mockImplementationOnce(
+      () =>
+        new Promise<CaptchaVO>(resolve => {
+          resolveCaptcha = resolve;
+        }),
+    );
+
+    const wrapper = trackWrapper(
+      mount(LoginView, {
+        global: { plugins: [cachedPinia, router, ElementPlus, AtengElementPlus] },
+      }),
+    );
+    await Promise.resolve();
+
+    // getCaptcha 尚未返回时，应依据已知缓存直接渲染多租户输入框与模式标识，避免首帧闪变
+    expect(wrapper.find('[data-testid="login-tenant-input"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="login-footer"]').text()).toContain('SaaS 多租户模式');
+
+    resolveCaptcha(createCaptchaPayload({ enabled: true, tenantEnabled: true }));
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="login-tenant-input"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="login-footer"]').text()).toContain('SaaS 多租户模式');
+  });
+
+  it('renders neutral runtime mode placeholder on cold start before getCaptcha settles (#71)', async () => {
+    localStorage.removeItem('solid-tenant-enabled');
+    const coldPinia = createPinia();
+    setActivePinia(coldPinia);
+    const router = createLoginRouter();
+    await router.push('/login');
+    await router.isReady();
+
+    let resolveCaptcha!: (payload: CaptchaVO) => void;
+    vi.spyOn(authApi, 'getCaptcha').mockImplementationOnce(
+      () =>
+        new Promise<CaptchaVO>(resolve => {
+          resolveCaptcha = resolve;
+        }),
+    );
+
+    const wrapper = trackWrapper(
+      mount(LoginView, {
+        global: { plugins: [coldPinia, router, ElementPlus, AtengElementPlus] },
+      }),
+    );
+    await Promise.resolve();
+
+    // 冷启动且无本地缓存时，页脚显示中性检测文案而非错标为单租户模式
+    expect(wrapper.find('[data-testid="login-tenant-input"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="login-footer"]').text()).toContain('运行模式检测中...');
+    expect(wrapper.find('[data-testid="login-footer"]').text()).not.toContain('单租户默认态');
+
+    resolveCaptcha(createCaptchaPayload({ enabled: true, tenantEnabled: true }));
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="login-tenant-input"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="login-footer"]').text()).toContain('SaaS 多租户模式');
+  });
 });

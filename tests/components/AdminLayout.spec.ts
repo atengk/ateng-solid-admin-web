@@ -763,4 +763,137 @@ describe('AdminLayout Core Shell', () => {
       wrapper.find('[data-testid="sidebar-item-/system/role"]').attributes('tabindex'),
     ).toBeUndefined();
   });
+
+  async function setupObservedTenantLayout(token: string, viewTestId: string) {
+    const router = createLayoutTestRouter();
+    let userMountCount = 0;
+    const TrackedUser = defineComponent({
+      name: 'SysUser',
+      setup() {
+        const tenantStore = useTenantStore();
+        return { tenantStore };
+      },
+      mounted() {
+        userMountCount += 1;
+      },
+      template: `<div data-testid="${viewTestId}">user:{{ tenantStore.activeTenantId }}</div>`,
+    });
+
+    const registerTracked = (targetRouter: Router) => {
+      if (targetRouter.hasRoute('SysUser')) {
+        targetRouter.removeRoute('SysUser');
+      }
+      targetRouter.addRoute('RootLayout', {
+        path: '/system/user',
+        name: 'SysUser',
+        component: TrackedUser,
+        meta: { title: '用户管理', icon: 'User', keepAlive: true, requiresAuth: true },
+      });
+    };
+    registerTracked(router);
+
+    adminAuthManager.setToken(token);
+    const authStore = useAuthStore();
+    authStore.syncTokenFromManager();
+    const permissionStore = usePermissionStore();
+    const tenantStore = useTenantStore();
+    authStore.setTenantEnabled(true);
+    vi.spyOn(tenantApi, 'getTenantOptions').mockResolvedValue([
+      { id: '10002', tenantCode: '100002', tenantName: '星辰智能科技', status: 0 },
+    ]);
+    vi.spyOn(authApi, 'getAuthInfo').mockImplementation(async () => {
+      const tid = adminTenantManager.getTenantId() || '0';
+      return {
+        ...createSuperAdminProfile(),
+        tenantId: tid,
+        tenantName: tid === '10002' ? '星辰智能科技' : '平台默认租户',
+        tenantEnabled: true,
+      };
+    });
+    vi.spyOn(authApi, 'getAuthRoutes').mockResolvedValue(buildSampleMenus());
+    const origBuildRoutes = permissionStore.buildRoutes.bind(permissionStore);
+    vi.spyOn(permissionStore, 'buildRoutes').mockImplementation(async targetRouter => {
+      const routes = await origBuildRoutes(targetRouter);
+      if (targetRouter) {
+        registerTracked(targetRouter);
+      }
+      return routes;
+    });
+    await authStore.fetchUserInfo();
+    await permissionStore.buildRoutes(router);
+    await expect(tenantStore.switchTenant('10002', router)).resolves.toBe(true);
+
+    const RootOutlet = defineComponent({ name: 'RootOutletStub', template: '<router-view />' });
+    const wrapper = trackWrapper(
+      mount(RootOutlet, {
+        global: { plugins: [pinia, router, ElementPlus, AtengElementPlus] },
+      }),
+    );
+    await router.push('/system/user');
+    await flushPromises();
+
+    return {
+      router,
+      authStore,
+      tenantStore,
+      wrapper,
+      getUserMountCount: () => userMountCount,
+    };
+  }
+
+  it('prevents key="0" child remount when session expiration resets auth and tenantId before async redirect (#71)', async () => {
+    const { authStore, wrapper, getUserMountCount } = await setupObservedTenantLayout(
+      'super-token-401',
+      'tracked-user-401',
+    );
+    expect(getUserMountCount()).toBe(1);
+    expect(wrapper.find('[data-testid="tracked-user-401"]').text()).toBe('user:10002');
+
+    // 模拟 401/101005 同步清态：先通知认证失效，再复位租户为 '0'（尚未跳转到 /login）
+    adminAuthManager.handleUnauthorized();
+    adminTenantManager.setTenantId('0');
+    await nextTick();
+    await flushPromises();
+
+    expect(authStore.isAuthenticated).toBe(false);
+    expect(wrapper.find('[data-testid="tracked-user-401"]').exists()).toBe(false);
+    expect(getUserMountCount()).toBe(1);
+  });
+
+  it('prevents premature key="0" remount while 100002 recoverFromInvalidTenant reload is still pending (#71)', async () => {
+    const { router, tenantStore, wrapper, getUserMountCount } = await setupObservedTenantLayout(
+      'super-token-100002',
+      'tracked-user-100002',
+    );
+    expect(getUserMountCount()).toBe(1);
+    expect(wrapper.find('[data-testid="tracked-user-100002"]').text()).toBe('user:10002');
+
+    let resolveRecoveryInfo!: (profile: AdminProfileVO) => void;
+    vi.spyOn(authApi, 'getAuthInfo').mockImplementationOnce(
+      () =>
+        new Promise<AdminProfileVO>(resolve => {
+          resolveRecoveryInfo = resolve;
+        }),
+    );
+
+    const recoveryPromise = tenantStore.handleHttpInvalidTenantSwitch(router);
+    await nextTick();
+    await Promise.resolve();
+
+    expect(tenantStore.switching).toBe(true);
+    expect(tenantStore.activeTenantId).toBe('0');
+    expect(getUserMountCount()).toBe(1);
+
+    resolveRecoveryInfo({
+      ...createSuperAdminProfile(),
+      tenantId: '0',
+      tenantName: '平台默认租户',
+      tenantEnabled: true,
+    });
+    await recoveryPromise;
+    await flushPromises();
+
+    expect(tenantStore.switching).toBe(false);
+    expect(getUserMountCount()).toBe(1);
+  });
 });

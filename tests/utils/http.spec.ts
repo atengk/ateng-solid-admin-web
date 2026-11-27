@@ -11,6 +11,7 @@ import {
   isGlobalHandledHttpError,
   registerHttpErrorHandlers,
   resetHttpInterceptorState,
+  resetSessionExpiredCooldown,
   resolveApiTimeoutMs,
   resolveContextualErrorMessage,
   resolveErrorMessage,
@@ -479,5 +480,106 @@ describe('http client & global error dispatcher', () => {
     expect(resolveErrorMessage(new Error('Network Error'), '操作失败，请重试')).toBe(
       '网络请求超时或服务连接异常，请稍后重试',
     );
+  });
+
+  it('aborts in-flight requests, holds lock across async session teardown & cooldown, and resets via resetSessionExpiredCooldown', async () => {
+    vi.useFakeTimers();
+    const unauthListener = vi.fn();
+    const unsubscribe = adminAuthManager.onUnauthorized(unauthListener);
+    try {
+      const cancelAllSpy = vi.spyOn(adminHttpClient.abortCoordinator, 'cancelAll');
+      const handleUnauthSpy = vi.spyOn(adminAuthManager, 'handleUnauthorized');
+      const { warnSpy } = spyElMessage();
+
+      let releaseLogout!: () => void;
+      const logoutGate = new Promise<void>(resolve => {
+        releaseLogout = resolve;
+      });
+      const onSessionExpired = vi.fn().mockReturnValue(logoutGate);
+      registerHttpErrorHandlers({ onSessionExpired });
+
+      adminAuthManager.setToken('tok-expired');
+      adminTenantManager.setTenantId('10002');
+
+      await expect(
+        adminHttpClient.get('/admin/auth/info', {
+          adapter: mockJsonResultAdapter(401, { code: 401, msg: '未登录' }),
+        }),
+      ).rejects.toBeInstanceOf(BusinessException);
+
+      expect(cancelAllSpy).toHaveBeenCalledWith('SESSION_EXPIRED');
+      expect(handleUnauthSpy).toHaveBeenCalled();
+      expect(unauthListener).toHaveBeenCalled();
+      expect(onSessionExpired).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(adminAuthManager.getToken()).toBeNull();
+      expect(adminTenantManager.getTenantId()).toBe('0');
+
+      // 跨越宏任务边界但异步 logout 尚未完成时，后续晚到 401 不得重入强退或二次弹窗
+      await vi.advanceTimersByTimeAsync(10);
+      await expect(
+        adminHttpClient.get('/admin/system/user/page', {
+          adapter: mockJsonResultAdapter(401, { code: 401, msg: '未登录' }),
+        }),
+      ).rejects.toBeInstanceOf(BusinessException);
+
+      expect(onSessionExpired).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+
+      // logout 完成后处于 2 秒冷却窗口内时仍合并去重
+      releaseLogout();
+      await vi.advanceTimersByTimeAsync(500);
+      await expect(
+        adminHttpClient.get('/admin/system/dept/list', {
+          adapter: mockJsonResultAdapter(401, { code: 401, msg: '未登录' }),
+        }),
+      ).rejects.toBeInstanceOf(BusinessException);
+
+      expect(onSessionExpired).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+
+      // 重新登录清空冷却态后，新会话遇到 401 可正常触发强退
+      resetSessionExpiredCooldown();
+      adminAuthManager.setToken('tok-relogin');
+      await expect(
+        adminHttpClient.get('/admin/auth/info', {
+          adapter: mockJsonResultAdapter(401, { code: 401, msg: '未登录' }),
+        }),
+      ).rejects.toBeInstanceOf(BusinessException);
+
+      expect(onSessionExpired).toHaveBeenCalledTimes(2);
+      expect(warnSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      unsubscribe();
+      vi.useRealTimers();
+    }
+  });
+
+  it('cancels in-flight requests and invokes handleUnauthorized synchronously on 101005 session termination', async () => {
+    const unauthListener = vi.fn();
+    const unsubscribe = adminAuthManager.onUnauthorized(unauthListener);
+    try {
+      const cancelAllSpy = vi.spyOn(adminHttpClient.abortCoordinator, 'cancelAll');
+      const handleUnauthSpy = vi.spyOn(adminAuthManager, 'handleUnauthorized');
+      const { warnSpy } = spyElMessage();
+      const onSessionExpired = vi.fn();
+      registerHttpErrorHandlers({ onSessionExpired });
+
+      adminAuthManager.setToken('active-token');
+      adminTenantManager.setTenantId('3001');
+      await expect(
+        adminHttpClient.get('/admin/system/user/page', {
+          adapter: mockJsonResultAdapter(200, { code: 101005, msg: '当前所属租户已过期' }),
+        }),
+      ).rejects.toBeInstanceOf(BusinessException);
+
+      expect(cancelAllSpy).toHaveBeenCalledWith('SESSION_EXPIRED');
+      expect(handleUnauthSpy).toHaveBeenCalledTimes(1);
+      expect(unauthListener).toHaveBeenCalledTimes(1);
+      expect(onSessionExpired).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith('当前所属租户已过期');
+    } finally {
+      unsubscribe();
+    }
   });
 });

@@ -20,6 +20,7 @@ import {
 } from '@atengk/element-plus';
 import { useTabsNav } from '@atengk/vue';
 import { useAppStore } from '@/stores/app';
+import { useAuthStore } from '@/stores/auth';
 import { usePermissionStore } from '@/stores/permission';
 import { useTenantStore } from '@/stores/tenant';
 import { SOLID_LAYOUT_TABS_KEY } from '@/types/router';
@@ -65,8 +66,10 @@ const DASHBOARD_TAB: TabItem = {
 const route = useRoute();
 const router = useRouter();
 const appStore = useAppStore();
+const authStore = useAuthStore();
 const permissionStore = usePermissionStore();
 const tenantStore = useTenantStore();
+authStore.syncTokenFromManager();
 
 const mobileDrawerVisible = ref<boolean>(false);
 let mediaQueryList: MediaQueryList | null = null;
@@ -333,6 +336,7 @@ onBeforeUnmount(() => {
       <main class="min-h-0 flex-1 overflow-auto p-4">
         <slot>
           <router-view
+            v-if="authStore.isAuthenticated"
             :key="tenantStore.activeTenantId"
             v-slot="{ Component, route: currentRoute }"
           >

@@ -76,8 +76,9 @@ export const useTenantStore = defineStore('tenant', () => {
     nextTenantId: string,
     router?: Router,
   ): Promise<AdminProfileVO> {
-    // 1. 写入并持久化工作租户 X-Tenant-Id
+    // 1. 写入并持久化工作租户 X-Tenant-Id，同时同步更新展示名称防止切换过程出现跨租户 ID/名称错配
     tenant.setTenantId(nextTenantId);
+    activeTenantName.value = resolveOptionName(nextTenantId);
     // 2. 清空跨租户字典缓存
     DictManager.clearCache();
     // 3. 清理除 affix 之外的页签缓存
@@ -174,6 +175,11 @@ export const useTenantStore = defineStore('tenant', () => {
       return;
     }
 
+    const ownsSwitchingLock = !switching.value;
+    if (ownsSwitchingLock) {
+      switching.value = true;
+    }
+
     recoveryPromise = (async () => {
       const profile = await applyTenantResetAndReload(DEFAULT_TENANT_ID, router);
       activeTenantName.value = resolveOptionName(DEFAULT_TENANT_ID, profile.tenantName);
@@ -191,15 +197,22 @@ export const useTenantStore = defineStore('tenant', () => {
       await recoveryPromise;
     } finally {
       recoveryPromise = null;
+      if (ownsSwitchingLock) {
+        switching.value = false;
+      }
     }
   }
 
   /**
-   * 响应全局 HTTP 100002 拦截回调：当非 switchTenant 或首屏守卫并发初始化阶段触发时，执行或复用单次平台回退。
+   * 响应全局 HTTP 100002 拦截回调：若已有平台回退进行中则先复用等待，否则在非 switchTenant/守卫并发初始化期内发起单次平台回退。
    *
    * @param router 可选 Vue Router 实例
    */
   async function handleHttpInvalidTenantSwitch(router?: Router): Promise<void> {
+    if (recoveryPromise) {
+      await recoveryPromise;
+      return;
+    }
     if (switching.value || guardInitDepth > 0) {
       return;
     }
@@ -225,6 +238,8 @@ export const useTenantStore = defineStore('tenant', () => {
     }
 
     const nextTenantId = targetTenantId.trim() || DEFAULT_TENANT_ID;
+    const previousTenantId = activeTenantId.value || DEFAULT_TENANT_ID;
+    const previousTenantName = activeTenantName.value;
     switching.value = true;
 
     try {
@@ -243,9 +258,31 @@ export const useTenantStore = defineStore('tenant', () => {
       activeTenantName.value = resolveOptionName(nextTenantId, profile.tenantName);
       return true;
     } catch (error) {
+      // 1. 若会话已被 401/101005 拦截器强退并复位为平台 '0'，严禁回滚覆写为切换前的租户
+      if (!authStore.isAuthenticated) {
+        activeTenantName.value = resolveOptionName(DEFAULT_TENANT_ID);
+        throw error;
+      }
+      // 2. 切租户遇 100002：执行单飞平台恢复至 '0' 且保持超管登录态
       if (isInvalidTenantSwitchError(error)) {
         await recoverFromInvalidTenant(router);
         return false;
+      }
+      // 3. 其余非 100002 异常且会话仍有效：尽力恢复原租户身份、动态路由与名称，防止步骤 4 卸载后留空
+      try {
+        const rollbackProfile = await applyTenantResetAndReload(previousTenantId, router);
+        activeTenantName.value = resolveOptionName(
+          previousTenantId,
+          rollbackProfile.tenantName || previousTenantName,
+        );
+      } catch {
+        if (!authStore.isAuthenticated) {
+          tenant.setTenantId(DEFAULT_TENANT_ID);
+          activeTenantName.value = resolveOptionName(DEFAULT_TENANT_ID);
+        } else {
+          tenant.setTenantId(previousTenantId);
+          activeTenantName.value = previousTenantName;
+        }
       }
       throw error;
     } finally {

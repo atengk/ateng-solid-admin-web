@@ -11,7 +11,7 @@ import {
   type AdminLoginVO,
   type AdminProfileVO,
 } from '@/api/auth';
-import { adminAuthManager, DEFAULT_TENANT_ID } from '@/utils/http';
+import { adminAuthManager, DEFAULT_TENANT_ID, resetSessionExpiredCooldown } from '@/utils/http';
 import { useAppStore } from '@/stores/app';
 import { usePermissionStore } from '@/stores/permission';
 import { useTenantStore } from '@/stores/tenant';
@@ -38,14 +38,18 @@ function clearPasswordReminderDismissals(): void {
   }
 }
 
-function readStoredTenantEnabled(): boolean {
+function readStoredTenantEnabledState(): { value: boolean; known: boolean } {
   if (typeof localStorage === 'undefined') {
-    return false;
+    return { value: false, known: false };
   }
   try {
-    return localStorage.getItem(TENANT_ENABLED_STORAGE_KEY) === 'true';
+    const raw = localStorage.getItem(TENANT_ENABLED_STORAGE_KEY);
+    if (raw === 'true' || raw === 'false') {
+      return { value: raw === 'true', known: true };
+    }
+    return { value: false, known: false };
   } catch {
-    return false;
+    return { value: false, known: false };
   }
 }
 
@@ -73,8 +77,10 @@ export const useAuthStore = defineStore('auth', () => {
     superAdminRoles: SUPER_ADMIN_ROLES,
   });
 
+  const storedTenantState = readStoredTenantEnabledState();
   const isInitialized = ref<boolean>(false);
-  const tenantEnabled = ref<boolean>(readStoredTenantEnabled());
+  const tenantEnabled = ref<boolean>(storedTenantState.value);
+  const tenantEnabledKnown = ref<boolean>(storedTenantState.known);
 
   /**
    * 同步更新多租户功能开关状态（来源于 /admin/auth/captcha、/admin/auth/info 真源或运行期兜底推断）。
@@ -83,6 +89,7 @@ export const useAuthStore = defineStore('auth', () => {
    */
   function setTenantEnabled(enabled: boolean): void {
     tenantEnabled.value = enabled;
+    tenantEnabledKnown.value = true;
     writeStoredTenantEnabled(enabled);
   }
 
@@ -100,6 +107,7 @@ export const useAuthStore = defineStore('auth', () => {
    */
   async function login(dto: AdminLoginRequest): Promise<AdminLoginVO> {
     const result = await loginApi(dto);
+    resetSessionExpiredCooldown();
     const effectiveTenantId = result.tenantId?.trim() || DEFAULT_TENANT_ID;
     inferTenantEnabledFromId(effectiveTenantId);
 
@@ -241,6 +249,7 @@ export const useAuthStore = defineStore('auth', () => {
     permissions: auth.permissions,
     isInitialized,
     tenantEnabled,
+    tenantEnabledKnown,
     setTenantEnabled,
     login,
     fetchUserInfo,

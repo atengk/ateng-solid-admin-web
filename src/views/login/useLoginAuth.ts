@@ -144,11 +144,14 @@ export function useLoginAuth(options: UseLoginAuthOptions) {
   const captchaConfigError = ref<string>('');
   const captcha = reactive<CaptchaVO>({
     enabled: false,
-    tenantEnabled: false,
+    tenantEnabled: authStore.tenantEnabled,
     captchaKey: '',
     imageBase64: '',
     expireSeconds: 120,
   });
+  const tenantModeResolved = computed<boolean>(
+    () => captchaReady.value || authStore.tenantEnabledKnown,
+  );
 
   const remembered = readRememberedAccount();
   const form = reactive({
@@ -399,6 +402,7 @@ export function useLoginAuth(options: UseLoginAuthOptions) {
     captchaLoading,
     captchaConfigError,
     captcha,
+    tenantModeResolved,
     form,
     formRules,
     rememberAccount,

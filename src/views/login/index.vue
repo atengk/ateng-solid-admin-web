@@ -34,6 +34,7 @@ const {
   captchaLoading,
   captchaConfigError,
   captcha,
+  tenantModeResolved,
   form,
   formRules,
   rememberAccount,
@@ -55,9 +56,12 @@ const subtitleText = computed<string>(() =>
     : '请输入账号凭据以进入控制台',
 );
 
-const runtimeModeText = computed<string>(() =>
-  captcha.tenantEnabled ? 'SaaS 多租户模式' : '单租户默认态 (000000)',
-);
+const runtimeModeText = computed<string>(() => {
+  if (!tenantModeResolved.value) {
+    return '运行模式检测中...';
+  }
+  return captcha.tenantEnabled ? 'SaaS 多租户模式' : '单租户默认态 (000000)';
+});
 
 function detectCapsLock(event: Event): void {
   if (event instanceof KeyboardEvent && typeof event.getModifierState === 'function') {

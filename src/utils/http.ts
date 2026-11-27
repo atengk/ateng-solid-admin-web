@@ -110,7 +110,7 @@ const RESULT_REQUEST_META = new WeakMap<object, RequestMeta>();
 
 let registeredHandlers: HttpErrorHandlers = {};
 let isHandlingAuthReset = false;
-let authResetReleaseTimer: ReturnType<typeof setTimeout> | undefined;
+let lastSessionExpiredAt = -WARNING_COALESCE_MS;
 let lastRateLimitToastAt = -WARNING_COALESCE_MS;
 let lastInvalidTenantToastAt = -WARNING_COALESCE_MS;
 let lastServerErrorToastAt = -WARNING_COALESCE_MS;
@@ -125,15 +125,19 @@ export function registerHttpErrorHandlers(handlers: HttpErrorHandlers): void {
 }
 
 /**
+ * 清空会话失效强退弹窗的冷却时间窗口（供用户重新登录成功后调用，避免新会话短期内再次 401 被抑制）。
+ */
+export function resetSessionExpiredCooldown(): void {
+  lastSessionExpiredAt = -WARNING_COALESCE_MS;
+}
+
+/**
  * 重置拦截器内部防重入、节流与注册回调状态（专供离线单元测试在用例间重置现场）。
  */
 export function resetHttpInterceptorState(): void {
-  if (authResetReleaseTimer !== undefined) {
-    clearTimeout(authResetReleaseTimer);
-    authResetReleaseTimer = undefined;
-  }
   registeredHandlers = {};
   isHandlingAuthReset = false;
+  lastSessionExpiredAt = -WARNING_COALESCE_MS;
   lastRateLimitToastAt = -WARNING_COALESCE_MS;
   lastInvalidTenantToastAt = -WARNING_COALESCE_MS;
   lastServerErrorToastAt = -WARNING_COALESCE_MS;
@@ -150,30 +154,39 @@ function asAxiosLikeError(value: unknown): AxiosLikeError | undefined {
 }
 
 function clearClientSessionState(): void {
-  adminAuthManager.clearToken();
+  // 中断飞行中的未决请求；401 由底座先行广播未授权，此处补充同步调用确保 101005 等业务终结码同样立即失活认证态
+  adminHttpClient.abortCoordinator.cancelAll('SESSION_EXPIRED');
+  adminAuthManager.handleUnauthorized();
   adminTenantManager.setTenantId(DEFAULT_TENANT_ID);
   DictManager.clearCache();
 }
 
 function triggerSessionExpired(reason: '401' | '101005', message: string): void {
-  if (isHandlingAuthReset) {
+  const now = Date.now();
+  if (isHandlingAuthReset || now - lastSessionExpiredAt < WARNING_COALESCE_MS) {
     return;
   }
   isHandlingAuthReset = true;
-  clearClientSessionState();
-  ElMessage.warning(message);
+  lastSessionExpiredAt = now;
 
+  let handlerTask: Promise<unknown>;
   try {
-    void Promise.resolve(registeredHandlers.onSessionExpired?.(reason, message)).catch(() => {
-      // 上层跳转异常隔离，避免阻断后续会话状态恢复
-    });
-  } finally {
-    // 延迟至下一宏任务释放防重入锁，保证同一批并发 401/101005 仅触发一次退出流转
-    authResetReleaseTimer = globalThis.setTimeout(() => {
-      isHandlingAuthReset = false;
-      authResetReleaseTimer = undefined;
-    }, 0);
+    clearClientSessionState();
+    ElMessage.warning(message);
+    handlerTask = Promise.resolve(registeredHandlers.onSessionExpired?.(reason, message));
+  } catch {
+    // 隔离清态、弹窗或上层回调同步抛错，避免重入锁无法释放阻断后续会话恢复
+    isHandlingAuthReset = false;
+    return;
   }
+
+  void handlerTask
+    .catch(() => {
+      // 上层跳转异常隔离，避免阻断后续会话状态恢复
+    })
+    .finally(() => {
+      isHandlingAuthReset = false;
+    });
 }
 
 /**
@@ -211,9 +224,6 @@ export const adminHttpClient = createHttpClient({
   authManager: adminAuthManager,
   tenantManager: adminTenantManager,
   unwrap: true,
-  onUnauthorized: () => {
-    triggerSessionExpired('401', SESSION_EXPIRED_MESSAGE);
-  },
 });
 
 async function resolveBusinessException(error: unknown): Promise<BusinessException> {
