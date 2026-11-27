@@ -43,6 +43,7 @@ const visible = computed<boolean>({
   set: value => emit('update:modelValue', value),
 });
 
+const importUploadRef = ref<InstanceType<typeof AtengUpload>>();
 const uploading = ref<boolean>(false);
 const templateDownloading = ref<boolean>(false);
 const uploadError = ref<string>('');
@@ -123,7 +124,9 @@ async function handleImportRequest(options: UploadRequestOptions): Promise<unkno
     return result;
   } catch (error) {
     handleImportActionError(error, '批量导入用户失败，请核对模板表头及行数限制');
-    throw error;
+    // UI 内联横幅与 ElMessage 已消费错误，清空队列并正常返回，避免 el-upload 输出 console.error 红字
+    importUploadRef.value?.clearFiles();
+    return;
   } finally {
     uploading.value = false;
   }
@@ -174,6 +177,7 @@ function handleFeedbackDownloadError(error: unknown): void {
       <FormErrorBanner :message="uploadError" test-id="user-import-error" />
 
       <AtengUpload
+        ref="importUploadRef"
         data-testid="user-import-upload"
         :chunk="false"
         drag

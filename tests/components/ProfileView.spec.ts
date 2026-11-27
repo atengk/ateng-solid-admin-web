@@ -1,4 +1,4 @@
-import { defineComponent } from 'vue';
+import { defineComponent, h, KeepAlive, ref } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
@@ -266,7 +266,7 @@ describe('ProfileView (/profile)', () => {
     expect(uploadSpy).toHaveBeenCalledWith(validFile);
     expect(useAuthStore().user?.avatar).toBe('https://cdn.example.com/avatar/new.png');
 
-    // 上传失败时必须保持已有头像不清空
+    // 上传失败时不得向 el-upload 外抛拒绝（避免控制台输出红字），同时展示错误横幅并保持已有头像
     vi.spyOn(authApi, 'uploadProfileAvatar').mockRejectedValueOnce(new Error('invalid magic'));
     await expect(
       httpRequest({
@@ -274,7 +274,8 @@ describe('ProfileView (/profile)', () => {
         onSuccess: vi.fn(),
         onError: vi.fn(),
       }),
-    ).rejects.toThrow();
+    ).resolves.toBeUndefined();
+    expect(wrapper.find('[data-testid="profile-avatar-error"]').exists()).toBe(true);
     expect(useAuthStore().user?.avatar).toBe('https://cdn.example.com/avatar/new.png');
   });
 
@@ -456,5 +457,140 @@ describe('ProfileView (/profile)', () => {
     const errorBanner = wrapper.find('[data-testid="profile-password-error"]').text();
     expect(errorBanner).toBe('修改密码失败，请核对当前密码后重试');
     expect(errorBanner).not.toContain('Request failed');
+  });
+
+  it('allows manually closing avatarError and clears avatarError/submitError on tab changes while keeping drafts (#75)', async () => {
+    const router = createProfileRouter();
+    await router.push('/profile');
+    await router.isReady();
+
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue(createAuthProfile());
+    vi.spyOn(authApi, 'getPersonalProfile').mockResolvedValue(createPersonalProfile());
+    vi.spyOn(authApi, 'updatePersonalProfile').mockRejectedValue(
+      new BusinessException(102002, '手机号码已被其他用户占用'),
+    );
+    vi.spyOn(authApi, 'updatePassword').mockRejectedValue(
+      new BusinessException(101006, '当前密码不正确'),
+    );
+    await useAuthStore().fetchUserInfo();
+
+    const wrapper = trackWrapper(
+      mount(ProfileView, {
+        global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] },
+      }),
+    );
+    await flushPromises();
+
+    // 1. 触发头像错误并校验手动关闭按钮可用且具 aria-label
+    const uploadComponent = wrapper.findComponent({ name: 'AtengUpload' });
+    uploadComponent.vm.$emit('type-reject', new File(['x'], 'bad.gif'), '.jpg,.jpeg,.png,.webp');
+    await flushPromises();
+    const avatarAlert = wrapper.find('[data-testid="profile-avatar-error"]');
+    const closeBtn = wrapper.find('[data-testid="profile-avatar-error-close"]');
+    expect(avatarAlert.exists()).toBe(true);
+    expect(closeBtn.exists()).toBe(true);
+    expect(closeBtn.attributes('aria-label')).toBeTruthy();
+
+    await closeBtn.trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="profile-avatar-error"]').exists()).toBe(false);
+
+    // 2. 再次触发头像错误与基本资料提交错误，编辑未保存草稿后点击 #tab-password：清错误不丢草稿
+    uploadComponent.vm.$emit('type-reject', new File(['x'], 'bad2.gif'), '.jpg,.jpeg,.png,.webp');
+    const nicknameInput = wrapper.find('[data-testid="profile-nickname-input"]');
+    await nicknameInput.setValue('未保存昵称草稿');
+    await wrapper.find('[data-testid="profile-save-btn"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="profile-avatar-error"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="profile-basic-error"]').exists()).toBe(true);
+
+    await wrapper.find('#tab-password').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="profile-avatar-error"]').exists()).toBe(false);
+
+    // 3. 在修改密码 Tab 触发错误并保留输入草稿后，通过路由切换往返 /profile 与 /profile?tab=password：两侧错误均清空且草稿完整保留
+    await wrapper.find('[data-testid="profile-old-password-input"]').setValue('TempOld@2026');
+    await wrapper.find('[data-testid="profile-new-password-input"]').setValue('NewStrong@2026');
+    await wrapper.find('[data-testid="profile-confirm-password-input"]').setValue('NewStrong@2026');
+    await wrapper.find('[data-testid="profile-password-submit-btn"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="profile-password-error"]').exists()).toBe(true);
+
+    uploadComponent.vm.$emit('type-reject', new File(['x'], 'bad3.gif'), '.jpg,.jpeg,.png,.webp');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="profile-avatar-error"]').exists()).toBe(true);
+
+    await router.push('/profile');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="profile-avatar-error"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="profile-basic-error"]').exists()).toBe(false);
+    expect((wrapper.find('[data-testid="profile-nickname-input"]').element as HTMLInputElement).value).toBe(
+      '未保存昵称草稿',
+    );
+
+    await router.push('/profile?tab=password');
+    await flushPromises();
+    expect(wrapper.find('[data-testid="profile-password-error"]').exists()).toBe(false);
+    expect(
+      (wrapper.find('[data-testid="profile-old-password-input"]').element as HTMLInputElement).value,
+    ).toBe('TempOld@2026');
+  });
+
+  it('clears avatarError and submitError on KeepAlive deactivation while preserving unsaved form drafts (#75)', async () => {
+    const router = createProfileRouter();
+    await router.push('/profile');
+    await router.isReady();
+
+    vi.spyOn(authApi, 'getAuthInfo').mockResolvedValue(createAuthProfile());
+    vi.spyOn(authApi, 'getPersonalProfile').mockResolvedValue(createPersonalProfile());
+    vi.spyOn(authApi, 'updatePersonalProfile').mockRejectedValueOnce(
+      new BusinessException(102002, '邮箱已被占用'),
+    );
+    await useAuthStore().fetchUserInfo();
+
+    const activeView = ref<'profile' | 'other'>('profile');
+    const OtherView = defineComponent({ name: 'OtherView', template: '<div>other</div>' });
+    const Host = defineComponent({
+      setup() {
+        return { activeView };
+      },
+      render() {
+        return h(KeepAlive, null, {
+          default: () => (activeView.value === 'profile' ? h(ProfileView) : h(OtherView)),
+        });
+      },
+    });
+
+    const wrapper = trackWrapper(
+      mount(Host, {
+        global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] },
+      }),
+    );
+    await flushPromises();
+
+    wrapper.findComponent({ name: 'AtengUpload' }).vm.$emit(
+      'type-reject',
+      new File(['x'], 'bad.gif'),
+      '.jpg,.jpeg,.png,.webp',
+    );
+    const nicknameInput = wrapper.find('[data-testid="profile-nickname-input"]');
+    await nicknameInput.setValue('离页保留草稿');
+    await wrapper.find('[data-testid="profile-save-btn"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="profile-avatar-error"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="profile-basic-error"]').exists()).toBe(true);
+
+    // 模拟 KeepAlive 切离 /profile 再切回：错误横幅已自动清理，未保存草稿完整保留
+    activeView.value = 'other';
+    await flushPromises();
+    activeView.value = 'profile';
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="profile-avatar-error"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="profile-basic-error"]').exists()).toBe(false);
+    expect((wrapper.find('[data-testid="profile-nickname-input"]').element as HTMLInputElement).value).toBe(
+      '离页保留草稿',
+    );
   });
 });

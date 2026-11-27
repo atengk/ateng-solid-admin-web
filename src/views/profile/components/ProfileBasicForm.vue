@@ -164,6 +164,17 @@ async function handleSave(): Promise<void> {
     saving.value = false;
   }
 }
+
+/**
+ * 仅清理提交失败错误横幅，保留用户尚未提交的表单草稿内容。
+ */
+function clearError(): void {
+  submitError.value = '';
+}
+
+defineExpose({
+  clearError,
+});
 </script>
 
 <template>

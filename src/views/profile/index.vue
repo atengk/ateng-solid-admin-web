@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   ElAvatar,
@@ -12,7 +12,7 @@ import {
   ElTag,
   type UploadRequestOptions,
 } from 'element-plus';
-import { Loading, RefreshRight, Upload, Warning } from '@element-plus/icons-vue';
+import { Close, Loading, RefreshRight, Upload, Warning } from '@element-plus/icons-vue';
 import { AtengDescriptions, AtengDescriptionsItem, AtengUpload } from '@atengk/element-plus';
 import { getPersonalProfile, uploadProfileAvatar, type PersonalProfileVO } from '@/api/auth';
 import { useAuthStore } from '@/stores/auth';
@@ -42,6 +42,10 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 
+const avatarUploadRef = ref<InstanceType<typeof AtengUpload>>();
+const basicFormRef = ref<InstanceType<typeof ProfileBasicForm>>();
+const passwordFormRef = ref<InstanceType<typeof ProfilePasswordForm>>();
+
 const profile = ref<PersonalProfileVO | null>(null);
 const loading = ref<boolean>(false);
 const initialLoadDone = ref<boolean>(false);
@@ -64,16 +68,30 @@ function clearSkeletonTimer(): void {
   }
 }
 
+function clearTransientErrors(): void {
+  avatarError.value = '';
+  basicFormRef.value?.clearError();
+  passwordFormRef.value?.clearError();
+}
+
+let tabWatcherInitialized = false;
+
 watch(
   () => route.query.tab,
   rawTab => {
-    activeTab.value = rawTab === 'password' ? 'password' : 'basic';
+    const nextTab: ProfileTabKey = rawTab === 'password' ? 'password' : 'basic';
+    if (tabWatcherInitialized && nextTab !== activeTab.value) {
+      clearTransientErrors();
+    }
+    activeTab.value = nextTab;
+    tabWatcherInitialized = true;
   },
   { immediate: true },
 );
 
 function handleInnerTabChange(tabName: string | number): void {
   const normalized: ProfileTabKey = tabName === 'password' ? 'password' : 'basic';
+  clearTransientErrors();
   const currentQueryTab: ProfileTabKey = route.query.tab === 'password' ? 'password' : 'basic';
   if (normalized === currentQueryTab) {
     return;
@@ -190,9 +208,10 @@ async function uploadAvatarRequest(options: UploadRequestOptions): Promise<unkno
     ElMessage.success('头像已更新');
     return res;
   } catch (error) {
-    // 上传失败保持既有头像不变，并提示明确的格式与体积约束原因
+    // 上传失败保持既有头像不变，并清理文件队列与内联提示，避免向 el-upload 抛 reject 引发控制台红字
     avatarError.value = resolveContextualErrorMessage(error, AVATAR_LIMIT_HINT);
-    throw error;
+    avatarUploadRef.value?.clearFiles();
+    return;
   } finally {
     avatarUploading.value = false;
   }
@@ -200,6 +219,10 @@ async function uploadAvatarRequest(options: UploadRequestOptions): Promise<unkno
 
 onMounted(() => {
   void loadProfile();
+});
+
+onDeactivated(() => {
+  clearTransientErrors();
 });
 
 onBeforeUnmount(() => {
@@ -247,6 +270,7 @@ onBeforeUnmount(() => {
         </div>
 
         <AtengUpload
+          ref="avatarUploadRef"
           :chunk="false"
           :accept="AVATAR_ACCEPT"
           :max-size="AVATAR_MAX_BYTES"
@@ -276,10 +300,21 @@ onBeforeUnmount(() => {
           v-if="avatarError"
           data-testid="profile-avatar-error"
           role="alert"
-          class="flex items-center gap-1 text-xs text-danger"
+          class="flex w-full items-start justify-between gap-2 rounded-[var(--solid-radius-md)] border border-[var(--solid-danger-border)] bg-[var(--solid-danger-soft)] px-2.5 py-2 text-left text-xs text-[var(--solid-danger)]"
         >
-          <el-icon :size="13"><Warning /></el-icon>
-          <span>{{ avatarError }}</span>
+          <span class="flex min-w-0 items-start gap-1.5">
+            <el-icon :size="14" class="mt-0.5 shrink-0"><Warning /></el-icon>
+            <span class="leading-relaxed break-words">{{ avatarError }}</span>
+          </span>
+          <button
+            type="button"
+            data-testid="profile-avatar-error-close"
+            aria-label="关闭头像错误提示"
+            class="inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-[var(--solid-radius-sm)] border-none bg-transparent text-[var(--solid-danger)] transition-colors hover:bg-black/5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--solid-danger)]"
+            @click="avatarError = ''"
+          >
+            <el-icon :size="13"><Close /></el-icon>
+          </button>
         </div>
       </div>
 
@@ -355,12 +390,12 @@ onBeforeUnmount(() => {
         @tab-change="handleInnerTabChange"
       >
         <el-tab-pane label="基本资料" name="basic">
-          <ProfileBasicForm :profile="profile" :loading="loading" @saved="loadProfile" />
+          <ProfileBasicForm ref="basicFormRef" :profile="profile" :loading="loading" @saved="loadProfile" />
         </el-tab-pane>
 
         <el-tab-pane label="修改密码" name="password" lazy>
           <div data-testid="profile-password-panel">
-            <ProfilePasswordForm />
+            <ProfilePasswordForm ref="passwordFormRef" />
           </div>
         </el-tab-pane>
       </el-tabs>

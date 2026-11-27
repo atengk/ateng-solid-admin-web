@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
-import ElementPlus from 'element-plus';
+import ElementPlus, { ElMessage } from 'element-plus';
 import AtengElementPlus, { DictManager, type DictItem } from '@atengk/element-plus';
+import { BusinessException } from '@atengk/core';
 import { createAtengVue } from '@atengk/vue';
 import * as authApi from '@/api/auth';
 import * as configApi from '@/api/system/config';
@@ -469,5 +470,66 @@ describe('UserImportDialog & UserView', () => {
     await flushPromises();
     const editUsernameItem = document.body.querySelector('[data-testid="user-form-username"]')?.closest('.el-form-item');
     expect(editUsernameItem?.classList.contains('is-required')).toBe(false);
+  });
+
+  it('resolves AtengUpload httpRequest without unhandled rejection when importUsers fails with BusinessException (#75)', async () => {
+    const msgErrorSpy = vi
+      .spyOn(ElMessage, 'error')
+      .mockImplementation(() => ({ close: () => undefined }));
+    const msgSuccessSpy = vi
+      .spyOn(ElMessage, 'success')
+      .mockImplementation(() => ({ close: () => undefined }));
+    vi.spyOn(adminHttpClient, 'post')
+      .mockRejectedValueOnce(new BusinessException(400, '缺少必要表头列：用户账号'))
+      .mockResolvedValueOnce({
+        totalCount: 1,
+        successCount: 1,
+        failCount: 0,
+        errors: [],
+        feedbackToken: null,
+      } satisfies ImportResultVO);
+
+    const dialogVisible = ref(true);
+    const importedSpy = vi.fn();
+    const Host = {
+      components: { UserImportDialog },
+      setup() {
+        const open = computed({
+          get: () => dialogVisible.value,
+          set: (val: boolean) => {
+            dialogVisible.value = val;
+          },
+        });
+        return { open, importedSpy };
+      },
+      template: '<UserImportDialog v-model="open" @imported="importedSpy" />',
+    };
+
+    const wrapper = trackWrapper(
+      mount(Host, { global: { plugins: [pinia, router, ElementPlus, atengVue, AtengElementPlus] } }),
+    );
+    await flushPromises();
+
+    const uploadCmp = wrapper.findComponent({ name: 'AtengUpload' });
+    const httpRequestProp = uploadCmp.props('httpRequest') as (opts: { file: File }) => Promise<unknown>;
+    const badFile = new File(['bad-xlsx'], 'bad.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+
+    await expect(httpRequestProp({ file: badFile })).resolves.toBeUndefined();
+    await flushPromises();
+
+    expect(dialogVisible.value).toBe(true);
+    expect(document.body.querySelector('[data-testid="user-import-error"]')?.textContent).toContain(
+      '缺少必要表头列：用户账号',
+    );
+    expect(msgErrorSpy).toHaveBeenCalledWith('缺少必要表头列：用户账号');
+
+    // 失败后弹窗保持可重试，再次上传合法文件可正常关闭并触发 imported
+    await expect(httpRequestProp({ file: badFile })).resolves.toBeDefined();
+    await flushPromises();
+    expect(dialogVisible.value).toBe(false);
+    expect(importedSpy).toHaveBeenCalledTimes(1);
+    expect(msgSuccessSpy).toHaveBeenCalledWith('已成功批量导入 1 条用户数据');
   });
 });

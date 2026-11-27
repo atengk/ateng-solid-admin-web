@@ -135,6 +135,17 @@ async function handleSubmit(): Promise<void> {
     submitting.value = false;
   }
 }
+
+/**
+ * 仅清理改密提交失败错误横幅，保留当前已输入的口令草稿内容。
+ */
+function clearError(): void {
+  submitError.value = '';
+}
+
+defineExpose({
+  clearError,
+});
 </script>
 
 <template>
