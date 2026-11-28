@@ -88,6 +88,12 @@
 
   /* 开关关闭态轨道底色（保障 inline-prompt 白字 >= 4.5:1 对比度） */
   --solid-switch-off: #64748b;
+
+  /* 轻量薄滚动条语义令牌 */
+  --solid-scrollbar-size: 6px;
+  --solid-scrollbar-track: transparent;
+  --solid-scrollbar-thumb: rgba(100, 116, 139, 0.28);
+  --solid-scrollbar-thumb-hover: rgba(100, 116, 139, 0.48);
 }
 
 html.dark {
@@ -153,8 +159,49 @@ html.dark {
   --el-color-primary-light-7: #1a3259;
   --el-color-primary-light-8: #152540;
 
+  /* Dark 态 Element Plus 语义按钮/标签辅助色阶（保障 #111827 深色表面禁用态 >= 4.5:1 对比度） */
+  --el-color-danger-dark-2: #ef4444;
+  --el-color-danger-light-3: #dc5858;
+  --el-color-danger-light-5: #d97777;
+  --el-color-danger-light-7: #7f353a;
+  --el-color-danger-light-8: #662b30;
+  --el-color-danger-light-9: #271922;
+
+  --el-color-error-dark-2: var(--el-color-danger-dark-2);
+  --el-color-error-light-3: var(--el-color-danger-light-3);
+  --el-color-error-light-5: var(--el-color-danger-light-5);
+  --el-color-error-light-7: var(--el-color-danger-light-7);
+  --el-color-error-light-8: var(--el-color-danger-light-8);
+  --el-color-error-light-9: var(--el-color-danger-light-9);
+
+  --el-color-success-dark-2: #059669;
+  --el-color-success-light-3: #109d70;
+  --el-color-success-light-5: #34a882;
+  --el-color-success-light-7: #1b5548;
+  --el-color-success-light-8: #17443d;
+  --el-color-success-light-9: #12272a;
+
+  --el-color-warning-dark-2: #d97706;
+  --el-color-warning-light-3: #d48a14;
+  --el-color-warning-light-5: #d49a38;
+  --el-color-warning-light-7: #6e4e1c;
+  --el-color-warning-light-8: #573d19;
+  --el-color-warning-light-9: #282219;
+
+  --el-color-info-dark-2: #64748b;
+  --el-color-info-light-3: #7c8ca2;
+  --el-color-info-light-5: #8494aa;
+  --el-color-info-light-7: #445064;
+  --el-color-info-light-8: #354052;
+  --el-color-info-light-9: #1c2433;
+
   /* 开关关闭态轨道底色（清晰区分亮钴蓝主色与暗黑容器表面） */
   --solid-switch-off: #475569;
+
+  /* Dark 态轻量薄滚动条语义令牌 */
+  --solid-scrollbar-track: transparent;
+  --solid-scrollbar-thumb: rgba(148, 163, 184, 0.26);
+  --solid-scrollbar-thumb-hover: rgba(148, 163, 184, 0.46);
 }
 
 /*

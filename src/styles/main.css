@@ -123,3 +123,33 @@ body {
 .el-switch:not(.el-switch--small):not(.el-switch--large) .el-switch__core:has(.el-switch__inner) {
   min-width: 54px;
 }
+
+/* 全局轻量双态薄滚动条：承接剥离 theme-pro.css 后的原生溢出容器（零 !important，不干扰 ElScrollbar） */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--solid-scrollbar-thumb) var(--solid-scrollbar-track);
+  }
+}
+
+::-webkit-scrollbar {
+  width: var(--solid-scrollbar-size);
+  height: var(--solid-scrollbar-size);
+}
+
+::-webkit-scrollbar-track {
+  background: var(--solid-scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--solid-scrollbar-thumb);
+  border-radius: var(--solid-radius-pill);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--solid-scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
