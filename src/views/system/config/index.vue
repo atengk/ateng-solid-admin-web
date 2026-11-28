@@ -204,39 +204,39 @@ async function handleDialogSaved(): Promise<void> {
 
       <el-table-column type="selection" width="48" align="center" :selectable="isRowSelectable" />
 
-      <el-table-column prop="configName" label="参数名称" min-width="170" show-overflow-tooltip />
+      <el-table-column prop="configName" label="参数名称" min-width="145" show-overflow-tooltip />
 
-      <el-table-column prop="configKey" label="参数键名" min-width="210" show-overflow-tooltip>
+      <el-table-column prop="configKey" label="参数键名" min-width="185" show-overflow-tooltip>
         <template #default="{ row }">
           <span class="font-mono-data text-ink">{{ asConfigRow(row).configKey }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="configValue" label="参数键值" min-width="190" show-overflow-tooltip>
+      <el-table-column prop="configValue" label="参数键值" min-width="160" show-overflow-tooltip>
         <template #default="{ row }">
           <span class="font-mono-data text-ink-secondary">{{ asConfigRow(row).configValue }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="configType" label="参数类型" width="110" align="center">
+      <el-table-column prop="configType" label="参数类型" width="96" align="center">
         <template #default="{ row }">
           <AtengDictTag dict-code="configType" :value="asConfigRow(row).configType" />
         </template>
       </el-table-column>
 
-      <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip>
+      <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip>
         <template #default="{ row }">
           <span class="text-ink-secondary">{{ asConfigRow(row).remark?.trim() || '--' }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="createTime" label="创建时间" width="175">
+      <el-table-column prop="createTime" label="创建时间" width="165">
         <template #default="{ row }">
           <span class="tabular-nums">{{ asConfigRow(row).createTime || '--' }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column v-if="hasRowActions" label="操作" width="140" fixed="right" align="center">
+      <el-table-column v-if="hasRowActions" label="操作" width="130" fixed="right" align="center">
         <template #default="{ row }">
           <div class="inline-flex items-center justify-center gap-1">
             <el-button

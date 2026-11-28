@@ -33,6 +33,7 @@ import {
 defineOptions({ name: 'SysOperLog' });
 
 const STORAGE_KEY = 'solid:table:sys-oper-log';
+const DEFAULT_HIDDEN_COLUMNS = ['id', 'traceId', 'browser'] as const;
 const QUERY_FORM_COLS = { xs: 1, sm: 2, md: 3, lg: 5, xl: 5 } as const;
 const { tableAutoHeight, tableAutoHeightMode } = useListTableLayout();
 
@@ -73,6 +74,7 @@ function handleQueryReset(): void {
       :pagination="pagination"
       row-key="id"
       :storage-key="STORAGE_KEY"
+      :default-hidden-columns="DEFAULT_HIDDEN_COLUMNS"
       :auto-height="tableAutoHeight"
       :auto-height-mode="tableAutoHeightMode"
       empty-description="暂无操作审计日志记录"
@@ -164,13 +166,13 @@ function handleQueryReset(): void {
         </template>
       </el-table-column>
 
-      <el-table-column prop="module" label="操作模块" min-width="120" show-overflow-tooltip>
+      <el-table-column prop="module" label="操作模块" min-width="112" show-overflow-tooltip>
         <template #default="{ row }">
           <span>{{ asOperLogRow(row).module || '--' }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="operateType" label="操作类型" width="96" align="center">
+      <el-table-column prop="operateType" label="操作类型" width="90" align="center">
         <template #default="{ row }">
           <AtengDictTag dict-code="operateType" :value="asOperLogRow(row).operateType" />
         </template>
@@ -179,7 +181,7 @@ function handleQueryReset(): void {
       <el-table-column
         prop="requestUrl"
         label="请求方式与路径"
-        min-width="220"
+        min-width="200"
         show-overflow-tooltip
       >
         <template #default="{ row }">
@@ -189,13 +191,13 @@ function handleQueryReset(): void {
         </template>
       </el-table-column>
 
-      <el-table-column prop="userName" label="操作人员" min-width="110" show-overflow-tooltip>
+      <el-table-column prop="userName" label="操作人员" min-width="100" show-overflow-tooltip>
         <template #default="{ row }">
           <span>{{ asOperLogRow(row).userName || '--' }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="clientIp" label="客户端 IP" width="136">
+      <el-table-column prop="clientIp" label="客户端 IP" width="128">
         <template #default="{ row }">
           <span class="font-mono-data tabular-nums">{{ asOperLogRow(row).clientIp || '--' }}</span>
         </template>
@@ -207,13 +209,13 @@ function handleQueryReset(): void {
         </template>
       </el-table-column>
 
-      <el-table-column prop="status" label="状态" width="88" align="center">
+      <el-table-column prop="status" label="状态" width="80" align="center">
         <template #default="{ row }">
           <AtengDictTag dict-code="logStatus" :value="asOperLogRow(row).status" />
         </template>
       </el-table-column>
 
-      <el-table-column prop="costTime" label="耗时" width="96" align="right">
+      <el-table-column prop="costTime" label="耗时" width="88" align="right">
         <template #default="{ row }">
           <span class="tabular-nums">
             {{
@@ -225,13 +227,13 @@ function handleQueryReset(): void {
         </template>
       </el-table-column>
 
-      <el-table-column prop="operateTime" label="操作时间" width="175">
+      <el-table-column prop="operateTime" label="操作时间" width="165">
         <template #default="{ row }">
           <span class="tabular-nums">{{ asOperLogRow(row).operateTime || '--' }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column label="操作" width="90" fixed="right" align="center">
+      <el-table-column label="操作" width="84" fixed="right" align="center">
         <template #default="{ row }">
           <el-button
             :data-testid="`oper-log-detail-btn-${asOperLogRow(row).id}`"

@@ -29,6 +29,7 @@ import {
 defineOptions({ name: 'SysLoginLog' });
 
 const STORAGE_KEY = 'solid:table:sys-login-log';
+const DEFAULT_HIDDEN_COLUMNS = ['id', 'traceId', 'loginType'] as const;
 const QUERY_FORM_COLS = { xs: 1, sm: 2, md: 3, lg: 4, xl: 4 } as const;
 const { tableAutoHeight, tableAutoHeightMode } = useListTableLayout();
 
@@ -61,6 +62,7 @@ function handleQueryReset(): void {
       :pagination="pagination"
       row-key="id"
       :storage-key="STORAGE_KEY"
+      :default-hidden-columns="DEFAULT_HIDDEN_COLUMNS"
       :auto-height="tableAutoHeight"
       :auto-height-mode="tableAutoHeightMode"
       empty-description="暂无登录审计日志记录"
@@ -144,7 +146,7 @@ function handleQueryReset(): void {
         </template>
       </el-table-column>
 
-      <el-table-column prop="username" label="登录账号" min-width="130" show-overflow-tooltip>
+      <el-table-column prop="username" label="登录账号" min-width="116" show-overflow-tooltip>
         <template #default="{ row }">
           <span class="font-mono-data">{{ asLoginLogRow(row).username || '--' }}</span>
         </template>
@@ -156,43 +158,43 @@ function handleQueryReset(): void {
         </template>
       </el-table-column>
 
-      <el-table-column prop="clientIp" label="客户端 IP" width="136">
+      <el-table-column prop="clientIp" label="客户端 IP" width="128">
         <template #default="{ row }">
           <span class="font-mono-data tabular-nums">{{ asLoginLogRow(row).clientIp || '--' }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="loginLocation" label="登录地点" min-width="120" show-overflow-tooltip>
+      <el-table-column prop="loginLocation" label="登录地点" min-width="106" show-overflow-tooltip>
         <template #default="{ row }">
           <span>{{ asLoginLogRow(row).loginLocation || '--' }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="browser" label="浏览器" min-width="140" show-overflow-tooltip>
+      <el-table-column prop="browser" label="浏览器" min-width="122" show-overflow-tooltip>
         <template #default="{ row }">
           <span>{{ asLoginLogRow(row).browser || '--' }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="os" label="操作系统" min-width="120" show-overflow-tooltip>
+      <el-table-column prop="os" label="操作系统" min-width="106" show-overflow-tooltip>
         <template #default="{ row }">
           <span>{{ asLoginLogRow(row).os || '--' }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="status" label="登录状态" width="96" align="center">
+      <el-table-column prop="status" label="登录状态" width="84" align="center">
         <template #default="{ row }">
           <AtengDictTag dict-code="logStatus" :value="asLoginLogRow(row).status" />
         </template>
       </el-table-column>
 
-      <el-table-column prop="msg" label="提示消息" min-width="220" show-overflow-tooltip>
+      <el-table-column prop="msg" label="提示消息" min-width="185" show-overflow-tooltip>
         <template #default="{ row }">
           <span class="text-ink-secondary">{{ asLoginLogRow(row).msg || '--' }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="loginTime" label="登录时间" width="175">
+      <el-table-column prop="loginTime" label="登录时间" width="165">
         <template #default="{ row }">
           <span class="tabular-nums">{{ asLoginLogRow(row).loginTime || '--' }}</span>
         </template>

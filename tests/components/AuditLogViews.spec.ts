@@ -85,6 +85,7 @@ describe('Audit log views (/system/oper-log & /system/login-log)', () => {
   let atengVue: ReturnType<typeof createAtengVue>;
 
   beforeEach(() => {
+    localStorage.clear();
     pinia = createPinia();
     setActivePinia(pinia);
     adminAuthManager.setToken('valid-token');
@@ -108,6 +109,7 @@ describe('Audit log views (/system/oper-log & /system/login-log)', () => {
     while (wrappers.length > 0) {
       wrappers.pop()?.unmount();
     }
+    localStorage.clear();
     vi.unstubAllGlobals();
     setupDictManager();
     vi.restoreAllMocks();
@@ -203,7 +205,11 @@ describe('Audit log views (/system/oper-log & /system/login-log)', () => {
 
     expect(pageSpy).toHaveBeenCalledWith(expect.objectContaining({ current: 1, size: 10 }));
     expect(wrapper.text()).toContain('部门管理');
-    expect(wrapper.text()).toContain('trace-oper-001');
+    // #70：默认隐藏 id、traceId、browser，降低 1440px 视口横向溢出，仍可通过 720px 详情抽屉与列配置查看
+    const operTable = wrapper.findComponent({ name: 'AtengTable' });
+    expect(operTable.props('defaultHiddenColumns')).toEqual(['id', 'traceId', 'browser']);
+    expect(wrapper.text()).not.toContain('trace-oper-001');
+    expect(wrapper.text()).not.toContain('Chrome 130');
 
     // 严格只读：页面禁止出现新增、编辑、删除、清空、导出按钮
     const buttonTexts = wrapper.findAll('button').map(btn => btn.text().trim());
@@ -377,7 +383,11 @@ describe('Audit log views (/system/oper-log & /system/login-log)', () => {
     await flushPromises();
 
     expect(pageSpy).toHaveBeenCalledWith(expect.objectContaining({ current: 1, size: 10 }));
-    expect(wrapper.text()).toContain('trace-login-001');
+    const loginTable = wrapper.findComponent({ name: 'AtengTable' });
+    expect(loginTable.props('defaultHiddenColumns')).toEqual(['id', 'traceId', 'loginType']);
+    // #70：id / traceId / loginType 默认隐藏，核心账号、状态与提示信息首屏直接可见
+    expect(wrapper.text()).not.toContain('trace-login-001');
+    expect(wrapper.find('[data-testid="login-log-table-copy-9101"]').exists()).toBe(false);
     expect(wrapper.text()).toContain('superadmin');
     expect(wrapper.text()).toContain('连续登录失败已锁定 (101004)');
     expect(wrapper.text()).toContain('--');
@@ -396,10 +406,32 @@ describe('Audit log views (/system/oper-log & /system/login-log)', () => {
     expect(wrapper.find('[data-testid="login-log-query-ip"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="login-log-query-status"]').exists()).toBe(true);
 
-    // 点击表内 traceId 复制
+    // 通过右上角「列设置」勾选恢复 TraceId 列并验证表内一键复制与「重置」恢复默认隐藏
+    const colSettingBtn = wrapper.find('.at-table__tool-btn[aria-label="列设置"]');
+    expect(colSettingBtn.exists()).toBe(true);
+    await colSettingBtn.trigger('click');
+    await flushPromises();
+
+    const traceItem = Array.from(document.body.querySelectorAll('.at-table-column-setting__item')).find(
+      item => item.textContent?.includes('TraceId'),
+    );
+    const traceCheckbox = traceItem?.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
+    expect(traceCheckbox).not.toBeNull();
+    traceCheckbox?.click();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('trace-login-001');
     await wrapper.find('[data-testid="login-log-table-copy-9101"]').trigger('click');
     await flushPromises();
     expect(writeTextMock).toHaveBeenCalledWith('trace-login-001');
+
+    const resetColBtn = Array.from(
+      document.body.querySelectorAll('.at-table-column-setting__header button'),
+    ).find(btn => btn.textContent?.includes('重置')) as HTMLButtonElement | undefined;
+    expect(resetColBtn).toBeDefined();
+    resetColBtn?.click();
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('trace-login-001');
   });
 
   it('preloads operateType/logStatus on OperLogView and logStatus on LoginLogView with single-flight dedup before rendering rows (#57)', async () => {

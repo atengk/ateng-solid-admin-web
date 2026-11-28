@@ -54,6 +54,7 @@ import {
 defineOptions({ name: 'SysTenant' });
 
 const STORAGE_KEY = 'solid:table:sys-tenant';
+const DEFAULT_HIDDEN_COLUMNS = ['id', 'createTime'] as const;
 
 const authStore = useAuthStore();
 const tenantStore = useTenantStore();
@@ -238,6 +239,7 @@ async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
       :pagination="pagination"
       row-key="id"
       :storage-key="STORAGE_KEY"
+      :default-hidden-columns="DEFAULT_HIDDEN_COLUMNS"
       :show-batch-bar="false"
       :auto-height="tableAutoHeight"
       :auto-height-mode="tableAutoHeightMode"
@@ -327,7 +329,7 @@ async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
         </template>
       </el-table-column>
 
-      <el-table-column prop="tenantCode" label="租户编码" min-width="175" show-overflow-tooltip>
+      <el-table-column prop="tenantCode" label="租户编码" min-width="156" show-overflow-tooltip>
         <template #default="{ row }">
           <span class="inline-flex items-center gap-1.5">
             <span class="font-mono-data text-ink">{{ asTenantRow(row).tenantCode }}</span>
@@ -338,9 +340,9 @@ async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
         </template>
       </el-table-column>
 
-      <el-table-column prop="tenantName" label="租户名称" min-width="160" show-overflow-tooltip />
+      <el-table-column prop="tenantName" label="租户名称" min-width="148" show-overflow-tooltip />
 
-      <el-table-column prop="packageName" label="关联套餐" min-width="175" show-overflow-tooltip>
+      <el-table-column prop="packageName" label="关联套餐" min-width="156" show-overflow-tooltip>
         <template #default="{ row }">
           <el-tag v-if="isProtectedPlatformTenant(asTenantRow(row))" size="small" type="info"
             >平台全量免限</el-tag
@@ -354,7 +356,7 @@ async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
         </template>
       </el-table-column>
 
-      <el-table-column prop="accountCount" label="用户配额" min-width="135" align="center">
+      <el-table-column prop="accountCount" label="用户配额" min-width="120" align="center">
         <template #default="{ row }">
           <span class="inline-flex items-center gap-1 tabular-nums">
             <span :class="getQuotaCell(row).full ? 'font-medium text-warning' : ''">{{
@@ -365,7 +367,7 @@ async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
         </template>
       </el-table-column>
 
-      <el-table-column prop="expireTime" label="过期时间" min-width="210">
+      <el-table-column prop="expireTime" label="过期时间" min-width="192">
         <template #default="{ row }">
           <span v-if="getExpireStatus(row) === 'permanent'" class="text-ink-secondary"
             >永久有效</span
@@ -382,7 +384,7 @@ async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
         </template>
       </el-table-column>
 
-      <el-table-column prop="status" label="状态" width="96" align="center">
+      <el-table-column prop="status" label="状态" width="90" align="center">
         <template #default="{ row }">
           <el-tooltip
             :content="TENANT_PROTECTED_TOOLTIP"
@@ -411,7 +413,7 @@ async function handleTenantCreated(payload: CreateTenantVO): Promise<void> {
         </template>
       </el-table-column>
 
-      <el-table-column v-if="hasRowActions" label="操作" width="140" fixed="right" align="center">
+      <el-table-column v-if="hasRowActions" label="操作" width="136" fixed="right" align="center">
         <template #default="{ row }">
           <div class="inline-flex items-center justify-center gap-1">
             <el-button

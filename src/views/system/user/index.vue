@@ -65,6 +65,7 @@ defineOptions({ name: 'SysUser' });
 const STACKED_BREAKPOINT_PX = 960;
 const SPLIT_STORAGE_KEY = 'solid:split:sys-user';
 const TABLE_STORAGE_KEY = 'solid:table:sys-user';
+const DEFAULT_HIDDEN_COLUMNS = ['id', 'email', 'createTime'] as const;
 
 const authStore = useAuthStore();
 const tenantStore = useTenantStore();
@@ -310,6 +311,7 @@ async function handleTableReload(): Promise<void> {
             :pagination="pagination"
             row-key="id"
             :storage-key="TABLE_STORAGE_KEY"
+            :default-hidden-columns="DEFAULT_HIDDEN_COLUMNS"
             :show-batch-bar="false"
             :auto-height="tableAutoHeight"
             :auto-height-mode="tableAutoHeightMode"
@@ -435,7 +437,7 @@ async function handleTableReload(): Promise<void> {
                 <span class="font-mono-data text-ink-secondary">{{ asUserRow(row).id }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="username" label="用户账号" min-width="145" show-overflow-tooltip>
+            <el-table-column prop="username" label="用户账号" min-width="128" show-overflow-tooltip>
               <template #default="{ row }">
                 <span class="inline-flex items-center gap-1.5">
                   <span class="font-mono-data text-ink">{{ asUserRow(row).username }}</span>
@@ -448,10 +450,10 @@ async function handleTableReload(): Promise<void> {
             <el-table-column
               prop="nickname"
               label="用户昵称"
-              min-width="115"
+              min-width="96"
               show-overflow-tooltip
             />
-            <el-table-column prop="avatar" label="头像" width="72" align="center">
+            <el-table-column prop="avatar" label="头像" width="60" align="center">
               <template #default="{ row }">
                 <el-avatar
                   :size="26"
@@ -462,12 +464,12 @@ async function handleTableReload(): Promise<void> {
                 </el-avatar>
               </template>
             </el-table-column>
-            <el-table-column prop="deptName" label="归属部门" min-width="130" show-overflow-tooltip>
+            <el-table-column prop="deptName" label="归属部门" min-width="104" show-overflow-tooltip>
               <template #default="{ row }">
                 <span>{{ asUserRow(row).deptName?.trim() || '--' }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="phone" label="手机号码" width="138">
+            <el-table-column prop="phone" label="手机号码" width="124">
               <template #default="{ row }">
                 <span class="font-mono-data">{{
                   formatMaskPhone(asUserRow(row).phone) || '--'
@@ -481,7 +483,7 @@ async function handleTableReload(): Promise<void> {
                 }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="status" label="状态" width="94" align="center">
+            <el-table-column prop="status" label="状态" width="88" align="center">
               <template #default="{ row }">
                 <el-tooltip
                   :content="rowDisableReason(asUserRow(row))"
@@ -511,7 +513,7 @@ async function handleTableReload(): Promise<void> {
             <el-table-column
               v-if="hasRowActions"
               label="操作"
-              width="210"
+              width="200"
               fixed="right"
               align="center"
             >

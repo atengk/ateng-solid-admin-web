@@ -280,7 +280,7 @@ onMounted(() => {
         </el-button>
       </template>
 
-      <el-table-column prop="title" label="名称" min-width="230" show-overflow-tooltip>
+      <el-table-column prop="title" label="名称" min-width="196" show-overflow-tooltip>
         <template #default="{ row }">
           <span class="inline-flex items-center gap-1.5">
             <el-icon
@@ -299,7 +299,7 @@ onMounted(() => {
         </template>
       </el-table-column>
 
-      <el-table-column prop="menuType" label="类型" width="84" align="center">
+      <el-table-column prop="menuType" label="类型" width="74" align="center">
         <template #default="{ row }">
           <el-tag size="small" :type="MENU_TYPE_TAG_TYPE[asMenuRow(row).menuType]">
             {{ MENU_TYPE_LABEL_MAP[asMenuRow(row).menuType] }}
@@ -307,13 +307,13 @@ onMounted(() => {
         </template>
       </el-table-column>
 
-      <el-table-column prop="path" label="路由路径" min-width="155" show-overflow-tooltip>
+      <el-table-column prop="path" label="路由路径" min-width="136" show-overflow-tooltip>
         <template #default="{ row }">
           <span class="font-mono-data text-ink-secondary">{{ asMenuRow(row).path || '--' }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="component" label="组件标识" min-width="175" show-overflow-tooltip>
+      <el-table-column prop="component" label="组件标识" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">
           <span v-if="asMenuRow(row).name || asMenuRow(row).component" class="font-mono-data">
             {{ asMenuRow(row).name ? `${asMenuRow(row).name} · ` : ''
@@ -323,7 +323,7 @@ onMounted(() => {
         </template>
       </el-table-column>
 
-      <el-table-column prop="perms" label="权限标识" min-width="175" show-overflow-tooltip>
+      <el-table-column prop="perms" label="权限标识" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">
           <code v-if="asMenuRow(row).perms" class="font-mono-data text-xs text-ink">
             {{ asMenuRow(row).perms }}
@@ -332,13 +332,13 @@ onMounted(() => {
         </template>
       </el-table-column>
 
-      <el-table-column prop="sort" label="排序" width="76" align="center">
+      <el-table-column prop="sort" label="排序" width="66" align="center">
         <template #default="{ row }">
           <span class="tabular-nums">{{ asMenuRow(row).sort }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="visible" label="显隐" width="84" align="center">
+      <el-table-column prop="visible" label="显隐" width="76" align="center">
         <template #default="{ row }">
           <AtengDictTag
             v-if="asMenuRow(row).menuType !== 'F'"
@@ -349,7 +349,7 @@ onMounted(() => {
         </template>
       </el-table-column>
 
-      <el-table-column prop="status" label="状态" width="92" align="center">
+      <el-table-column prop="status" label="状态" width="84" align="center">
         <template #default="{ row }">
           <el-switch
             :data-testid="`menu-status-switch-${asMenuRow(row).id}`"
@@ -364,7 +364,7 @@ onMounted(() => {
         </template>
       </el-table-column>
 
-      <el-table-column v-if="hasRowActions" label="操作" width="200" fixed="right" align="center">
+      <el-table-column v-if="hasRowActions" label="操作" width="190" fixed="right" align="center">
         <template #default="{ row }">
           <div class="inline-flex items-center justify-center gap-1">
             <el-button
