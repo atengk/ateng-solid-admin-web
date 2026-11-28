@@ -8,7 +8,7 @@
 
 本仓库统一遵循 **`main`（稳定发布只读）+ `dev`（活跃开发）双分支** 模型：
 
-1. 激活本地 Git Hooks（含 `commit-msg` 与 `pre-commit`）并基于 `dev` 拉取分支：
+1. 激活本地 Git Hooks（含 `commit-msg`、`pre-commit` 与 `pre-push`）并基于 `dev` 拉取分支：
    ```bash
    git config core.hooksPath .githooks
    git checkout dev

@@ -21,10 +21,11 @@
    - Tailwind 仅负责页面/区块级布局与间距，严禁用 Tailwind 工具类魔改 `.el-*`/`.at-*` 内部 DOM；局部自定义样式必须 `<style scoped>`，禁全局 `!important`。
    - 暗黑模式声明 `@custom-variant dark (&:where(.dark, .dark *));`，由 `initTheme({ storageKey: 'solid-theme-mode', defaultMode: 'light', listenSystemPreference: true })` 驱动 `light`/`dark`/`auto` 与 `html.is-theme-switching`，**严禁向 `initTheme` 传入 `themeColor`**（会通过内联样式覆写 Light/Dark 双主色）；并在 `index.html` `<head>` 置入极简同步脚本预补 `html.dark` 防 FOUC。
    - 表格 ID、统计数字、时间戳、IP 与分页数字统一附加 `.tabular-nums`（`font-variant-numeric: tabular-nums`）。
+   - `tokens.css` 与 `main.css` 已补充全站 `--solid-scrollbar-*` 薄滚动条令牌（`@supports not selector(::-webkit-scrollbar)` 与 `::-webkit-scrollbar*`）以及暗黑模式禁用态语义按钮的 WCAG AA 色阶校准（`light-5`/`light-9`）。
 
 ---
 
-## 2. `@atengk/*` 组件接入实测避坑速查（对齐后 `#373`–`#376` 基线）
+## 2. `@atengk/*` 组件接入实测避坑速查（对齐 `#373`–`#390` 基线）
 
 1. **方案 A 布局壳与 `ATENG_PRO_LAYOUT_KEY` 总线**：
    - 主布局采用自建轻量 `src/layouts/AdminLayout.vue`（拆分 `AdminSidebar`、`AdminHeader`、`TenantObserveBanner`，不强行套用 `AtengProLayout`，原因见 [ADR-0003](../adr/0003-lightweight-scheme-a-admin-layout-and-state-assembly.md)）；
@@ -39,7 +40,7 @@
    - **检索复杂度分级与弹性封顶滚动（[ADR-0005](../adr/0005-tiered-query-collapse-and-max-auto-height-table.md)）**：全宽 ≤3 项检索统一 `:default-collapsed="false" :show-collapse="false"` 并配 `:cols` 单行收口（复用 `useListTableLayout.ts` 导出的 `QUERY_COLS_THREE_ITEMS` / `QUERY_COLS_TWO_ITEMS`）；仅窄分栏（`dict` 左栏）与 ≥4 项多条件页保留 `:default-collapsed="true"`；全站 12 个业务页已通过 `useListTableLayout` 在桌面横排态统一接入 `:auto-height="16"` + `auto-height-mode="max"`（已于 [`ateng-ui#380`](https://github.com/atengk/ateng-ui/issues/380) 下沉并在 `dev` 经本地 `yalc` 联调验证，合入 `main` 前锁回 npm 正式版；分栏外层配 `h-full min-h-0`），移动端/垂直堆叠态自动传 `false` 退回整页滚动；
    - 当 `AtengQueryForm` 嵌套在已传 `:pagination` 的 `<AtengTable #query>` 插槽内时，受益于 `#375` 修复可自动继承 `tableContext.loading` 且无双发查询/无效重置，仅需传 `:model="pagination.query"`，勿重复传 `:pagination`；
    - 树形表格直接向 `<AtengTable>` 透传 `:tree-props`、`row-key="id"`、`:show-pagination="false"`。
-- **双轨字典、预热与同步缓存水合（`src/utils/dict.ts`）**：
+4. **双轨字典、预热与同步缓存水合（`src/utils/dict.ts`）**：
    - 必须同时注册 `DictManager.setProvider` 与 `DictManager.setBatchProvider`：依据数学互斥命名规则，`lowerCamelCase`（含 `[A-Z]`，如 `commonStatus`/`dataScopeType`）路由至 `GET /admin/system/enums/{name}` 与 `POST /admin/system/enums/batch`；`snake_case`（如 `sys_user_gender`）路由至 `GET /admin/system/dict/data/type/{dictType}`；
    - 适配层将后端 `OptionItem`（`{ code, label, disabled, extra }`）与 `DictDataVO` 统一归一化为 `DictItem`，过滤 `'default'` 及非法 `tagType` 为 `undefined`（与 `#375` 修复形成双防线）；列表用 `AtengDictTag`，表单用 `AtengDictSelect` / `AtengDictRadio` / `AtengDictCheckbox`。
    - 受益于 `ateng-ui#381`（提交 `934135a`），`AtengDictTag` 命中缓存支持 `setup()` 同步水合且冷加载支持占位；列表页与详情弹窗/抽屉在拉数期间通过 `withDictPreload` + `useDetailDialogState().detailReady` 骨架屏门控协同（待后端详情与所需字典均返回后再渲染表单与关闭禁点），消除编辑态 `'N'` ➔ `'Y'`、`isPlatformZero` 或 `CUSTOM` 权限树的首帧假默认跳变。
@@ -51,4 +52,4 @@
    - **稳态固定校验槽位（严禁全局 `position: static`）**：在 `src/styles/main.css` 保留 Element Plus 原生 `.el-form-item__error` 的 `position: absolute; top: 100%; left: 0;`，仅为非行内且非检索栏表单 `.el-form:not(.el-form--inline):not(.at-query-form)` 设置 `--el-form-item-margin-bottom: 20px`（`--large` 维持 `22px`）、`.el-form-item__error { padding-top: 3px; line-height: 1.3; }` 及 `.at-dialog__content .el-form:not(.el-form--inline) { padding-bottom: 1px; }`（保留 `.el-form p { margin-bottom: 0; }`），保证所有单行报错稳妥落在预留槽位内，**0px 容器高度抖动**且弹窗末行不裁切、不触发多余滚动条；
    - **宽裕列宽与单行校验文案**：编辑/新增表单弹窗与抽屉统一复用 `<FormErrorBanner>`、`<PasswordPolicyChecklist>`（位于 `.el-form-item__content` 内，配对字段使用简短规则文案 `PASSWORD_POLICY_SHORT_MESSAGE`）与 `useDetailDialogState`；长字段输入、选择器与邮箱/电话统一采用单列或宽列布局（如 `UserFormDrawer` / `TenantFormDrawer` `560px`、`RoleFormDrawer` `540px`、`DeptFormDialog` `640px` 仅排序与状态并排），并将校验提示文案收敛在单行可读长度内，严禁通过 `position: static` 或 `text-overflow: ellipsis` 掩盖窄列长文案问题。
 
-> 若接入中发现 `@atengk/*` 通用能力缺失或缺陷，按 [`foundation-first-gate.md`](./foundation-first-gate.md) 提单并先在 `ateng-ui` 本地改造；当前本地 `.yalc/@atengk/element-plus` 可在 `dev` 分支随本仓改动正常提交联调，合入 `main` 与发版前必须还原为上游已发布的正式 npm 版本锁版。
+> 若接入中发现 `@atengk/*` 通用能力缺失或缺陷，按 [`foundation-first-gate.md`](./foundation-first-gate.md) 先向底座提单并登记增强清单，**未经用户明确确认严禁直接修改 `ateng-ui` 源码**（获准协同改造后经 `yalc` 注入）；当前本地 `.yalc/@atengk/*` 仅允许在 `dev` 分支协同联调与随 `Spec 5` 并行推进，合入 `main` 与正式发版前必须还原为上游已发布的正式 npm 版本锁版。

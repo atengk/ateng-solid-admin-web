@@ -54,5 +54,5 @@
 
 ## 4. 下游影响
 
-- 已同步更新 [`CONTEXT.md`](../../CONTEXT.md) 词条、根仓 [总览交互规范](../../../docs/specs/prd/00-overview-and-ux-standards.md) §3.1–§3.2、[认证与在线会话 PRD](../../../docs/specs/prd/01-auth-and-workspace.md) 及 [`styling-and-ateng-ui.md`](../agents/styling-and-ateng-ui.md) §2.3；
-- 已将 [`ateng-ui#380`](https://github.com/atengk/ateng-ui/issues/380) 登记入 [底层基础设施待增强清单](../../../docs/specs/foundation-enhancements-checklist.md)（`U16`）；上层已通过 `src/composables/useListTableLayout.ts` 完成全站 12 个业务页（13 张表）改造与 `ListTableLayout.spec.ts` 验收，`dev` 分支允许携带本地 `yalc` 联调提交，合入 `main` 与发版前须按 [foundation-first-gate.md](../agents/foundation-first-gate.md) 锁定正式 npm 版本。
+- 已同步更新 [`CONTEXT.md`](../../CONTEXT.md) 词条、根仓 [总览交互规范](https://github.com/atengk/ateng-solid/blob/dev/docs/specs/prd/00-overview-and-ux-standards.md) §3.1–§3.2、[认证与在线会话 PRD](https://github.com/atengk/ateng-solid/blob/dev/docs/specs/prd/01-auth-and-workspace.md) 及 [`styling-and-ateng-ui.md`](../agents/styling-and-ateng-ui.md) §2.3；
+- 已将 [`ateng-ui#380`](https://github.com/atengk/ateng-ui/issues/380) 登记入 [底层基础设施待增强清单](https://github.com/atengk/ateng-solid/blob/dev/docs/specs/foundation-enhancements-checklist.md)（`U16`）；上层已通过 `src/composables/useListTableLayout.ts` 完成全站 12 个业务页（13 张表）改造与 `ListTableLayout.spec.ts` 验收，`dev` 分支允许携带本地 `yalc` 联调提交，合入 `main` 与发版前须按 [foundation-first-gate.md](../agents/foundation-first-gate.md) 锁定正式 npm 版本。

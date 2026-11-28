@@ -36,5 +36,5 @@
 
 ## 4. 下游影响
 
-- 已同步维护根仓 [00-overview-and-ux-standards.md](../../../docs/specs/prd/00-overview-and-ux-standards.md) §3.1–§3.2、[foundation-enhancements-checklist.md](../../../docs/specs/foundation-enhancements-checklist.md)（`U15`）及前端 [styling-and-ateng-ui.md](../agents/styling-and-ateng-ui.md)；
+- 已同步维护根仓 [00-overview-and-ux-standards.md](https://github.com/atengk/ateng-solid/blob/dev/docs/specs/prd/00-overview-and-ux-standards.md) §3.1–§3.2、[foundation-enhancements-checklist.md](https://github.com/atengk/ateng-solid/blob/dev/docs/specs/foundation-enhancements-checklist.md)（`U15`）及前端 [styling-and-ateng-ui.md](../agents/styling-and-ateng-ui.md)；
 - 上游 [`ateng-ui#379`](https://github.com/atengk/ateng-ui/issues/379) 本地联调闭环已完成，`dev` 分支可直接携带 `yalc` 联调提交，合入 `main` 与发版前须按 [foundation-first-gate.md](../agents/foundation-first-gate.md) 锁定正式 npm 版本。

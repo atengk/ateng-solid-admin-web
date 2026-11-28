@@ -31,7 +31,7 @@
 ## 3. 验证门禁、本地配置与交付底线
 
 - **四合一验证门禁**：交付前本地执行 `pnpm typecheck && pnpm lint && pnpm test && pnpm build` 全绿（`dev` 联调 `yalc` 期间允许远端 `dev` CI 暂红，以本地四合一全绿为准，合入 `main` 前须锁版并恢复远端 CI 全绿）；Vitest 单测依赖 `vi.mock` 离线自洽，组件测试在 `afterEach` 调用 `wrapper.unmount()` 并重置 Pinia / Storage。
-- **本地配置与 Git**：后端代理与私有配置仅存 `.gitignore` 忽略的 `.env.local`（仓库仅留 `.env.example`）；`dev` 分支开发，未获明确指令不提交/推送，暂存显式指定路径（禁 `git add .`/`-A`），Conventional Commits。
+- **本地配置与 Git**：开发与生产环境非敏感默认配置收敛在受 Git 追踪的 `.env.development` / `.env.production`（含 `.env.example` 模板）；私人接口代理覆盖与密钥配置仅存 `.gitignore` 忽略的 `.env.local`；`dev` 分支开发，未获明确指令不提交/推送，暂存显式指定路径（禁 `git add .`/`-A`），Conventional Commits。
 
 ---
 

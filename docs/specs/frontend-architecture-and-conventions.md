@@ -15,7 +15,6 @@ ateng-solid-admin-web/
 ├── public/                          # 静态公共资源（含自适应矢量 favicon.svg）
 ├── src/
 │   ├── api/                         # 12 个按域划分的手写强类型接口与 TS 类型（auth/index.ts + system/*）
-│   ├── assets/                      # 编译期处理的图标/图片资源
 │   ├── components/                  # 业务公共组件（品牌主标 BrandLogo、租户切换器、主题切换、快捷命令搜索、表单报错横幅、强口令清单、树选择工具栏）
 │   ├── composables/                 # 业务组合式函数（use*）
 │   ├── layouts/                     # 方案 A 轻量布局壳（AdminLayout/AdminSidebar/AdminHeader/TenantObserveBanner + AtengTabsNav + KeepAlive）
@@ -23,12 +22,12 @@ ateng-solid-admin-web/
 │   ├── stores/                      # 4 个 Pinia Setup Store（auth/tenant/permission/app）
 │   ├── styles/                      # Precision Slate & Cobalt 令牌表（tokens.css）与 TailwindCSS（无 Preflight）入口（main.css）
 │   ├── types/                       # 全局公共 TS 类型（路由、菜单、通用选项等）
-│   ├── utils/                       # 三单例与拦截器（http.ts）、双轨字典（dict.ts）、图标解析（icon.ts）、强口令（password.ts）、时间区间（dateRange.ts）、通用树（tree.ts）
+│   ├── utils/                       # 三单例与拦截器（http.ts）、错误分流（httpError.ts）、双轨字典（dict.ts）、图标解析（icon.ts）、强口令（password.ts）、时间区间（dateRange.ts）、通用树（tree.ts）
 │   ├── views/                       # 业务页面视图（login/dashboard/profile/error/system/*）
 │   ├── App.vue
 │   ├── main.ts
 │   └── vite-env.d.ts                # Vite 全局环境变量只读强类型声明 (ImportMetaEnv)
-├── tests/                           # Vitest + happy-dom 三层离线自洽单测（setup.ts + utils/ + stores/ + router/ + components/）
+├── tests/                           # Vitest + happy-dom 三层离线自洽单测（setup.ts + api/ + utils/ + stores/ + router/ + components/ + styles/）
 ├── .env.development                 # 开发环境默认配置（受 Git 追踪，无任何敏感凭据）
 ├── .env.example                     # 环境变量占位符模板
 ├── .env.production                  # 生产构建配置（受 Git 追踪，无任何敏感凭据）
@@ -88,7 +87,7 @@ VITE_PROXY_TARGET=http://127.0.0.1:8080
 1. **`src/utils/http.ts` 集中导出三单例**：
    - `adminAuthManager = createAuthManager({ tokenKey: 'satoken-admin', headerName: 'satoken-admin' })`；
    - `adminTenantManager = createTenantManager({ tenantKey: 'solid-tenant-id', headerName: 'X-Tenant-Id' })`（若本地为空则初始化写入 `'0'`）；
-   - `adminHttpClient = createHttpClient({ baseURL: import.meta.env.VITE_API_BASE_URL || '', timeout: resolveApiTimeoutMs(import.meta.env.VITE_API_TIMEOUT), authManager: adminAuthManager, tenantManager: adminTenantManager, unwrap: true, onUnauthorized: () => handleSessionExpired('401') })`。
+   - `adminHttpClient = createHttpClient({ baseURL: import.meta.env.VITE_API_BASE_URL || '', timeout: resolveApiTimeoutMs(import.meta.env.VITE_API_TIMEOUT), authManager: adminAuthManager, tenantManager: adminTenantManager, unwrap: true })`（`401` 会话失效应对统一收口至响应拦截器 `ERROR_DISPATCH_TABLE[401]` ➔ `triggerSessionExpired` + `abortCoordinator.cancelAll('SESSION_EXPIRED')`，配合 2s 冷却期与登录重置 `resetSessionExpiredCooldown`）。
 2. **`src/main.ts` 严格 8 步启动顺序**：
    - `initTheme({ storageKey: 'solid-theme-mode', defaultMode: 'light', listenSystemPreference: true })`（**不传 `themeColor`**，配合 `index.html` 防 FOUC 脚本）
    - ➔ `setupDictManager()`（注册双轨单查 + 批查 Provider）
@@ -111,7 +110,7 @@ VITE_PROXY_TARGET=http://127.0.0.1:8080
 | **`101005`**（已认证请求） | 运行时 `TenantAvailabilityInterceptor` 拦截所属租户停用/过期 | 与 `401` 同级视为**会话终止**：执行防重入登出清理、重置租户 `'0'` 与路由/页签，展示后端精准 `err.msg` 并跳转 `/login`（登录页未认证时按普通表单错误展示） |
 | **`100002`** | 平台 `super_admin` 跨租户切换/访问失效目标租户 | **严禁注销 `"0"` 平台会话**：自动重置 `adminTenantManager.setTenantId('0')`、调用 `DictManager.clearCache()`、重刷 `/admin/auth/info` 与 `/admin/auth/routes`、提示 `err.msg` 并回退 `/dashboard` |
 | **`101004`** | 登录页触发防爆破锁定 | **跳过全局弹窗**，静默透传至 `/login`；登录页直接读取 `(err.cause as Result<LoginLockDetailVO>)?.data`（`{ lockType: 'IP' \| 'ACCOUNT', remainSeconds }`）驱动倒计时（`ACCOUNT` 编辑账号/租户即清零，`IP` 保持倒计时） |
-| **`403`** | 接口级无权限或账号禁用 | 弹出 `ElMessage.warning(err.msg || '暂无操作权限')`，不跳转整页 |
+| **`403`** | 接口级无权限或账号禁用 | 弹出 `ElMessage.warning(err.msg \|\| '暂无操作权限')`，不跳转整页 |
 | **`429` / `40003`** | 限流或 `@Idempotent` 重复提交 | 弹出带 `2s` 节流合并的 `ElMessage.warning('操作过于频繁，请稍后再试')` |
 | **`500`** | 服务端未预期异常或系统内部错误 | 对齐后端 `CommonResultCode` 统一归口为「系统繁忙，请稍后再试」（保留 `traceId` 一键复制按钮），2s 内连续 `5xx` 自动节流合并弹窗；弹窗/抽屉内联横幅经 `resolveContextualErrorMessage` 改为呈现操作上下文兜底文案 |
 | **`502` / `504`** | 代理网关或后端服务不可达/响应超时 | 清洗传输层裸英文（如 `Bad Gateway` / HTML / `Request failed with status code ...`），提示「网关或后端服务连接异常，请稍后重试」（2s 节流合并；内联横幅呈现上下文文案） |
@@ -143,7 +142,7 @@ VITE_PROXY_TARGET=http://127.0.0.1:8080
 3. **Vitest + `happy-dom` 三层离线测试体系（复用既有 `@vue/test-utils`，零外部 Mock 库依赖）**：
    - **Layer 1 (`tests/utils/*.spec.ts`)**：覆盖 `adminHttpClient` 全错误码分流（`401` 防重入、`101005` 会话终止、`100002` 回退 `'0'` 不登出、`101004` `err.cause.data`、`429`/`40003`、`500`/`502`/`503`/`504`/断网分层文案及 2s `5xx` 弹窗合并、英文传输错误清洗、`resolveContextualErrorMessage`、Blob JSON 异常）、双轨 `DictManager`（单查/批查分流、`'default'` 归一、`clearCache`、`withDictPreload`）与 `resolveMenuIcon`；
    - **Layer 2 (`tests/stores/*.spec.ts`、`tests/router/*.spec.ts`)**：以 `createPinia()` + `createMemoryHistory()` 测试 4 个 Setup Store（`super_admin` 放行 vs 普通 `admin` 角色隔离、跨租户 7 步强重置、`100002` 安全回退、动态路由注册与精确 `removeRoute`）及路由守卫白名单/重定向/404 兜底；
-   - **Layer 3 (`tests/components/*.spec.ts`)**：覆盖 `AdminLayout`（`ATENG_PRO_LAYOUT_KEY` 注入、跨租户横幅显隐、`AtengTabsNav` `@batch-close` 单源同步）、登录页 `101004` 倒计时（`ACCOUNT` 编辑清零 vs `IP` 保持）、组织菜单树与字典参数审计视图（`OrgMenuViews` / `DictConfigViews` / `AuditLogViews`）、角色叶子树与 `CUSTOM` 校验（`RoleTreeHelpers`）、用户导入弹窗 `120s` 超时与批注反馈（`UserImportDialog`）及多租户/套餐裁剪预览（`TenantPackageViews`）；
+   - **Layer 3 (`tests/components/*.spec.ts`、`tests/styles/*.spec.ts`)**：覆盖 `AdminLayout`（`ATENG_PRO_LAYOUT_KEY` 注入、跨租户横幅显隐、`AtengTabsNav` `@batch-close` 单源同步）、登录页 `101004` 倒计时（`ACCOUNT` 编辑清零 vs `IP` 保持）、`PasswordPolicyChecklist`、组织菜单树（含 `MenuRouteSync`）与字典参数审计视图、1440px 列宽预算守卫（`TableColumnBudget`）、角色叶子树与 `CUSTOM` 校验、用户导入弹窗 `120s` 超时与批注反馈、多租户/套餐裁剪预览，以及 `@atengk/element-plus` Scoped Hash 一致性与主题令牌校验（`atengUiScopedHash` / `themeTokens`）；
    - **确定性隔离基线 (`tests/setup.ts`)**：在 `vitest.config.ts` 注册 `setupFiles: ['tests/setup.ts']`，每个用例 `beforeEach`/`afterEach` 强制清空 `localStorage`、`sessionStorage`、`DictManager.clearCache()`、`adminAuthManager.clearToken()`、`adminTenantManager.clearTenantId()` 并执行 `vi.restoreAllMocks()`；网络层统一通过 Axios 自定义 `adapter` 或 `vi.spyOn(adminHttpClient, ...)` 离线拦截，严禁引入 MSW 等重型外部依赖。
 
 ---

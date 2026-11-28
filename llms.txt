@@ -1,6 +1,6 @@
 # ateng-solid-admin-web
 
-> `ateng-solid` 全端框架的 PC 企业级管理后台前端工程（Vue 3.5 + Vite + TypeScript Strict + `ateng-ui` + TailwindCSS v4 无 Preflight），采用手写强类型 `src/api/*` 直接对齐后端 `/admin/**` 契约，透明兼容单体与微服务网关双态后端。
+> `ateng-solid` 全端框架的 PC 企业级管理后台前端工程（Vue + Vite + TypeScript Strict + `ateng-ui` + TailwindCSS v4 无 Preflight），采用手写强类型 `src/api/*` 直接对齐后端 `/admin/**` 契约，透明兼容单体与微服务网关双态后端。
 
 ## AI 编程助手必读约定 (Instructions for AI Agents)
 
@@ -11,18 +11,18 @@
   - TailwindCSS 禁用 Preflight 且仅用于布局与间距，彻底剥离 `theme-pro.css`，通过 `src/styles/tokens.css` 静态定义 Light (`#1D4ED8`) / Dark (`#3B82F6`) 双主色映射至 `--el-*` 与 Tailwind `@theme`（`initTheme` 不传 `themeColor`）；
   - 布局壳采用方案 A 轻量自建 `AdminLayout.vue` + `provide(ATENG_PRO_LAYOUT_KEY)` 组合复用 `AtengTabsNav`/`useTabsNav`；`createAtengVue` 必须在 `app.use(router)` 前挂载并显式配置 `superAdminRoles: ['super_admin']`，脱离 `setup()` 的 Store/守卫/工具层须显式传入三单例；
   - 状态与表单保持“内存真明文”，展示脱敏仅在渲染层调用 `formatMask*`；Vitest + `happy-dom` 坚持三层离线单测且零外部 Mock 库依赖。
-- **交付与 1:1 文档沉淀**：编码前核对 [底层缺口即停工与联调 SOP](./docs/agents/foundation-first-gate.md)；完成功能并通过 `pnpm typecheck && pnpm lint && pnpm test && pnpm build` 四合一门禁后，按 [文档 1:1 保真与模块规范](./docs/agents/documentation-specification.md) 逆向更新 [README.md](./README.md)、Specs、[CONTEXT.md](./CONTEXT.md) 与本索引。
+- **交付与 1:1 文档沉淀**：编码前核对 [底层零补丁与跨仓联调门禁 SOP](./docs/agents/foundation-first-gate.md)；完成功能并通过 `pnpm typecheck && pnpm lint && pnpm test && pnpm build` 四合一门禁后，按 [文档 1:1 保真与模块规范](./docs/agents/documentation-specification.md) 逆向更新 [README.md](./README.md)、Specs、[CONTEXT.md](./CONTEXT.md) 与本索引。
 
 ## 核心规范与架构文档
 
 - [前端项目门面 README.md](./README.md): 技术栈基线、首期范围与本地自检入口
-- [前端工程规范 AGENTS.md](./AGENTS.md): Vue 3.5 / TS 硬约束、本地联调与按需触发导航
+- [前端工程规范 AGENTS.md](./AGENTS.md): Vue / TS 硬约束、本地联调与按需触发导航
 - [前端领域词汇表 CONTEXT.md](./CONTEXT.md): 认证、多租户、权限路由与字典展示术语表
 - [前端架构决策看板](./docs/adr/README.md): TailwindCSS 无 Preflight + `Precision Slate & Cobalt` 自有令牌（ADR-0001）、手写强类型 API 与 `ateng-ui` 集成（ADR-0002）、方案 A 轻量 `AdminLayout` 与单源鉴权桥接（ADR-0003）、列表双卡分体与自适应分页（ADR-0004）、检索分级单行与表格弹性封顶滚动（ADR-0005）、非行内表单绝对定位固定校验槽位与单行文案收口（ADR-0006）
 - [混合样式与 `ateng-ui` 守则](./docs/agents/styling-and-ateng-ui.md): TailwindCSS v4 禁 Preflight、`Precision Slate & Cobalt` 令牌与组件接入避坑
 - [跨端通信与数据契约](./docs/agents/contracts.md): 响应解包、分页 `current`/`size`/`records`/`total`、Blob 双态拦截与 Fesod 导入协议
 - [编码规范、架构拆解与注释准则](./docs/agents/coding-standards.md): 复用提取阶梯、复杂视图/Composable 拆分线、查找表与文档/逻辑注释规范
-- [底层缺口即停工与联调 SOP](./docs/agents/foundation-first-gate.md): 停工门禁与 `pnpm pack + yalc` 跨仓联调还原 SOP
+- [底层零补丁与跨仓联调门禁 SOP](./docs/agents/foundation-first-gate.md): 零补丁停工门禁、提单先行与 `pnpm pack + yalc` 跨仓联调还原 SOP
 - [文档 1:1 保真与模块规范](./docs/agents/documentation-specification.md): 应用五维文档结构与 10 项自检清单
 
 ## 前端架构与视图规格 (Specs)
