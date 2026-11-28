@@ -332,9 +332,9 @@ onMounted(() => {
         </template>
       </el-table-column>
 
-      <el-table-column v-if="hasRowActions" label="操作" width="210" fixed="right" align="center">
+      <el-table-column v-if="hasRowActions" label="操作" width="220" fixed="right" align="center">
         <template #default="{ row }">
-          <div class="inline-flex items-center justify-center gap-1">
+          <div class="dept-row-actions inline-flex items-center justify-center gap-2">
             <span v-permission="'system:dept:create'" class="inline-flex">
               <el-tooltip
                 v-if="asDeptRow(row).status !== 0"
@@ -406,4 +406,8 @@ onMounted(() => {
   </section>
 </template>
 
-<style scoped></style>
+<style scoped>
+.dept-row-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+</style>

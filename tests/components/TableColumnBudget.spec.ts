@@ -41,8 +41,8 @@ interface ParsedColumnMeta {
 }
 
 const ADMIN_WEB_ROOT = resolve(__dirname, '../..');
-// 菜单管理三按钮（新增/编辑/删除）行内渲染防截断最小列宽预算（px）
-const MENU_THREE_BUTTON_ACTION_MIN_WIDTH = 212;
+// 菜单/角色/部门管理三按钮行内渲染防截断最小列宽预算（px）
+const THREE_BUTTON_ACTION_MIN_WIDTH = 220;
 const wrappers: VueWrapper[] = [];
 
 function trackWrapper(wrapper: VueWrapper): VueWrapper {
@@ -192,7 +192,7 @@ describe('1440px table column width budgets & defaultHiddenColumns (#70)', () =>
     vi.restoreAllMocks();
   });
 
-  it('meets exact 1440px container width budgets, preserves storageKey & fixed="right", and bans type workarounds across all 6 views', () => {
+  it('meets exact 1440px container width budgets, preserves storageKey & fixed="right", and bans type workarounds across all 8 views', () => {
     const specs: Array<{
       path: string;
       storageKey: string;
@@ -202,6 +202,7 @@ describe('1440px table column width budgets & defaultHiddenColumns (#70)', () =>
       hiddenKeys: string[];
       expectFixedRight: boolean;
       expectedActionWidth?: number;
+      requireScopedButtonSpacingReset?: boolean;
     }> = [
       {
         path: 'src/views/system/config/index.vue',
@@ -258,6 +259,28 @@ describe('1440px table column width budgets & defaultHiddenColumns (#70)', () =>
         hiddenKeys: ['id', 'traceId', 'loginType'],
         expectFixedRight: false,
       },
+      {
+        path: 'src/views/system/role/index.vue',
+        storageKey: 'solid:table:sys-role',
+        budget: 1146,
+        expectedVisibleSum: 1101,
+        visibleCount: 8,
+        hiddenKeys: [],
+        expectFixedRight: true,
+        expectedActionWidth: 220,
+        requireScopedButtonSpacingReset: true,
+      },
+      {
+        path: 'src/views/system/dept/index.vue',
+        storageKey: 'solid:table:sys-dept',
+        budget: 1146,
+        expectedVisibleSum: 1104,
+        visibleCount: 7,
+        hiddenKeys: [],
+        expectFixedRight: true,
+        expectedActionWidth: 220,
+        requireScopedButtonSpacingReset: true,
+      },
     ];
 
     for (const spec of specs) {
@@ -280,8 +303,12 @@ describe('1440px table column width budgets & defaultHiddenColumns (#70)', () =>
       if (spec.expectedActionWidth !== undefined) {
         const actionColumn = columns.at(-1);
         expect(actionColumn?.key).toBe('操作');
-        expect(actionColumn?.width).toBeGreaterThanOrEqual(MENU_THREE_BUTTON_ACTION_MIN_WIDTH);
+        expect(actionColumn?.width).toBeGreaterThanOrEqual(THREE_BUTTON_ACTION_MIN_WIDTH);
         expect(actionColumn?.width).toBe(spec.expectedActionWidth);
+      }
+      if (spec.requireScopedButtonSpacingReset) {
+        expect(source).toMatch(/:deep\(\.el-button\s*\+\s*\.el-button\)\s*\{\s*margin-left:\s*0;?\s*\}/);
+        expect(source).not.toContain('!important');
       }
       if (spec.hiddenKeys.length > 0) {
         expect(source).toContain(':default-hidden-columns=');

@@ -308,14 +308,14 @@ async function handleSaved(): Promise<void> {
         </template>
       </el-table-column>
 
-      <el-table-column v-if="hasRowActions" label="操作" width="210" fixed="right" align="center">
+      <el-table-column v-if="hasRowActions" label="操作" width="220" fixed="right" align="center">
         <template #default="{ row }">
           <el-tooltip
             :content="ROLE_PROTECTED_TOOLTIP"
             :disabled="!isProtectedRole(asRoleRow(row))"
             placement="top"
           >
-            <div class="inline-flex items-center justify-center gap-1">
+            <div class="role-row-actions inline-flex items-center justify-center gap-2">
               <el-button
                 v-permission="'system:role:update'"
                 :data-testid="`role-edit-btn-${asRoleRow(row).id}`"
@@ -372,4 +372,8 @@ async function handleSaved(): Promise<void> {
   </section>
 </template>
 
-<style scoped></style>
+<style scoped>
+.role-row-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+</style>
