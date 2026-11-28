@@ -754,6 +754,7 @@ describe('Dept / Post / Menu views and helpers', () => {
     };
 
     const treeSpy = vi.spyOn(menuApi, 'getMenuTree').mockResolvedValue(menuTreeData);
+    vi.spyOn(authApi, 'getAuthRoutes').mockResolvedValue([]);
     const detailSpy = vi.spyOn(menuApi, 'getMenuDetail').mockResolvedValue(detailVO);
     const createSpy = vi.spyOn(menuApi, 'createMenu').mockResolvedValue('F_NEW');
     const deleteSpy = vi

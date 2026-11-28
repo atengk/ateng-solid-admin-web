@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import {
   ElButton,
   ElFormItem,
@@ -30,6 +31,7 @@ import {
 } from '@/composables/useListTableLayout';
 import { useTreeTableControls } from '@/composables/useTreeTableControls';
 import { useAuthStore } from '@/stores/auth';
+import { usePermissionStore } from '@/stores/permission';
 import { withDictPreload } from '@/utils/dict';
 import { isGlobalHandledHttpError, resolveErrorMessage } from '@/utils/http';
 import { resolveMenuIcon } from '@/utils/icon';
@@ -52,7 +54,9 @@ defineOptions({ name: 'SysMenu' });
 
 const STORAGE_KEY = 'solid:table:sys-menu';
 
+const router = useRouter();
 const authStore = useAuthStore();
+const permissionStore = usePermissionStore();
 const { tableAutoHeight, tableAutoHeightMode } = useListTableLayout();
 
 const query = reactive<MenuQuery>({
@@ -125,6 +129,21 @@ async function loadMenuTree(): Promise<void> {
   }
 }
 
+async function syncSidebarRoutes(): Promise<void> {
+  try {
+    await permissionStore.buildRoutes(router);
+  } catch (error) {
+    // 侧栏动态路由同步失败仅降级提示，不破坏主写操作成功反馈与当前菜单树停留态
+    if (!isGlobalHandledHttpError(error)) {
+      ElMessage.warning('菜单变更已生效，但侧边栏导航刷新失败，请稍后刷新页面');
+    }
+  }
+}
+
+async function refreshAfterMenuMutation(): Promise<void> {
+  await Promise.all([loadMenuTree(), syncSidebarRoutes()]);
+}
+
 function openCreateDrawer(parent?: MenuTreeVO): void {
   drawerMode.value = 'create';
   editingMenuId.value = undefined;
@@ -162,7 +181,7 @@ async function handleToggleStatus(row: MenuTreeVO): Promise<void> {
   try {
     await updateMenuStatus(row.id, nextStatus);
     ElMessage.success(`已${actionText}菜单【${row.title}】`);
-    await loadMenuTree();
+    await refreshAfterMenuMutation();
   } catch (error) {
     const message = resolveErrorMessage(error, `${actionText}菜单失败，请稍后重试`);
     if (!isGlobalHandledHttpError(error)) {
@@ -187,7 +206,7 @@ async function handleDelete(row: MenuTreeVO): Promise<void> {
   try {
     await deleteMenu(row.id);
     ElMessage.success(`已删除节点【${row.title}】`);
-    await loadMenuTree();
+    await refreshAfterMenuMutation();
   } catch (error) {
     const message = resolveErrorMessage(error, '删除菜单节点失败，请稍后重试');
     if (!isGlobalHandledHttpError(error)) {
@@ -280,7 +299,7 @@ onMounted(() => {
         </el-button>
       </template>
 
-      <el-table-column prop="title" label="名称" min-width="196" show-overflow-tooltip>
+      <el-table-column prop="title" label="名称" min-width="186" show-overflow-tooltip>
         <template #default="{ row }">
           <span class="inline-flex items-center gap-1.5">
             <el-icon
@@ -307,13 +326,13 @@ onMounted(() => {
         </template>
       </el-table-column>
 
-      <el-table-column prop="path" label="路由路径" min-width="136" show-overflow-tooltip>
+      <el-table-column prop="path" label="路由路径" min-width="126" show-overflow-tooltip>
         <template #default="{ row }">
           <span class="font-mono-data text-ink-secondary">{{ asMenuRow(row).path || '--' }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="component" label="组件标识" min-width="150" show-overflow-tooltip>
+      <el-table-column prop="component" label="组件标识" min-width="140" show-overflow-tooltip>
         <template #default="{ row }">
           <span v-if="asMenuRow(row).name || asMenuRow(row).component" class="font-mono-data">
             {{ asMenuRow(row).name ? `${asMenuRow(row).name} · ` : ''
@@ -323,7 +342,7 @@ onMounted(() => {
         </template>
       </el-table-column>
 
-      <el-table-column prop="perms" label="权限标识" min-width="150" show-overflow-tooltip>
+      <el-table-column prop="perms" label="权限标识" min-width="140" show-overflow-tooltip>
         <template #default="{ row }">
           <code v-if="asMenuRow(row).perms" class="font-mono-data text-xs text-ink">
             {{ asMenuRow(row).perms }}
@@ -364,7 +383,7 @@ onMounted(() => {
         </template>
       </el-table-column>
 
-      <el-table-column v-if="hasRowActions" label="操作" width="190" fixed="right" align="center">
+      <el-table-column v-if="hasRowActions" label="操作" width="220" fixed="right" align="center">
         <template #default="{ row }">
           <div class="inline-flex items-center justify-center gap-1">
             <el-button
@@ -414,7 +433,7 @@ onMounted(() => {
       :menu-id="editingMenuId"
       :initial-parent-id="initialParentId"
       :initial-menu-type="initialMenuType"
-      @saved="loadMenuTree"
+      @saved="refreshAfterMenuMutation"
     />
   </section>
 </template>

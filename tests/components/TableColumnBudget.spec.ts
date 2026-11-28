@@ -41,6 +41,8 @@ interface ParsedColumnMeta {
 }
 
 const ADMIN_WEB_ROOT = resolve(__dirname, '../..');
+// 菜单管理三按钮（新增/编辑/删除）行内渲染防截断最小列宽预算（px）
+const MENU_THREE_BUTTON_ACTION_MIN_WIDTH = 212;
 const wrappers: VueWrapper[] = [];
 
 function trackWrapper(wrapper: VueWrapper): VueWrapper {
@@ -199,6 +201,7 @@ describe('1440px table column width budgets & defaultHiddenColumns (#70)', () =>
       visibleCount: number;
       hiddenKeys: string[];
       expectFixedRight: boolean;
+      expectedActionWidth?: number;
     }> = [
       {
         path: 'src/views/system/config/index.vue',
@@ -213,10 +216,11 @@ describe('1440px table column width budgets & defaultHiddenColumns (#70)', () =>
         path: 'src/views/system/menu/index.vue',
         storageKey: 'solid:table:sys-menu',
         budget: 1146,
-        expectedVisibleSum: 1122,
+        expectedVisibleSum: 1112,
         visibleCount: 9,
         hiddenKeys: [],
         expectFixedRight: true,
+        expectedActionWidth: 220,
       },
       {
         path: 'src/views/system/tenant/index.vue',
@@ -272,6 +276,12 @@ describe('1440px table column width budgets & defaultHiddenColumns (#70)', () =>
 
       if (spec.expectFixedRight) {
         expect(columns.at(-1)?.hasFixedRight).toBe(true);
+      }
+      if (spec.expectedActionWidth !== undefined) {
+        const actionColumn = columns.at(-1);
+        expect(actionColumn?.key).toBe('操作');
+        expect(actionColumn?.width).toBeGreaterThanOrEqual(MENU_THREE_BUTTON_ACTION_MIN_WIDTH);
+        expect(actionColumn?.width).toBe(spec.expectedActionWidth);
       }
       if (spec.hiddenKeys.length > 0) {
         expect(source).toContain(':default-hidden-columns=');
